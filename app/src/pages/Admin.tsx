@@ -26,17 +26,40 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="admin-page">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        @media (max-width: 860px) {
+          .admin-page { flex-direction: column !important; }
+          .admin-sidebar {
+            width: 100% !important;
+            height: auto !important;
+            position: static !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(197,138,74,.18) !important;
+            padding: 1.2rem !important;
+          }
+          .admin-nav {
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            gap: 0.4rem !important;
+            padding-bottom: 0.4rem !important;
+          }
+          .admin-nav button { white-space: nowrap !important; }
+          .admin-main {
+            padding: 1.4rem 1.2rem !important;
+            max-width: 100% !important;
+          }
+        }
       `}</style>
 
       {/* ===== SIDEBAR ===== */}
-      <aside style={styles.sidebar}>
+      <aside style={styles.sidebar} className="admin-sidebar">
         <div style={styles.logo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
         <div style={styles.logoSub}>PAINEL ADMINISTRATIVO</div>
 
-        <nav style={styles.nav}>
+        <nav style={styles.nav} className="admin-nav">
           {([
             ["overview", "📊", "Visão Geral"],
             ["leads", "🎯", "Leads"],
@@ -58,7 +81,7 @@ export default function AdminDashboard() {
       </aside>
 
       {/* ===== MAIN ===== */}
-      <main style={styles.main}>
+      <main style={styles.main} className="admin-main">
         {tab === "overview" && <Overview />}
         {tab === "leads" && <Leads />}
         {tab === "alunos" && <Alunos />}
@@ -712,9 +735,9 @@ const styles: Record<string, React.CSSProperties> = {
   statLabel: { fontFamily: "'Space Mono',monospace", fontSize: "0.62rem", letterSpacing: "0.08em", color: "#9d9384" },
   statValue: { fontFamily: "'Playfair Display',serif", fontSize: "1.9rem", color: GOLD, marginTop: "0.4rem" },
 
-  tableCard: { border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, overflow: "hidden", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
+  tableCard: { border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, overflow: "hidden", background: "linear-gradient(160deg,#0d0d0d,#050505)", overflowX: "auto" },
   bolsaCard: { border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, padding: "1.2rem 1.4rem", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
-  table: { width: "100%", borderCollapse: "collapse" },
+  table: { width: "100%", borderCollapse: "collapse", minWidth: 560 },
   th: { textAlign: "left", fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.06em", color: "#9d9384", padding: "0.9rem 1.2rem", borderBottom: "1px solid rgba(197,138,74,.18)" },
   tr: { borderBottom: "1px solid rgba(197,138,74,.08)" },
   td: { padding: "0.85rem 1.2rem" },
