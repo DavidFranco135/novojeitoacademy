@@ -20,7 +20,7 @@ import { auth } from "../firebase";
  */
 
 const GOLD = "#C58A4A";
-const ACTION_URL = "https://app.novojeitoacademy.com.br/login"; // troque pelo domínio real do app
+const ACTION_URL = "https://novojeitoapp.pages.dev/login";
 
 export default function Login() {
   const [email, setEmail] = useState("");
