@@ -9,6 +9,19 @@ import * as admin from "firebase-admin";
 
 const db = admin.firestore();
 
+async function verificarAdmin(req: any): Promise<boolean> {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return false;
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    const adminDoc = await db.collection("admins").doc(decoded.uid).get();
+    return adminDoc.exists;
+  } catch {
+    return false;
+  }
+}
+
 export const applyScholarship = onRequest({ cors: true }, async (req, res) => {
   try {
     const { nome, whatsapp, idade, profissao, motivo } = req.body;
@@ -42,6 +55,59 @@ export const listScholarshipApplications = onRequest({ cors: true }, async (req,
     res.status(200).json({ applications });
   } catch (err) {
     console.error("listScholarshipApplications error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Conceder a bolsa: cria a matrícula já com acesso liberado, sem pagamento.
+// Precisa de e-mail e CPF (a candidatura só coletou nome/whatsapp) — o admin
+// pede esses dois dados direto com a pessoa antes de conceder.
+// ============================================================
+export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { applicationId, email, cpf } = req.body;
+    if (!applicationId || !email || !cpf) {
+      res.status(400).json({ error: "applicationId, email e cpf são obrigatórios" });
+      return;
+    }
+
+    const appSnap = await db.collection("scholarshipApplications").doc(applicationId).get();
+    if (!appSnap.exists) {
+      res.status(404).json({ error: "Candidatura não encontrada" });
+      return;
+    }
+    const application = appSnap.data()!;
+
+    // cria a matrícula já com acesso liberado (sem cobrança — é a bolsa)
+    const enrollmentRef = await db.collection("enrollments").add({
+      nome: application.nome,
+      email,
+      telefone: application.whatsapp,
+      cpf,
+      status: "acesso_liberado",
+      isBolsa: true,
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // cria o login do aluno (mesmo padrão usado após pagamento aprovado)
+    try {
+      await admin.auth().createUser({ email, displayName: application.nome });
+    } catch (e: any) {
+      if (e.code !== "auth/email-already-exists") throw e;
+    }
+
+    await db.collection("scholarshipApplications").doc(applicationId).update({ status: "selecionado" });
+
+    res.status(200).json({ enrollmentId: enrollmentRef.id });
+  } catch (err) {
+    console.error("grantScholarship error:", err);
     res.status(500).json({ error: "Erro interno" });
   }
 });
