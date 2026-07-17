@@ -42,11 +42,15 @@ export default function AdminDashboard() {
           }
           .admin-nav {
             flex-direction: row !important;
-            overflow-x: auto !important;
-            gap: 0.4rem !important;
-            padding-bottom: 0.4rem !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
           }
-          .admin-nav button { white-space: nowrap !important; }
+          .admin-nav button {
+            white-space: nowrap !important;
+            flex: 0 0 auto !important;
+            padding: 0.55rem 0.7rem !important;
+            font-size: 0.78rem !important;
+          }
           .admin-main {
             padding: 1.4rem 1.2rem !important;
             max-width: 100% !important;
@@ -225,14 +229,19 @@ function Turmas() {
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [attendeesFor, setAttendeesFor] = useState<string | null>(null);
-  const [attendees, setAttendees] = useState<any[]>([]);
+  const [encontrosForm, setEncontrosForm] = useState([{ topico: "", data: "", horario: "", local: "" }]);
+  const [nomeTurma, setNomeTurma] = useState("");
+  const [vagasTurma, setVagasTurma] = useState(10);
+  const [showForm, setShowForm] = useState(false);
+  const [attendanceFor, setAttendanceFor] = useState<string | null>(null);
+  const [attendanceEncontros, setAttendanceEncontros] = useState<any[]>([]);
+  const [attendanceAlunos, setAttendanceAlunos] = useState<any[]>([]);
 
   function loadTurmas() {
     setLoading(true);
-    authedFetch("listPresencialSessions?all=1")
+    authedFetch("listTurmas?all=1")
       .then((r) => r.json())
-      .then((data) => setTurmas(data.sessions || []))
+      .then((data) => setTurmas(data.turmas || []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }
@@ -241,24 +250,36 @@ function Turmas() {
     loadTurmas();
   }, []);
 
+  function addEncontroRow() {
+    setEncontrosForm((prev) => [...prev, { topico: "", data: "", horario: "", local: "" }]);
+  }
+
+  function updateEncontro(idx: number, field: string, value: string) {
+    setEncontrosForm((prev) => prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e)));
+  }
+
+  function removeEncontro(idx: number) {
+    setEncontrosForm((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   async function handleCriarTurma() {
-    const date = window.prompt("Data da turma (AAAA-MM-DD):");
-    if (!date) return;
-    const time = window.prompt("Horário (ex: 09:00):");
-    if (!time) return;
-    const location = window.prompt("Local:");
-    if (!location) return;
-    const vagas = parseInt(window.prompt("Número de vagas:") || "0", 10);
-    if (!vagas) return;
+    if (!nomeTurma || !vagasTurma || encontrosForm.some((e) => !e.topico || !e.data || !e.horario || !e.local)) {
+      alert("Preencha o nome, as vagas e todos os campos de cada encontro.");
+      return;
+    }
 
     setCreating(true);
     try {
-      const res = await authedFetch("createPresencialSession", {
+      const res = await authedFetch("createTurma", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time, location, vagas }),
+        body: JSON.stringify({ nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm }),
       });
       if (!res.ok) throw new Error();
+      setNomeTurma("");
+      setVagasTurma(10);
+      setEncontrosForm([{ topico: "", data: "", horario: "", local: "" }]);
+      setShowForm(false);
       loadTurmas();
     } catch {
       alert("Não foi possível criar a turma.");
@@ -267,25 +288,56 @@ function Turmas() {
     }
   }
 
-  async function verLista(sessionId: string) {
-    setAttendeesFor(sessionId);
-    setAttendees([]);
+  async function verPresenca(turma: any) {
+    setAttendanceFor(turma.id);
+    setAttendanceEncontros(turma.encontros || []);
+    setAttendanceAlunos([]);
     try {
-      const res = await authedFetch(`listSessionAttendees?sessionId=${sessionId}`);
+      const res = await authedFetch(`listTurmaAttendance?turmaId=${turma.id}`);
       const data = await res.json();
-      setAttendees(data.attendees || []);
+      setAttendanceAlunos(data.alunos || []);
     } catch {
-      setAttendees([]);
+      setAttendanceAlunos([]);
     }
   }
 
   return (
     <div>
-      <PageHeader eyebrow="PRESENCIAL" title="Turmas Presenciais" subtitle="Datas marcadas, vagas ocupadas e confirmação de presença." />
+      <PageHeader eyebrow="PRESENCIAL" title="Turmas Presenciais" subtitle="Turmas com grade completa de encontros — cada um com seu próprio assunto e data." />
 
-      <button style={styles.btnPrimary} onClick={handleCriarTurma} disabled={creating}>
-        {creating ? "Criando..." : "+ Criar nova turma"}
+      <button style={styles.btnPrimary} onClick={() => setShowForm(!showForm)}>
+        {showForm ? "Cancelar" : "+ Criar nova turma"}
       </button>
+
+      {showForm && (
+        <div style={{ ...styles.bolsaCard, marginTop: "1rem" }}>
+          <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" }}>Nome da turma</label>
+          <input value={nomeTurma} onChange={(e) => setNomeTurma(e.target.value)} placeholder="Ex: Turma Agosto/2026" style={inputStyle} />
+
+          <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, margin: "0.9rem 0 0.35rem" }}>Número de vagas</label>
+          <input type="number" value={vagasTurma} onChange={(e) => setVagasTurma(parseInt(e.target.value) || 0)} style={inputStyle} />
+
+          <div style={{ marginTop: "1.2rem", fontSize: "0.75rem", color: GOLD }}>Grade de encontros</div>
+          {encontrosForm.map((enc, idx) => (
+            <div key={idx} style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+              <input placeholder="Assunto" value={enc.topico} onChange={(e) => updateEncontro(idx, "topico", e.target.value)} style={{ ...inputStyle, flex: 2, minWidth: 140 }} />
+              <input type="date" value={enc.data} onChange={(e) => updateEncontro(idx, "data", e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 130 }} />
+              <input placeholder="Horário" value={enc.horario} onChange={(e) => updateEncontro(idx, "horario", e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 90 }} />
+              <input placeholder="Local" value={enc.local} onChange={(e) => updateEncontro(idx, "local", e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 120 }} />
+              {encontrosForm.length > 1 && (
+                <button onClick={() => removeEncontro(idx)} style={{ ...styles.linkBtn, color: "#e8746a" }}>✕</button>
+              )}
+            </div>
+          ))}
+          <button onClick={addEncontroRow} style={{ ...styles.linkBtn, marginTop: "0.8rem" }}>+ Adicionar outro encontro</button>
+
+          <div style={{ marginTop: "1.4rem" }}>
+            <button style={styles.btnPrimary} onClick={handleCriarTurma} disabled={creating}>
+              {creating ? "Criando..." : "Salvar turma"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: "1.4rem" }}>
         {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
@@ -295,17 +347,16 @@ function Turmas() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <Th>Data</Th><Th>Horário</Th><Th>Local</Th><Th>Vagas</Th><Th></Th>
+                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th>
                 </tr>
               </thead>
               <tbody>
                 {turmas.map((t) => (
                   <tr key={t.id} style={styles.tr}>
-                    <Td mono>{t.date}</Td>
-                    <Td mono>{t.time}</Td>
-                    <Td>{t.location}</Td>
+                    <Td>{t.nome}</Td>
+                    <Td mono>{t.encontros?.length || 0}</Td>
                     <Td mono>{t.vagasOcupadas}/{t.vagasTotal}</Td>
-                    <Td><button style={styles.linkBtn} onClick={() => verLista(t.id)}>Ver lista →</button></Td>
+                    <Td><button style={styles.linkBtn} onClick={() => verPresenca(t)}>Ver presença →</button></Td>
                   </tr>
                 ))}
               </tbody>
@@ -314,22 +365,42 @@ function Turmas() {
         )}
       </div>
 
-      {attendeesFor && (
+      {attendanceFor && (
         <div style={{ marginTop: "1.6rem" }}>
-          <SectionLabel>INSCRITOS NESSA TURMA</SectionLabel>
-          {attendees.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Ninguém reservou vaga nessa turma ainda.</p>}
-          {attendees.map((a, i) => (
-            <div key={i} style={{ ...styles.activityRow }}>
-              <span style={{ fontSize: "0.85rem" }}>{a.nome}</span>
-              <StatusBadge status={a.status === "presente" ? "Pago" : a.status === "reservado" ? "Pendente" : a.status} />
+          <SectionLabel>PRESENÇA POR ENCONTRO</SectionLabel>
+          {attendanceAlunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Ninguém matriculado nessa turma ainda.</p>}
+          {attendanceAlunos.length > 0 && (
+            <div style={styles.tableCard}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <Th>Aluno</Th>
+                    {attendanceEncontros.map((e, i) => (
+                      <Th key={i}>{e.topico}</Th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendanceAlunos.map((a, i) => (
+                    <tr key={i} style={styles.tr}>
+                      <Td>{a.nome}</Td>
+                      {attendanceEncontros.map((e, j) => (
+                        <Td key={j} mono>{a.presencas?.[e.data] ? "✓" : "-"}</Td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
+          )}
         </div>
       )}
-      {/* API real: listPresencialSessions?all=1 · createPresencialSession · listSessionAttendees */}
+      {/* API real: listTurmas?all=1 · createTurma · listTurmaAttendance */}
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = { background: "#111", border: "1px solid rgba(197,138,74,.25)", borderRadius: 3, padding: "0.6rem 0.8rem", color: "#F5F0E8", fontSize: "0.82rem", fontFamily: "inherit" };
 
 // ============================================================
 function Bolsas() {
