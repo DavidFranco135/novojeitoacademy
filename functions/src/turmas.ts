@@ -108,17 +108,21 @@ export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, as
     }
 
     const turmaRef = db.collection("turmas").doc(turmaId);
+    const bookingRef = db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`);
 
     await db.runTransaction(async (tx) => {
-      const turmaDoc = await tx.get(turmaRef);
+      const [turmaDoc, bookingDoc] = await Promise.all([tx.get(turmaRef), tx.get(bookingRef)]);
       if (!turmaDoc.exists) throw new Error("Turma não encontrada");
-      const turma = turmaDoc.data()!;
 
+      // já estava matriculado nessa turma — não conta vaga de novo
+      if (bookingDoc.exists) return;
+
+      const turma = turmaDoc.data()!;
       if (turma.vagasOcupadas >= turma.vagasTotal) throw new Error("Turma sem vagas disponíveis");
 
       tx.update(turmaRef, { vagasOcupadas: turma.vagasOcupadas + 1 });
 
-      tx.set(db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`), {
+      tx.set(bookingRef, {
         enrollmentId,
         turmaId,
         presencas: {}, // preenchido conforme os check-ins acontecem: { "2026-08-15": true }
@@ -133,6 +137,66 @@ export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, as
   } catch (err: any) {
     console.error("joinTurma error:", err);
     res.status(400).json({ error: err.message || "Erro ao matricular na turma" });
+  }
+});
+
+// ============================================================
+// Busca a turma em que o ALUNO LOGADO já está matriculado (se houver),
+// com a grade completa + o QR reconstruído — pra ele ver isso a qualquer
+// momento, sem precisar se matricular de novo.
+// ============================================================
+export const getMyTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+      res.status(403).json({ error: "Não autenticado" });
+      return;
+    }
+
+    const decoded = await admin.auth().verifyIdToken(token);
+    if (!decoded.email) {
+      res.status(403).json({ error: "Não autenticado" });
+      return;
+    }
+
+    const enrollmentSnap = await db
+      .collection("enrollments")
+      .where("email", "==", decoded.email)
+      .where("status", "==", "acesso_liberado")
+      .limit(1)
+      .get();
+
+    if (enrollmentSnap.empty) {
+      res.status(200).json({ turma: null });
+      return;
+    }
+    const enrollmentId = enrollmentSnap.docs[0].id;
+
+    const bookingsSnap = await db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).limit(1).get();
+    if (bookingsSnap.empty) {
+      res.status(200).json({ turma: null, enrollmentId });
+      return;
+    }
+
+    const booking = bookingsSnap.docs[0].data();
+    const turmaSnap = await db.collection("turmas").doc(booking.turmaId).get();
+    if (!turmaSnap.exists) {
+      res.status(200).json({ turma: null, enrollmentId });
+      return;
+    }
+
+    const checkinUrl = `https://us-central1-barbearia-do-ico.cloudfunctions.net/confirmCheckinTurma/${generateToken(enrollmentId, booking.turmaId)}`;
+
+    res.status(200).json({
+      enrollmentId,
+      turma: { id: turmaSnap.id, ...turmaSnap.data() },
+      presencas: booking.presencas || {},
+      checkinUrl,
+    });
+  } catch (err) {
+    console.error("getMyTurma error:", err);
+    res.status(500).json({ error: "Erro interno" });
   }
 });
 
