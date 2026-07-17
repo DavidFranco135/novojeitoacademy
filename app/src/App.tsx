@@ -5,17 +5,19 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import PresencialBooking from "./pages/PresencialBooking";
+import MatriculaResultado from "./pages/MatriculaResultado";
 import AuthGuard from "./components/AuthGuard";
 
 /**
  * Rotas do app — Novo Jeito Academy
  *
- * /matricula        -> fluxo de cadastro + contrato + pagamento (público)
- * /login            -> login do ALUNO, sem senha (link mágico por e-mail)
- * /admin-login      -> login da EQUIPE INTERNA, e-mail + senha tradicional
- * /aluno            -> área do aluno (protegida por login)
- * /aluno/presencial -> agendamento de turma presencial + QR de check-in (protegida por login)
- * /admin            -> painel administrativo (protegida por login + estar na coleção "admins" do Firestore)
+ * /matricula                 -> fluxo de cadastro + contrato + pagamento (público)
+ * /matricula/:status         -> retorno do Mercado Pago (sucesso/erro/pendente)
+ * /login                     -> login do ALUNO, sem senha (link mágico por e-mail)
+ * /admin-login                -> login da EQUIPE INTERNA, e-mail + senha tradicional
+ * /aluno                     -> área do aluno (protegida por login)
+ * /aluno/presencial          -> agendamento de turma presencial + QR de check-in (protegida por login)
+ * /admin                     -> painel administrativo (protegida por login + estar na coleção "admins" do Firestore)
  */
 
 export default function App() {
@@ -24,6 +26,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/matricula" replace />} />
         <Route path="/matricula" element={<Matricula />} />
+        <Route path="/matricula/:status" element={<MatriculaResultado />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />
 
