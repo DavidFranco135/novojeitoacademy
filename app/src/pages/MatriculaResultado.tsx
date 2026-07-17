@@ -38,9 +38,16 @@ export default function MatriculaResultado() {
   const isSuccess = status === "sucesso";
   const isError = status === "erro";
 
+  const cornerColor = isSuccess ? "#78c88c" : isError ? "#e8746a" : GOLD;
+
   return (
     <div style={styles.page}>
+      <div style={styles.gridBg}></div>
       <div style={styles.card}>
+        <div style={{ ...styles.corner_tl, borderColor: cornerColor }}></div>
+        <div style={{ ...styles.corner_tr, borderColor: cornerColor }}></div>
+        <div style={{ ...styles.corner_bl, borderColor: cornerColor }}></div>
+        <div style={{ ...styles.corner_br, borderColor: cornerColor }}></div>
         <div style={{ ...styles.icon, color: isSuccess ? "#78c88c" : isError ? "#e8746a" : GOLD, borderColor: isSuccess ? "#78c88c" : isError ? "#e8746a" : GOLD }}>
           {info.icon}
         </div>
@@ -72,8 +79,13 @@ export default function MatriculaResultado() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
-  card: { border: "1px solid rgba(197,138,74,.22)", borderRadius: 8, padding: "3rem 2.4rem", maxWidth: 440, width: "100%", textAlign: "center", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
+  page: { position: "relative", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", overflow: "hidden" },
+  gridBg: { position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(197,138,74,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.05) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(ellipse 60% 50% at 50% 40%,black 10%,transparent 75%)", pointerEvents: "none" },
+  card: { position: "relative", border: "1px solid rgba(197,138,74,.22)", borderRadius: 8, padding: "3rem 2.4rem", maxWidth: 440, width: "100%", textAlign: "center", background: "linear-gradient(160deg,#0d0d0d,#050505)", zIndex: 1 },
+  corner_tl: { position: "absolute", top: 10, left: 10, width: 16, height: 16, borderTop: "1px solid", borderLeft: "1px solid" },
+  corner_tr: { position: "absolute", top: 10, right: 10, width: 16, height: 16, borderTop: "1px solid", borderRight: "1px solid" },
+  corner_bl: { position: "absolute", bottom: 10, left: 10, width: 16, height: 16, borderBottom: "1px solid", borderLeft: "1px solid" },
+  corner_br: { position: "absolute", bottom: 10, right: 10, width: 16, height: 16, borderBottom: "1px solid", borderRight: "1px solid" },
   icon: { width: 64, height: 64, borderRadius: "50%", border: "1px solid", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", margin: "0 auto 1.6rem" },
   title: { fontFamily: "'Playfair Display',serif", fontSize: "1.5rem", marginBottom: "0.8rem" },
   text: { fontSize: "0.9rem", color: "#9d9384", lineHeight: 1.7, marginBottom: "2rem" },
