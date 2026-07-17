@@ -67,6 +67,7 @@ export default function StudentDashboard() {
   const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
   const [generatingCert, setGeneratingCert] = useState(false);
+  const [certPendingReason, setCertPendingReason] = useState<string | null>(null);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
@@ -99,6 +100,18 @@ export default function StudentDashboard() {
               lessons: m.lessons.map((l) => ({ ...l, completed: completedIds.includes(l.id) })),
             }))
           );
+
+          // se os vídeos já estavam 100% mas o certificado ainda não saiu, descobre o motivo
+          if (data.percent === 100 && !data.certificateUrl && data.enrollmentId) {
+            const certRes = await fetch(`${FUNCTIONS_BASE}/generateCertificate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ enrollmentId: data.enrollmentId }),
+            });
+            const certData = await certRes.json();
+            if (certRes.ok) setCertificateUrl(certData.certificateUrl);
+            else setCertPendingReason(certData.reason || certData.error || "Requisito pendente");
+          }
         }
       } catch (e) {
         console.error("Falha ao carregar progresso", e);
@@ -129,7 +142,8 @@ export default function StudentDashboard() {
       });
       const data = await res.json();
 
-      // se acabou de bater 100%, já dispara a geração do certificado
+      // se acabou de bater 100%, já tenta liberar o certificado
+      // (só emite de verdade se a presença na turma presencial também estiver completa)
       if (data.percent === 100 && enrollmentId && !certificateUrl) {
         setGeneratingCert(true);
         const certRes = await fetch(`${FUNCTIONS_BASE}/generateCertificate`, {
@@ -138,7 +152,12 @@ export default function StudentDashboard() {
           body: JSON.stringify({ enrollmentId }),
         });
         const certData = await certRes.json();
-        if (certRes.ok) setCertificateUrl(certData.certificateUrl);
+        if (certRes.ok) {
+          setCertificateUrl(certData.certificateUrl);
+          setCertPendingReason(null);
+        } else {
+          setCertPendingReason(certData.reason || certData.error || "Requisito pendente");
+        }
         setGeneratingCert(false);
       }
     } catch (e) {
@@ -239,8 +258,12 @@ export default function StudentDashboard() {
             🎓 Baixar certificado
           </a>
         ) : (
-          <button style={{ ...styles.certificateBtn, opacity: 0.4, cursor: "default" }} disabled>
-            {generatingCert ? "Gerando certificado..." : isComplete ? "Gerando certificado..." : "🔒 Certificado (conclua o curso)"}
+          <button style={{ ...styles.certificateBtn, opacity: 0.4, cursor: "default", fontSize: certPendingReason ? "0.72rem" : "0.8rem" }} disabled>
+            {generatingCert
+              ? "Verificando..."
+              : isComplete && certPendingReason
+              ? `🔒 ${certPendingReason}`
+              : "🔒 Certificado (conclua o curso)"}
           </button>
         )}
       </aside>
