@@ -253,6 +253,10 @@ export default function StudentDashboard() {
           ))}
         </nav>
 
+        <a href="/aluno/presencial" style={{ ...styles.certificateBtn, textDecoration: "none", display: "block", textAlign: "center", marginTop: 0, marginBottom: "0.8rem" }}>
+          📍 Turma Presencial
+        </a>
+
         {isComplete && certificateUrl ? (
           <a href={certificateUrl} target="_blank" rel="noreferrer" style={{ ...styles.certificateBtn, textDecoration: "none", display: "block", textAlign: "center" }}>
             🎓 Baixar certificado
