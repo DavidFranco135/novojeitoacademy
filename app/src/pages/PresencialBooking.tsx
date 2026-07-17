@@ -8,6 +8,9 @@ import { useState, useEffect } from "react";
 
 const GOLD = "#C58A4A";
 
+// Base real das Firebase Functions (projeto: barbearia-do-ico)
+const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
+
 interface PresencialSession {
   id: string;
   date: string;
@@ -25,7 +28,7 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/listPresencialSessions")
+    fetch(`${FUNCTIONS_BASE}/listPresencialSessions`)
       .then((r) => r.json())
       .then((data) => setSessions(data.sessions || []))
       .catch(() => setError("Não foi possível carregar as turmas disponíveis."))
@@ -36,7 +39,7 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
     setBooking(true);
     setError("");
     try {
-      const res = await fetch("/api/bookPresencialSession", {
+      const res = await fetch(`${FUNCTIONS_BASE}/bookPresencialSession`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enrollmentId, sessionId }),
