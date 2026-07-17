@@ -5,6 +5,7 @@
 
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { generateCertificateForEnrollment } from "./certificate";
 
 const db = admin.firestore();
 const COURSE_PRICE = 497.0;
@@ -30,7 +31,8 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const snap = await db.collection("enrollments").where("status", "==", "acesso_liberado").get();
+    // mostra tanto os com acesso liberado quanto os bloqueados (pra poder desbloquear)
+    const snap = await db.collection("enrollments").where("status", "in", ["acesso_liberado", "bloqueado"]).get();
 
     const students = await Promise.all(
       snap.docs.map(async (doc) => {
@@ -41,9 +43,13 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           id: doc.id,
           nome: data.nome,
           email: data.email,
-          pagamento: "Pago",
+          pagamento: data.status === "bloqueado" ? "Bloqueado" : "Pago",
+          bloqueado: data.status === "bloqueado",
+          bloqueioMotivo: data.bloqueioMotivo || null,
           progresso: percent,
           matricula: data.paidAt ? data.paidAt.toDate().toLocaleDateString("pt-BR") : "-",
+          contractUrl: data.contractUrl || null,
+          certificateUrl: data.certificateUrl || null,
         };
       })
     );
@@ -124,6 +130,144 @@ export const getOverviewStats = onRequest({ cors: true }, async (req, res) => {
     });
   } catch (err) {
     console.error("getOverviewStats error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Bloquear / desbloquear o acesso de um aluno específico
+// ============================================================
+export const toggleStudentAccess = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId, blocked } = req.body;
+    if (!enrollmentId || typeof blocked !== "boolean") {
+      res.status(400).json({ error: "enrollmentId e blocked são obrigatórios" });
+      return;
+    }
+
+    await db.collection("enrollments").doc(enrollmentId).update({
+      status: blocked ? "bloqueado" : "acesso_liberado",
+      bloqueioMotivo: blocked ? "Bloqueado manualmente pelo admin" : admin.firestore.FieldValue.delete(),
+    });
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("toggleStudentAccess error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Gera (se precisar) e retorna o link do certificado, pra admin copiar e mandar por WhatsApp
+// ============================================================
+export const resendCertificate = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    let certificateUrl = enrollment.certificateUrl;
+    if (!certificateUrl) {
+      const result = await generateCertificateForEnrollment(enrollmentId);
+      if ("error" in result) {
+        res.status(403).json({ error: `Certificado ainda não pode ser emitido: ${result.error}` });
+        return;
+      }
+      certificateUrl = result.certificateUrl;
+    }
+
+    res.status(200).json({ ok: true, certificateUrl });
+  } catch (err) {
+    console.error("resendCertificate error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Retorna o link do contrato assinado, pra admin copiar e mandar por WhatsApp
+// ============================================================
+export const resendContract = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    if (!enrollment.contractUrl) {
+      res.status(404).json({ error: "Esse aluno ainda não tem contrato assinado" });
+      return;
+    }
+
+    res.status(200).json({ ok: true, contractUrl: enrollment.contractUrl });
+  } catch (err) {
+    console.error("resendContract error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Gera o link mágico de login, pra admin copiar e mandar por WhatsApp
+// ============================================================
+export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    const loginLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
+      url: "https://novojeitoapp.pages.dev/login",
+      handleCodeInApp: true,
+    });
+
+    res.status(200).json({ ok: true, loginLink });
+  } catch (err) {
+    console.error("resendAccessEmail error:", err);
     res.status(500).json({ error: "Erro interno" });
   }
 });
