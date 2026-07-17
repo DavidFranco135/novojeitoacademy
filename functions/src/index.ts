@@ -9,12 +9,12 @@ admin.initializeApp();
 export { createEnrollment, signContract, createPaymentPreference, mercadopagoWebhook } from "./enrollment";
 export { generateCertificate } from "./certificate";
 export {
-  createPresencialSession,
-  listPresencialSessions,
-  bookPresencialSession,
-  confirmCheckin,
-  listSessionAttendees,
-} from "./presencial";
+  createTurma,
+  listTurmas,
+  joinTurma,
+  confirmCheckinTurma,
+  listTurmaAttendance,
+} from "./turmas";
 export { uploadImage } from "./imgbb";
 export { applyScholarship, listScholarshipApplications } from "./scholarship";
 export { getSiteContent, updateSiteContent } from "./siteContent";
