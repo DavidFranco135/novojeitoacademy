@@ -294,6 +294,66 @@ export const listTurmaAttendance = onRequest({ cors: true }, async (req, res) =>
 });
 
 // ============================================================
+// Admin atribui manualmente um aluno a uma turma (ou troca de turma)
+// ============================================================
+export const adminAssignTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId, turmaId } = req.body;
+    if (!enrollmentId || !turmaId) {
+      res.status(400).json({ error: "Dados incompletos" });
+      return;
+    }
+
+    const newTurmaRef = db.collection("turmas").doc(turmaId);
+    const newBookingRef = db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`);
+
+    // se o aluno já estava em outra turma, remove de lá primeiro (libera a vaga antiga)
+    const existingBookingsSnap = await db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).get();
+
+    await db.runTransaction(async (tx) => {
+      // remove de qualquer turma anterior
+      for (const oldBookingDoc of existingBookingsSnap.docs) {
+        if (oldBookingDoc.id === newBookingRef.id) continue; // já está nessa mesma turma
+        const oldBooking = oldBookingDoc.data();
+        const oldTurmaRef = db.collection("turmas").doc(oldBooking.turmaId);
+        const oldTurmaDoc = await tx.get(oldTurmaRef);
+        if (oldTurmaDoc.exists) {
+          tx.update(oldTurmaRef, { vagasOcupadas: Math.max(0, oldTurmaDoc.data()!.vagasOcupadas - 1) });
+        }
+        tx.delete(db.collection("turmaBookings").doc(oldBookingDoc.id));
+      }
+
+      const newBookingDoc = await tx.get(newBookingRef);
+      if (newBookingDoc.exists) return; // já está matriculado nessa turma exata, nada a fazer
+
+      const newTurmaDoc = await tx.get(newTurmaRef);
+      if (!newTurmaDoc.exists) throw new Error("Turma não encontrada");
+      const newTurma = newTurmaDoc.data()!;
+      if (newTurma.vagasOcupadas >= newTurma.vagasTotal) throw new Error("Turma sem vagas disponíveis");
+
+      tx.update(newTurmaRef, { vagasOcupadas: newTurma.vagasOcupadas + 1 });
+      tx.set(newBookingRef, {
+        enrollmentId,
+        turmaId,
+        presencas: {},
+        bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+        atribuidoPeloAdmin: true,
+      });
+    });
+
+    res.status(200).json({ ok: true });
+  } catch (err: any) {
+    console.error("adminAssignTurma error:", err);
+    res.status(400).json({ error: err.message || "Erro ao atribuir turma" });
+  }
+});
+
+// ============================================================
 function generateToken(enrollmentId: string, turmaId: string): string {
   const payload = `${enrollmentId}:${turmaId}`;
   const signature = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(payload).digest("hex").slice(0, 16);
