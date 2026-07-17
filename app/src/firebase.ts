@@ -7,12 +7,12 @@ import { getFirestore } from "firebase/firestore";
  * (Console Firebase → Configurações do projeto → Seus apps → SDK setup)
  */
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEUPROJETO.firebaseapp.com",
-  projectId: "SEUPROJETO",
-  storageBucket: "SEUPROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID",
+  apiKey: "AIzaSyCSr9NKZBjPCCmfHjFSRE8BUlVgy0uWlOg",
+  authDomain: "barbearia-do-ico.firebaseapp.com",
+  projectId: "barbearia-do-ico",
+  storageBucket: "barbearia-do-ico.firebasestorage.app",
+  messagingSenderId: "29235892183",
+  appId: "1:29235892183:web:598faa7d82b688ee8d0592",
 };
 
 export const app = initializeApp(firebaseConfig);
