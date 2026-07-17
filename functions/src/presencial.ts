@@ -23,11 +23,29 @@ const db = admin.firestore();
 //   firebase functions:secrets:set CHECKIN_SECRET
 const CHECKIN_SECRET = defineSecret("CHECKIN_SECRET");
 
+async function verificarAdmin(req: any): Promise<boolean> {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return false;
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    const adminDoc = await db.collection("admins").doc(decoded.uid).get();
+    return adminDoc.exists;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================
 // 1) Admin cria uma turma presencial
 // ============================================================
 export const createPresencialSession = onRequest({ cors: true }, async (req, res) => {
   try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
     const { date, time, location, vagas } = req.body;
     if (!date || !time || !location || !vagas) {
       res.status(400).json({ error: "Dados incompletos" });
@@ -51,14 +69,52 @@ export const createPresencialSession = onRequest({ cors: true }, async (req, res
 });
 
 // ============================================================
+// Lista os inscritos e presença de uma turma específica (admin)
+// ============================================================
+export const listSessionAttendees = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const sessionId = req.query.sessionId as string;
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId obrigatório" });
+      return;
+    }
+
+    const bookingsSnap = await db.collection("presencialBookings").where("sessionId", "==", sessionId).get();
+
+    const attendees = await Promise.all(
+      bookingsSnap.docs.map(async (doc) => {
+        const booking = doc.data();
+        const enrollmentSnap = await db.collection("enrollments").doc(booking.enrollmentId).get();
+        const nome = enrollmentSnap.exists ? enrollmentSnap.data()!.nome : "Aluno não encontrado";
+        return { nome, status: booking.status };
+      })
+    );
+
+    res.status(200).json({ attendees });
+  } catch (err) {
+    console.error("listSessionAttendees error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
 // 2) Lista turmas disponíveis (com vaga)
 // ============================================================
 export const listPresencialSessions = onRequest({ cors: true }, async (req, res) => {
   try {
     const snap = await db.collection("presencialSessions").orderBy("date").get();
-    const sessions = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((s: any) => s.vagasOcupadas < s.vagasTotal);
+    let sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // modo admin: mostra todas as turmas, inclusive lotadas/passadas
+    const wantsAll = req.query.all === "1" && (await verificarAdmin(req));
+    if (!wantsAll) {
+      sessions = sessions.filter((s: any) => s.vagasOcupadas < s.vagasTotal);
+    }
 
     res.status(200).json({ sessions });
   } catch (err) {
@@ -102,7 +158,7 @@ export const bookPresencialSession = onRequest({ cors: true, secrets: [CHECKIN_S
 
     // gera o token assinado pro QR code pessoal
     const token = generateToken(enrollmentId, sessionId);
-    const checkinUrl = `https://SEUSITE.com/checkin/${token}`;
+    const checkinUrl = `https://us-central1-barbearia-do-ico.cloudfunctions.net/confirmCheckin/${token}`;
 
     res.status(200).json({ checkinUrl });
   } catch (err: any) {
