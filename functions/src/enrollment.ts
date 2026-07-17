@@ -181,9 +181,9 @@ export const createPaymentPreference = onRequest(
           },
           external_reference: enrollmentId, // usado no webhook pra identificar a matrícula
           back_urls: {
-            success: "https://SEUSITE.com/matricula/sucesso",
-            failure: "https://SEUSITE.com/matricula/erro",
-            pending: "https://SEUSITE.com/matricula/pendente",
+            success: "https://novojeitoapp.pages.dev/matricula/sucesso",
+            failure: "https://novojeitoapp.pages.dev/matricula/erro",
+            pending: "https://novojeitoapp.pages.dev/matricula/pendente",
           },
           auto_return: "approved",
           notification_url: "https://us-central1-barbearia-do-ico.cloudfunctions.net/mercadopagoWebhook",
