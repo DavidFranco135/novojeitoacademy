@@ -401,7 +401,7 @@
     <span class="eyebrow">Quem já fez</span>
     <h2>Resultado de <em>quem aplicou.</em></h2>
   </div>
-  <div class="testimonial-grid reveal">
+  <div class="testimonial-grid reveal" id="testimonialGrid">
     <div class="testimonial-card">
       <div class="testimonial-stars">★★★★★</div>
       <p>Entrei sem nunca ter pego numa navalha e saí montando minha própria barbearia seis meses depois. O módulo presencial fez toda diferença.</p>
@@ -424,8 +424,8 @@
 <section id="bolsa">
   <div class="scholarship-banner reveal">
     <span class="eyebrow">Vaga solidária</span>
-    <h2>Concorra a uma <em>bolsa de 100%.</em></h2>
-    <p>A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.</p>
+    <h2 id="scholarshipTitle">Concorra a uma <em>bolsa de 100%.</em></h2>
+    <p id="scholarshipText">A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.</p>
     <a href="/bolsa.html" class="btn-primary">🎓 Concorrer à bolsa</a>
   </div>
 </section>
@@ -532,15 +532,15 @@
 </div>
 
 <script>
-  // FAQ accordion
-  document.querySelectorAll('.faq-item').forEach(item => {
-    const btn = item.querySelector('.faq-q');
+  // FAQ accordion — delegação de evento (funciona mesmo se o FAQ for substituído dinamicamente)
+  document.getElementById('faqList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.faq-q');
+    if (!btn) return;
+    const item = btn.closest('.faq-item');
     const answer = item.querySelector('.faq-a');
-    btn.addEventListener('click', () => {
-      const isOpen = item.classList.contains('open');
-      document.querySelectorAll('.faq-item.open').forEach(o => { o.classList.remove('open'); o.querySelector('.faq-a').style.maxHeight = null; });
-      if (!isOpen) { item.classList.add('open'); answer.style.maxHeight = answer.scrollHeight + 'px'; }
-    });
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(o => { o.classList.remove('open'); o.querySelector('.faq-a').style.maxHeight = null; });
+    if (!isOpen) { item.classList.add('open'); answer.style.maxHeight = answer.scrollHeight + 'px'; }
   });
 
   // Scroll reveal
@@ -624,6 +624,28 @@
       const installments = content.priceInstallments || 12;
       const installmentValue = (content.price / installments).toFixed(2).replace('.', ',');
       document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>ou ${installments}x de R$ ${installmentValue}</small>`;
+    }
+
+    if (content.scholarshipTitle) document.getElementById('scholarshipTitle').innerHTML = content.scholarshipTitle;
+    if (content.scholarshipText) document.getElementById('scholarshipText').textContent = content.scholarshipText;
+
+    if (Array.isArray(content.testimonials) && content.testimonials.length > 0) {
+      const grid = document.getElementById('testimonialGrid');
+      grid.innerHTML = content.testimonials.map(t => `
+        <div class="testimonial-card">
+          <div class="testimonial-stars">${'★'.repeat(t.stars || 5)}</div>
+          <p>${t.text}</p>
+          <div class="testimonial-author"><div class="avatar">👤</div><div><b>${t.autor}</b><span>${t.turma || ''}</span></div></div>
+        </div>`).join('');
+    }
+
+    if (Array.isArray(content.faq) && content.faq.length > 0) {
+      const faqList = document.getElementById('faqList');
+      faqList.innerHTML = content.faq.map(f => `
+        <div class="faq-item">
+          <button class="faq-q">${f.pergunta} <span class="plus">+</span></button>
+          <div class="faq-a"><p>${f.resposta}</p></div>
+        </div>`).join('');
     }
   }
 
