@@ -236,6 +236,10 @@ function Turmas() {
   const [attendanceFor, setAttendanceFor] = useState<string | null>(null);
   const [attendanceEncontros, setAttendanceEncontros] = useState<any[]>([]);
   const [attendanceAlunos, setAttendanceAlunos] = useState<any[]>([]);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [assigningTurmaId, setAssigningTurmaId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   function loadTurmas() {
     setLoading(true);
@@ -248,6 +252,10 @@ function Turmas() {
 
   useEffect(() => {
     loadTurmas();
+    authedFetch("listStudents")
+      .then((r) => r.json())
+      .then((data) => setAllStudents(data.students || []))
+      .catch(() => {});
   }, []);
 
   function addEncontroRow() {
@@ -301,6 +309,28 @@ function Turmas() {
     }
   }
 
+  async function handleAtribuir(turmaId: string) {
+    if (!selectedStudentId) return;
+    setAssigning(true);
+    try {
+      const res = await authedFetch("adminAssignTurma", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: selectedStudentId, turmaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      setSelectedStudentId("");
+      setAssigningTurmaId(null);
+      loadTurmas();
+      alert("Aluno atribuído à turma com sucesso!");
+    } catch (e: any) {
+      alert(e.message || "Não foi possível atribuir o aluno a essa turma.");
+    } finally {
+      setAssigning(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader eyebrow="PRESENCIAL" title="Turmas Presenciais" subtitle="Turmas com grade completa de encontros — cada um com seu próprio assunto e data." />
@@ -347,7 +377,7 @@ function Turmas() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th>
+                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th><Th></Th>
                 </tr>
               </thead>
               <tbody>
@@ -357,10 +387,29 @@ function Turmas() {
                     <Td mono>{t.encontros?.length || 0}</Td>
                     <Td mono>{t.vagasOcupadas}/{t.vagasTotal}</Td>
                     <Td><button style={styles.linkBtn} onClick={() => verPresenca(t)}>Ver presença →</button></Td>
+                    <Td><button style={styles.linkBtn} onClick={() => setAssigningTurmaId(assigningTurmaId === t.id ? null : t.id)}>+ Adicionar aluno</button></Td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {assigningTurmaId && (
+          <div style={{ ...styles.bolsaCard, marginTop: "1rem", display: "flex", gap: "0.8rem", alignItems: "center", flexWrap: "wrap" }}>
+            <select
+              value={selectedStudentId}
+              onChange={(e) => setSelectedStudentId(e.target.value)}
+              style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+            >
+              <option value="">Selecione um aluno...</option>
+              {allStudents.map((s) => (
+                <option key={s.id} value={s.id}>{s.nome} — {s.email}</option>
+              ))}
+            </select>
+            <button style={styles.btnPrimary} disabled={!selectedStudentId || assigning} onClick={() => handleAtribuir(assigningTurmaId)}>
+              {assigning ? "Atribuindo..." : "Confirmar"}
+            </button>
           </div>
         )}
       </div>
