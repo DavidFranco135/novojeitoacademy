@@ -28,6 +28,20 @@ const DEFAULT_CONTENT = {
   instrutorAlunosFormados: 400,
   price: 497.0,
   priceInstallments: 12,
+  testimonials: [
+    { stars: 5, text: "Entrei sem nunca ter pego numa navalha e saí montando minha própria barbearia seis meses depois. O módulo presencial fez toda diferença.", autor: "Rafael T.", turma: "Turma 2026.1" },
+    { stars: 5, text: "Já cortava cabelo há anos, mas o curso me deu técnica de verdade. O certificado abriu portas em barbearia grande da minha cidade.", autor: "Diego M.", turma: "Turma 2025.2" },
+    { stars: 5, text: "O suporte direto com o instrutor foi o diferencial. Tirei dúvida até de madrugada e sempre teve resposta rápida.", autor: "Lucas F.", turma: "Turma 2025.2" },
+  ],
+  faq: [
+    { pergunta: "Preciso de experiência prévia?", resposta: "Não. O curso começa do zero absoluto, com fundamentos de segurança e técnica antes de qualquer corte." },
+    { pergunta: "Como funcionam os encontros presenciais?", resposta: "Você escolhe uma turma na área do aluno — cada turma já tem uma grade com várias datas, cada uma com um assunto prático diferente. Você usa o mesmo QR Code pessoal em todos os encontros, e o sistema identifica sozinho qual aula é a de cada dia." },
+    { pergunta: "O certificado tem validade real?", resposta: "Sim, é emitido em seu nome com código de autenticidade único, liberado automaticamente ao concluir 100% do curso." },
+    { pergunta: "Por quanto tempo tenho acesso?", resposta: "O acesso ao conteúdo online é vitalício a partir da confirmação do pagamento." },
+    { pergunta: "Quais formas de pagamento vocês aceitam?", resposta: "Cartão de crédito (em até 12x), PIX e boleto, via Mercado Pago." },
+  ],
+  scholarshipTitle: "Concorra a uma bolsa de 100%.",
+  scholarshipText: "A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.",
 };
 
 // checa se o token de autenticação enviado pertence a um admin cadastrado
