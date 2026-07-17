@@ -538,84 +538,101 @@
   // ===== Carrega conteúdo editável do site (fotos, textos, vídeo, preço) =====
   // Troque pela URL real da function após o deploy
   const GET_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/getSiteContent";
+  const CACHE_KEY = "nj_site_content_cache";
 
+  function applySiteContent(content) {
+    if (!content) return;
+
+    if (content.heroTitle) document.getElementById('heroTitle').innerHTML = content.heroTitle.split('\n').join('<br/>');
+    if (content.heroLead) document.getElementById('heroLead').textContent = content.heroLead;
+    if (content.heroImageUrl) setFrameImage('heroImageFrame', 'heroImagePlaceholder', content.heroImageUrl);
+
+    if (content.statAlunos) document.getElementById('statAlunos').textContent = content.statAlunos;
+    if (content.statAulas) document.getElementById('statAulas').textContent = content.statAulas;
+    if (content.statAvaliacao) document.getElementById('statAvaliacao').textContent = content.statAvaliacao;
+
+    if (content.videoEmbedUrl && !document.getElementById('youtubeVideoIframe')) {
+      const frame = document.getElementById('videoFrame');
+      const placeholder = document.getElementById('videoPlaceholder');
+      const playBtn = document.getElementById('videoPlayButton');
+      if (placeholder) placeholder.style.display = 'none';
+      if (playBtn) playBtn.remove();
+
+      const isYouTube = content.videoEmbedUrl.includes('youtube.com/embed');
+      let src = content.videoEmbedUrl;
+
+      const iframe = document.createElement('iframe');
+      if (isYouTube) {
+        const separator = src.includes('?') ? '&' : '?';
+        src += `${separator}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+        iframe.id = 'youtubeVideoIframe';
+      }
+      iframe.src = src;
+      iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
+      iframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+      iframe.allowFullscreen = true;
+      frame.appendChild(iframe);
+
+      if (isYouTube && !window.__ytApiLoaded) {
+        window.__ytApiLoaded = true;
+        const ytScript = document.createElement('script');
+        ytScript.src = 'https://www.youtube.com/iframe_api';
+        document.body.appendChild(ytScript);
+        window.onYouTubeIframeAPIReady = function () {
+          new YT.Player('youtubeVideoIframe', {
+            events: {
+              onStateChange: function (e) {
+                if (e.data === 1) frame.classList.add('video-playing');
+                else frame.classList.remove('video-playing');
+              },
+            },
+          });
+        };
+      }
+    }
+
+    if (Array.isArray(content.galleryImages)) {
+      content.galleryImages.forEach((url, i) => {
+        if (!url) return;
+        const item = document.querySelector(`.gallery-item[data-idx="${i}"]`);
+        if (item) item.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;background:#0a0a0a"/>`;
+      });
+    }
+
+    if (content.instrutorNome) document.getElementById('instrutorNome').textContent = content.instrutorNome;
+    if (content.instrutorBio1) document.getElementById('instrutorBio1').textContent = content.instrutorBio1;
+    if (content.instrutorBio2) document.getElementById('instrutorBio2').textContent = content.instrutorBio2;
+    if (content.instrutorAnos) document.getElementById('instrutorAnos').textContent = content.instrutorAnos + '+';
+    if (content.instrutorAlunosFormados) document.getElementById('instrutorAlunosFormados').textContent = content.instrutorAlunosFormados + '+';
+    if (content.instrutorPhotoUrl) setFrameImage('instrutorPhotoFrame', 'instrutorPlaceholder', content.instrutorPhotoUrl);
+
+    if (content.price) {
+      const installments = content.priceInstallments || 12;
+      const installmentValue = (content.price / installments).toFixed(2).replace('.', ',');
+      document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>ou ${installments}x de R$ ${installmentValue}</small>`;
+    }
+  }
+
+  // 1) Mostra instantaneamente o que já tiver em cache local (visitas anteriores)
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) applySiteContent(JSON.parse(cached));
+  } catch (e) { /* cache corrompido ou indisponível — ignora e segue pro fetch normal */ }
+
+  // 2) Busca a versão mais atual em segundo plano e atualiza + recacheia
   fetch(GET_CONTENT_URL)
     .then(r => r.json())
     .then(content => {
-      if (!content) return;
-
-      if (content.heroTitle) document.getElementById('heroTitle').innerHTML = content.heroTitle.split('\n').join('<br/>');
-      if (content.heroLead) document.getElementById('heroLead').textContent = content.heroLead;
-      if (content.heroImageUrl) setFrameImage('heroImageFrame', 'heroImagePlaceholder', content.heroImageUrl);
-
-      if (content.statAlunos) document.getElementById('statAlunos').textContent = content.statAlunos;
-      if (content.statAulas) document.getElementById('statAulas').textContent = content.statAulas;
-      if (content.statAvaliacao) document.getElementById('statAvaliacao').textContent = content.statAvaliacao;
-
-      if (content.videoEmbedUrl) {
-        const frame = document.getElementById('videoFrame');
-        document.getElementById('videoPlaceholder').style.display = 'none';
-        document.getElementById('videoPlayButton').remove();
-
-        const isYouTube = content.videoEmbedUrl.includes('youtube.com/embed');
-        let src = content.videoEmbedUrl;
-
-        const iframe = document.createElement('iframe');
-        if (isYouTube) {
-          const separator = src.includes('?') ? '&' : '?';
-          src += `${separator}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
-          iframe.id = 'youtubeVideoIframe';
-        }
-        iframe.src = src;
-        iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
-        iframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
-        iframe.allowFullscreen = true;
-        frame.appendChild(iframe);
-
-        // Enquanto o vídeo toca, desliga o efeito de "luz passando"; volta ao pausar/terminar
-        if (isYouTube) {
-          const ytScript = document.createElement('script');
-          ytScript.src = 'https://www.youtube.com/iframe_api';
-          document.body.appendChild(ytScript);
-          window.onYouTubeIframeAPIReady = function () {
-            new YT.Player('youtubeVideoIframe', {
-              events: {
-                onStateChange: function (e) {
-                  if (e.data === 1) frame.classList.add('video-playing'); // tocando
-                  else frame.classList.remove('video-playing'); // pausado, terminado ou parado
-                },
-              },
-            });
-          };
-        }
-      }
-
-      if (Array.isArray(content.galleryImages)) {
-        content.galleryImages.forEach((url, i) => {
-          if (!url) return;
-          const item = document.querySelector(`.gallery-item[data-idx="${i}"]`);
-          if (item) item.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;background:#0a0a0a"/>`;
-        });
-      }
-
-      if (content.instrutorNome) document.getElementById('instrutorNome').textContent = content.instrutorNome;
-      if (content.instrutorBio1) document.getElementById('instrutorBio1').textContent = content.instrutorBio1;
-      if (content.instrutorBio2) document.getElementById('instrutorBio2').textContent = content.instrutorBio2;
-      if (content.instrutorAnos) document.getElementById('instrutorAnos').textContent = content.instrutorAnos + '+';
-      if (content.instrutorAlunosFormados) document.getElementById('instrutorAlunosFormados').textContent = content.instrutorAlunosFormados + '+';
-      if (content.instrutorPhotoUrl) setFrameImage('instrutorPhotoFrame', 'instrutorPlaceholder', content.instrutorPhotoUrl);
-
-      if (content.price) {
-        const installments = content.priceInstallments || 12;
-        const installmentValue = (content.price / installments).toFixed(2).replace('.', ',');
-        document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>ou ${installments}x de R$ ${installmentValue}</small>`;
-      }
+      applySiteContent(content);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(content)); } catch (e) {}
     })
-    .catch(() => { /* site continua funcionando normalmente com o conteúdo padrão do HTML */ });
+    .catch(() => { /* site continua funcionando com o cache ou o conteúdo padrão do HTML */ });
 
   function setFrameImage(frameId, placeholderId, url) {
     const frame = document.getElementById(frameId);
     const placeholder = document.getElementById(placeholderId);
+    // evita duplicar imagem se essa função já rodou antes (cache + fetch)
+    if (frame.querySelector('img')) { frame.querySelector('img').src = url; return; }
     if (placeholder) placeholder.style.display = 'none';
     const img = document.createElement('img');
     img.src = url;
