@@ -3,8 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 /**
- * Configuração do Firebase — preencha com os dados do SEU projeto
- * (Console Firebase → Configurações do projeto → Seus apps → SDK setup)
+ * Configuração do Firebase — projeto: barbearia-do-ico
  */
 const firebaseConfig = {
   apiKey: "AIzaSyCSr9NKZBjPCCmfHjFSRE8BUlVgy0uWlOg",
