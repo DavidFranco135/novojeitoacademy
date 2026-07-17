@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Matrículas: leitura/escrita apenas via backend (Functions usa Admin SDK e ignora estas regras).
+    // Bloqueamos acesso direto do cliente por padrão — todo acesso deve passar pelas Functions.
+    match /enrollments/{enrollmentId} {
+      allow read, write: if false;
+    }
+
+    match /presencialSessions/{sessionId} {
+      allow read: if true; // lista pública de turmas com vaga
+      allow write: if false;
+    }
+
+    match /presencialBookings/{bookingId} {
+      allow read, write: if false;
+    }
+
+    match /progress/{enrollmentId} {
+      allow read, write: if false;
+    }
+
+    // Cada usuário logado pode checar SE ELE MESMO está na lista de admins
+    // (não pode ler a lista inteira, nem editar — isso só é feito manualmente pelo Console)
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Conteúdo do site público: só lido/escrito via Functions (Admin SDK), nunca direto do cliente
+    match /siteContent/{docId} {
+      allow read, write: if false;
+    }
+  }
+}

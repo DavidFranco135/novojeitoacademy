@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Concorra a uma Bolsa de 100% — Novo Jeito Academy</title>
+<meta name="theme-color" content="#050505"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#050505;color:#F5F0E8;font-family:'Inter',sans-serif;min-height:100vh;padding:5rem 6vw 3rem}
+  :root{--gold:#C58A4A;--gold2:#E8B97A;--gray:#9d9384;--line:rgba(197,138,74,.22)}
+  .wrap{max-width:560px;margin:0 auto}
+  .back{display:inline-block;margin-bottom:2rem;font-size:.85rem;color:var(--gray);text-decoration:none}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  h1{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.8rem,5vw,2.6rem);margin:.6rem 0 1rem;line-height:1.1}
+  h1 em{color:var(--gold);font-style:italic}
+  .lead{color:var(--gray);font-size:.95rem;line-height:1.7;margin-bottom:2.2rem}
+  label{display:block;font-size:.75rem;color:var(--gold);letter-spacing:.04em;margin:1.1rem 0 .4rem}
+  input,textarea{width:100%;background:#111;border:1px solid rgba(197,138,74,.25);border-radius:3px;padding:.8rem .9rem;color:#F5F0E8;font-size:.9rem;font-family:inherit;outline:none}
+  textarea{min-height:110px;resize:vertical}
+  .btn-primary{width:100%;background:var(--gold);color:#050505;border:none;padding:1rem;border-radius:3px;font-weight:600;font-size:.92rem;cursor:pointer;margin-top:1.8rem}
+  .btn-primary:hover{background:var(--gold2)}
+  .btn-primary:disabled{opacity:.5;cursor:default}
+  .error{color:#e8746a;font-size:.82rem;margin-top:.8rem}
+  .success{text-align:center;padding:3rem 1rem}
+  .success .icon{font-size:2.6rem;margin-bottom:1rem}
+  .success h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);margin-bottom:.8rem}
+  .success p{color:var(--gray);font-size:.9rem;line-height:1.7}
+  .info-box{border:1px solid var(--line);border-radius:6px;padding:1.2rem 1.4rem;margin-bottom:2rem;font-size:.85rem;color:#c9c2b4;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="/" class="back">← Voltar ao site</a>
+
+  <div id="formView">
+    <span class="eyebrow">Bolsa de 100%</span>
+    <h1>Concorra a uma <em>vaga gratuita.</em></h1>
+    <p class="lead">A cada turma, oferecemos uma bolsa integral pra quem realmente precisa dessa oportunidade. Conte um pouco sobre você — vamos analisar todas as candidaturas com atenção.</p>
+
+    <div class="info-box">📋 Preencha o formulário abaixo. Mesmo quem não for selecionado para a bolsa continua concorrendo às vagas normais da turma, com prioridade de contato.</div>
+
+    <form id="scholarshipForm">
+      <label>Nome completo</label>
+      <input type="text" id="nome" required/>
+
+      <label>WhatsApp</label>
+      <input type="tel" id="whatsapp" placeholder="(21) 99999-9999" required/>
+
+      <label>Idade</label>
+      <input type="number" id="idade" min="16" max="99"/>
+
+      <label>Profissão atual</label>
+      <input type="text" id="profissao" placeholder="Ex: desempregado, autônomo, estudante..."/>
+
+      <label>Por que você merece essa bolsa?</label>
+      <textarea id="motivo" placeholder="Conte sua história — o que te motiva a aprender a profissão de barbeiro" required></textarea>
+
+      <div id="errorMsg" class="error" style="display:none"></div>
+      <button type="submit" class="btn-primary" id="submitBtn">Enviar candidatura</button>
+    </form>
+  </div>
+
+  <div id="successView" class="success" style="display:none">
+    <div class="icon">🎓</div>
+    <h2>Candidatura recebida!</h2>
+    <p>Obrigado por se candidatar. Vamos analisar sua história com carinho e entraremos em contato pelo WhatsApp em breve — seja qual for o resultado.</p>
+  </div>
+</div>
+
+<script>
+  // Troque pela URL real da function após o deploy
+  const APPLY_URL = "https://us-central1-SEUPROJETO.cloudfunctions.net/applyScholarship";
+
+  document.getElementById('scholarshipForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorMsg = document.getElementById('errorMsg');
+    const btn = document.getElementById('submitBtn');
+    errorMsg.style.display = 'none';
+
+    const payload = {
+      nome: document.getElementById('nome').value.trim(),
+      whatsapp: document.getElementById('whatsapp').value.trim(),
+      idade: document.getElementById('idade').value || null,
+      profissao: document.getElementById('profissao').value.trim(),
+      motivo: document.getElementById('motivo').value.trim(),
+    };
+
+    if (!payload.nome || !payload.whatsapp || !payload.motivo) {
+      errorMsg.textContent = 'Preencha nome, WhatsApp e o motivo.';
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      const res = await fetch(APPLY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Falha no envio');
+
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+    } catch (err) {
+      errorMsg.textContent = 'Não foi possível enviar agora. Tente novamente em instantes.';
+      errorMsg.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Enviar candidatura';
+    }
+  });
+</script>
+</body>
+</html>
