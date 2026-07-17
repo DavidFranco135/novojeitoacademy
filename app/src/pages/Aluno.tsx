@@ -163,15 +163,28 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="aluno-page">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         ::-webkit-scrollbar{width:6px}
         ::-webkit-scrollbar-thumb{background:rgba(197,138,74,.35);border-radius:4px}
+
+        @media (max-width: 860px) {
+          .aluno-page { flex-direction: column !important; }
+          .aluno-sidebar {
+            width: 100% !important;
+            height: auto !important;
+            position: static !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(197,138,74,.18) !important;
+            max-height: 60vh !important;
+          }
+          .aluno-main { padding: 1.4rem 1.2rem !important; max-width: 100% !important; }
+        }
       `}</style>
 
       {/* ===== SIDEBAR ===== */}
-      <aside style={styles.sidebar}>
+      <aside style={styles.sidebar} className="aluno-sidebar">
         <div style={styles.sidebarLogo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
 
         <div style={styles.progressCard}>
@@ -233,7 +246,7 @@ export default function StudentDashboard() {
       </aside>
 
       {/* ===== MAIN ===== */}
-      <main style={styles.main}>
+      <main style={styles.main} className="aluno-main">
         <div style={styles.breadcrumb}>
           <span style={{ color: GOLD }}>{activeModule.title}</span>
           <span style={{ margin: "0 .5rem", color: "#5a5348" }}>/</span>
