@@ -1,29 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { auth } from "../firebase";
 
 /**
  * Área do Aluno — Novo Jeito Academy
- * Dashboard estilo plataforma premium (Hotmart/Kajabi-like): sidebar de trilha,
- * player central, anel de progresso, certificado liberado ao concluir 100%.
+ * Dashboard estilo plataforma premium: sidebar de trilha, player central,
+ * anel de progresso, certificado liberado ao concluir 100%.
  *
- * Integração esperada:
- *  - GET  /api/getStudentProgress?enrollmentId=...   -> módulos, aulas, % assistido por aula
- *  - POST /api/markLessonComplete                    -> marca aula como concluída
- *  - GET  /api/getCertificate?enrollmentId=...        -> retorna URL do PDF do certificado (gerado quando 100%)
- *
- * Vídeo: player embutido via Cloudflare Stream (iframe nativo), progresso reportado
- * pelo player através dos eventos do Stream Player SDK (stream.cloudflare.com/embed/sdk.js).
- * Cada aula tem um "videoUid" do Cloudflare Stream, e o embed fica:
- *   <iframe src={`https://customer-XXXX.cloudflarestream.com/${videoUid}/iframe`} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowFullScreen />
+ * A grade curricular (títulos/duração/vídeo) é fixa no código — é o conteúdo
+ * do curso, não muda por aluno. O que É por aluno (quais aulas já assistiu)
+ * vem de verdade do backend via getStudentProgress / markLessonComplete.
  */
 
 const GOLD = "#C58A4A";
-const GOLD2 = "#E8B97A";
+const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
+const CLOUDFLARE_STREAM_CUSTOMER = "customer-XXXX"; // troque pelo subdomínio real do Cloudflare Stream
 
 interface Lesson {
   id: string;
   title: string;
   duration: string;
-  videoUid: string; // UID do vídeo no Cloudflare Stream
+  videoUid: string;
   completed: boolean;
 }
 
@@ -33,14 +29,15 @@ interface Module {
   lessons: Lesson[];
 }
 
-// dado de exemplo — substituir pela resposta real de /api/getStudentProgress
-const MOCK_MODULES: Module[] = [
+// Grade curricular do curso — conteúdo fixo, igual pra todo aluno.
+// "completed" começa falso aqui e é preenchido com o progresso real após a busca.
+const COURSE_MODULES: Module[] = [
   {
     id: "m1",
     title: "Fundamentos da Navalha",
     lessons: [
-      { id: "l1", title: "Afiação e cuidado das lâminas", duration: "14:20", videoUid: "", completed: true },
-      { id: "l2", title: "Postura e ergonomia", duration: "11:05", videoUid: "", completed: true },
+      { id: "l1", title: "Afiação e cuidado das lâminas", duration: "14:20", videoUid: "", completed: false },
+      { id: "l2", title: "Postura e ergonomia", duration: "11:05", videoUid: "", completed: false },
       { id: "l3", title: "Segurança de trabalho", duration: "09:40", videoUid: "", completed: false },
     ],
   },
@@ -63,9 +60,13 @@ const MOCK_MODULES: Module[] = [
 ];
 
 export default function StudentDashboard() {
-  const [modules, setModules] = useState<Module[]>(MOCK_MODULES);
+  const [modules, setModules] = useState<Module[]>(COURSE_MODULES);
   const allLessons = useMemo(() => modules.flatMap((m) => m.lessons), [modules]);
   const [activeLessonId, setActiveLessonId] = useState(allLessons[0].id);
+  const [loading, setLoading] = useState(true);
+  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
+  const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+  const [generatingCert, setGeneratingCert] = useState(false);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
@@ -75,14 +76,74 @@ export default function StudentDashboard() {
   const progressPct = Math.round((completedCount / totalLessons) * 100);
   const isComplete = progressPct === 100;
 
-  function markComplete(lessonId: string) {
+  // busca o progresso real do aluno logado ao carregar
+  useEffect(() => {
+    async function loadProgress() {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/getStudentProgress`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setEnrollmentId(data.enrollmentId);
+          setCertificateUrl(data.certificateUrl || null);
+          const completedIds: string[] = data.completedLessons || [];
+          setModules((prev) =>
+            prev.map((m) => ({
+              ...m,
+              lessons: m.lessons.map((l) => ({ ...l, completed: completedIds.includes(l.id) })),
+            }))
+          );
+        }
+      } catch (e) {
+        console.error("Falha ao carregar progresso", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProgress();
+  }, []);
+
+  async function markComplete(lessonId: string) {
+    // atualiza a tela na hora (otimista), e confirma com o backend em seguida
     setModules((prev) =>
       prev.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => (l.id === lessonId ? { ...l, completed: true } : l)),
       }))
     );
-    // fetch("/api/markLessonComplete", { method: "POST", body: JSON.stringify({ lessonId }) });
+
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${FUNCTIONS_BASE}/markLessonComplete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ lessonId, totalLessons }),
+      });
+      const data = await res.json();
+
+      // se acabou de bater 100%, já dispara a geração do certificado
+      if (data.percent === 100 && enrollmentId && !certificateUrl) {
+        setGeneratingCert(true);
+        const certRes = await fetch(`${FUNCTIONS_BASE}/generateCertificate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enrollmentId }),
+        });
+        const certData = await certRes.json();
+        if (certRes.ok) setCertificateUrl(certData.certificateUrl);
+        setGeneratingCert(false);
+      }
+    } catch (e) {
+      console.error("Falha ao salvar conclusão da aula", e);
+    }
   }
 
   function goToNext() {
@@ -92,6 +153,14 @@ export default function StudentDashboard() {
 
   const circumference = 2 * Math.PI * 26;
   const dashOffset = circumference - (progressPct / 100) * circumference;
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.page, alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#9d9384" }}>Carregando sua área...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
@@ -152,9 +221,15 @@ export default function StudentDashboard() {
           ))}
         </nav>
 
-        <button style={{ ...styles.certificateBtn, opacity: isComplete ? 1 : 0.4, cursor: isComplete ? "pointer" : "default" }} disabled={!isComplete}>
-          {isComplete ? "🎓 Baixar certificado" : "🔒 Certificado (conclua o curso)"}
-        </button>
+        {isComplete && certificateUrl ? (
+          <a href={certificateUrl} target="_blank" rel="noreferrer" style={{ ...styles.certificateBtn, textDecoration: "none", display: "block", textAlign: "center" }}>
+            🎓 Baixar certificado
+          </a>
+        ) : (
+          <button style={{ ...styles.certificateBtn, opacity: 0.4, cursor: "default" }} disabled>
+            {generatingCert ? "Gerando certificado..." : isComplete ? "Gerando certificado..." : "🔒 Certificado (conclua o curso)"}
+          </button>
+        )}
       </aside>
 
       {/* ===== MAIN ===== */}
@@ -166,21 +241,23 @@ export default function StudentDashboard() {
         </div>
 
         <div style={styles.videoFrame}>
-          <div style={styles.corner_tl}></div><div style={styles.corner_tr}></div>
-          <div style={styles.corner_bl}></div><div style={styles.corner_br}></div>
-          <div style={styles.videoPlaceholder}>
-            <div style={styles.playRing}>▸</div>
-            <span style={styles.eyebrow}>{activeLesson.duration} · REPRODUZIR AULA</span>
-          </div>
-          {/*
-            Embed real do Panda Video, por exemplo:
+          {activeLesson.videoUid ? (
             <iframe
-              src={`https://customer-XXXX.cloudflarestream.com/${activeLesson.videoUid}/iframe`}
-              style={{width:'100%',height:'100%',border:'none'}}
+              src={`https://${CLOUDFLARE_STREAM_CUSTOMER}.cloudflarestream.com/${activeLesson.videoUid}/iframe`}
+              style={{ width: "100%", height: "100%", border: "none", position: "absolute", inset: 0 }}
               allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
               allowFullScreen
             />
-          */}
+          ) : (
+            <>
+              <div style={styles.corner_tl}></div><div style={styles.corner_tr}></div>
+              <div style={styles.corner_bl}></div><div style={styles.corner_br}></div>
+              <div style={styles.videoPlaceholder}>
+                <div style={styles.playRing}>▸</div>
+                <span style={styles.eyebrow}>{activeLesson.duration} · VÍDEO AINDA NÃO CADASTRADO</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div style={styles.lessonHeader}>
