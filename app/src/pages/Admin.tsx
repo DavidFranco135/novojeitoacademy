@@ -257,10 +257,10 @@ function Bolsas() {
 }
 
 // ============================================================
-// URLs das functions — troque SEUPROJETO pela URL real após o deploy
-const GET_CONTENT_URL = "https://us-central1-SEUPROJETO.cloudfunctions.net/getSiteContent";
-const UPDATE_CONTENT_URL = "https://us-central1-SEUPROJETO.cloudfunctions.net/updateSiteContent";
-const UPLOAD_IMAGE_URL = "https://us-central1-SEUPROJETO.cloudfunctions.net/uploadImage";
+// URLs das functions — troque barbearia-do-ico pela URL real após o deploy
+const GET_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/getSiteContent";
+const UPDATE_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/updateSiteContent";
+const UPLOAD_IMAGE_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/uploadImage";
 
 interface SiteContent {
   heroTitle: string;
