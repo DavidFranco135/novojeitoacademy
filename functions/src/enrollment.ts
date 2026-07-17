@@ -186,7 +186,7 @@ export const createPaymentPreference = onRequest(
             pending: "https://SEUSITE.com/matricula/pendente",
           },
           auto_return: "approved",
-          notification_url: "https://SEUREGIAO-SEUPROJETO.cloudfunctions.net/mercadopagoWebhook",
+          notification_url: "https://us-central1-barbearia-do-ico.cloudfunctions.net/mercadopagoWebhook",
         },
       });
 
