@@ -88,6 +88,8 @@
   .center-play span{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.18em;color:var(--gray)}
   .placeholder-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.4rem;opacity:.15}
 
+  .media-frame.video-playing::after{animation:none;opacity:0}
+
   /* ===== MARQUEE trust bar ===== */
   .trust-bar{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:1.4rem 6vw;display:flex;gap:2.4rem;justify-content:center;flex-wrap:wrap}
   .trust-item{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--gray);display:flex;align-items:center;gap:.5rem}
@@ -492,12 +494,38 @@
         const frame = document.getElementById('videoFrame');
         document.getElementById('videoPlaceholder').style.display = 'none';
         document.getElementById('videoPlayButton').remove();
+
+        const isYouTube = content.videoEmbedUrl.includes('youtube.com/embed');
+        let src = content.videoEmbedUrl;
+
         const iframe = document.createElement('iframe');
-        iframe.src = content.videoEmbedUrl;
+        if (isYouTube) {
+          const separator = src.includes('?') ? '&' : '?';
+          src += `${separator}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+          iframe.id = 'youtubeVideoIframe';
+        }
+        iframe.src = src;
         iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
         iframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
         iframe.allowFullscreen = true;
         frame.appendChild(iframe);
+
+        // Enquanto o vídeo toca, desliga o efeito de "luz passando"; volta ao pausar/terminar
+        if (isYouTube) {
+          const ytScript = document.createElement('script');
+          ytScript.src = 'https://www.youtube.com/iframe_api';
+          document.body.appendChild(ytScript);
+          window.onYouTubeIframeAPIReady = function () {
+            new YT.Player('youtubeVideoIframe', {
+              events: {
+                onStateChange: function (e) {
+                  if (e.data === 1) frame.classList.add('video-playing'); // tocando
+                  else frame.classList.remove('video-playing'); // pausado, terminado ou parado
+                },
+              },
+            });
+          };
+        }
       }
 
       if (Array.isArray(content.galleryImages)) {
