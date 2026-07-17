@@ -36,9 +36,12 @@ export const uploadImage = onRequest(
         method: "POST",
         body: form,
       });
-      const json = await response.json();
+      const json = (await response.json()) as {
+        success: boolean;
+        data?: { url: string; thumb?: { url: string }; delete_url: string };
+      };
 
-      if (!json.success) {
+      if (!json.success || !json.data) {
         res.status(502).json({ error: "Falha no upload ao ImgBB", detail: json });
         return;
       }
