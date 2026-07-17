@@ -20,6 +20,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import { generateCertificateForEnrollment } from "./certificate";
 
 const db = admin.firestore();
 const CHECKIN_SECRET = defineSecret("CHECKIN_SECRET");
@@ -177,7 +178,15 @@ export const confirmCheckinTurma = onRequest({ cors: true, secrets: [CHECKIN_SEC
     const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
     const nome = enrollmentSnap.exists ? enrollmentSnap.data()!.nome : "Aluno";
 
-    res.status(200).send(renderCheckinPage(true, `Presença confirmada em "${encontroHoje.topico}" — bem-vindo(a), ${nome}!`));
+    // tenta gerar o certificado — só emite de verdade se os vídeos também já estiverem 100%
+    const certResult = await generateCertificateForEnrollment(enrollmentId);
+    const certificadoLiberado = !("error" in certResult);
+
+    const mensagemExtra = certificadoLiberado
+      ? " 🎓 Parabéns, seu certificado foi liberado!"
+      : "";
+
+    res.status(200).send(renderCheckinPage(true, `Presença confirmada em "${encontroHoje.topico}" — bem-vindo(a), ${nome}!${mensagemExtra}`));
   } catch (err) {
     console.error("confirmCheckinTurma error:", err);
     res.status(500).send(renderCheckinPage(false, "Erro ao confirmar presença."));
