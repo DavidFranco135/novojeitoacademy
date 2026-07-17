@@ -10,34 +10,17 @@ import { auth } from "../firebase";
  */
 
 const GOLD = "#C58A4A";
+const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
 
 type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo";
 
-// ---------- mock data ----------
-const MOCK_STATS = { leads: 84, alunos: 41, faturamento: 20377, conversao: 48.8 };
-
-const MOCK_LEADS = [
-  { nome: "Rafael Souza", contato: "(21) 98888-1234", status: "Novo", data: "12/07/2026" },
-  { nome: "Bianca Ferreira", contato: "(21) 97777-5678", status: "Contatado", data: "10/07/2026" },
-  { nome: "Diego Martins", contato: "(21) 96666-9012", status: "Perdido", data: "08/07/2026" },
-];
-
-const MOCK_ALUNOS = [
-  { nome: "João Pedro Lima", email: "joao@email.com", pagamento: "Pago", progresso: 100, matricula: "01/06/2026" },
-  { nome: "Carla Nogueira", email: "carla@email.com", pagamento: "Pago", progresso: 62, matricula: "15/06/2026" },
-  { nome: "Marcos Vinícius", email: "marcos@email.com", pagamento: "Pendente", progresso: 0, matricula: "13/07/2026" },
-];
-
-const MOCK_TURMAS = [
-  { data: "20/07/2026", horario: "09:00", local: "Barbearia Novo Jeito", vagas: "8/10", presentes: "-" },
-  { data: "03/08/2026", horario: "14:00", local: "Barbearia Novo Jeito", vagas: "3/10", presentes: "-" },
-];
-
-const MOCK_TRANSACOES = [
-  { aluno: "João Pedro Lima", valor: "R$ 497,00", metodo: "PIX", status: "Aprovado", data: "01/06/2026" },
-  { aluno: "Carla Nogueira", valor: "R$ 49,70 (1/12)", metodo: "Cartão", status: "Aprovado", data: "15/06/2026" },
-  { aluno: "Marcos Vinícius", valor: "R$ 497,00", metodo: "Boleto", status: "Pendente", data: "13/07/2026" },
-];
+async function authedFetch(path: string, options: RequestInit = {}) {
+  const token = await auth.currentUser?.getIdToken();
+  return fetch(`${FUNCTIONS_BASE}/${path}`, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
+  });
+}
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -90,136 +73,237 @@ export default function AdminDashboard() {
 
 // ============================================================
 function Overview() {
+  const [stats, setStats] = useState({ leads: 0, alunos: 0, faturamento: 0, conversao: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    authedFetch("getOverviewStats")
+      .then((r) => r.json())
+      .then((data) => setStats(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader eyebrow="RESUMO" title="Visão geral" />
-      <div style={styles.statGrid}>
-        <StatCard label="LEADS TOTAIS" value={MOCK_STATS.leads} />
-        <StatCard label="ALUNOS ATIVOS" value={MOCK_STATS.alunos} />
-        <StatCard label="FATURAMENTO (MÊS)" value={`R$ ${MOCK_STATS.faturamento.toLocaleString("pt-BR")}`} />
-        <StatCard label="TAXA DE CONVERSÃO" value={`${MOCK_STATS.conversao}%`} />
-      </div>
-
-      <div style={{ marginTop: "2.4rem" }}>
-        <SectionLabel>ATIVIDADE RECENTE</SectionLabel>
-        <div style={styles.tableCard}>
-          <ActivityRow text="Carla Nogueira concluiu a aula 'Skin fade do zero'" time="há 2h" />
-          <ActivityRow text="Marcos Vinícius se cadastrou (pagamento pendente)" time="há 5h" />
-          <ActivityRow text="João Pedro Lima emitiu o certificado" time="ontem" />
+      {loading ? (
+        <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>
+      ) : (
+        <div style={styles.statGrid}>
+          <StatCard label="LEADS TOTAIS" value={stats.leads} />
+          <StatCard label="ALUNOS ATIVOS" value={stats.alunos} />
+          <StatCard label="FATURAMENTO (MÊS)" value={`R$ ${stats.faturamento.toLocaleString("pt-BR")}`} />
+          <StatCard label="TAXA DE CONVERSÃO" value={`${stats.conversao}%`} />
         </div>
-      </div>
-      {/* API real: GET /api/admin/overview */}
-    </div>
-  );
-}
-
-function ActivityRow({ text, time }: { text: string; time: string }) {
-  return (
-    <div style={styles.activityRow}>
-      <span style={{ fontSize: "0.85rem", color: "#c9c2b4" }}>{text}</span>
-      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.7rem", color: "#5a5348" }}>{time}</span>
+      )}
+      {/* API real: GET getOverviewStats */}
     </div>
   );
 }
 
 // ============================================================
 function Leads() {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    authedFetch("listLeads")
+      .then((r) => r.json())
+      .then((data) => setLeads(data.leads || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader eyebrow="AQUISIÇÃO" title="Leads" subtitle="Pessoas que demonstraram interesse mas ainda não finalizaram a matrícula." />
-      <div style={styles.tableCard}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <Th>Nome</Th><Th>Contato</Th><Th>Status</Th><Th>Data</Th><Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_LEADS.map((l, i) => (
-              <tr key={i} style={styles.tr}>
-                <Td>{l.nome}</Td>
-                <Td>{l.contato}</Td>
-                <Td><StatusBadge status={l.status} /></Td>
-                <Td mono>{l.data}</Td>
-                <Td><button style={styles.linkBtn}>Contatar →</button></Td>
+      {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+      {!loading && leads.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum lead capturado ainda.</p>}
+      {!loading && leads.length > 0 && (
+        <div style={styles.tableCard}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <Th>Nome</Th><Th>Contato</Th><Th>Status</Th><Th>Data</Th><Th></Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* API real: GET /api/admin/leads · PATCH /api/admin/leads/:id (mudar status) */}
+            </thead>
+            <tbody>
+              {leads.map((l, i) => (
+                <tr key={l.id || i} style={styles.tr}>
+                  <Td>{l.nome}</Td>
+                  <Td>{l.contato}</Td>
+                  <Td><StatusBadge status={l.status === "novo" ? "Novo" : l.status} /></Td>
+                  <Td mono>{l.data}</Td>
+                  <Td><a href={`https://wa.me/55${(l.contato || "").replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={styles.linkBtn}>Contatar →</a></Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* API real: GET listLeads */}
     </div>
   );
 }
 
 // ============================================================
 function Alunos() {
+  const [alunos, setAlunos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    authedFetch("listStudents")
+      .then((r) => r.json())
+      .then((data) => setAlunos(data.students || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader eyebrow="GESTÃO" title="Alunos" subtitle="Cadastro, pagamento e progresso de cada aluno matriculado." />
-      <div style={styles.tableCard}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <Th>Nome</Th><Th>E-mail</Th><Th>Pagamento</Th><Th>Progresso</Th><Th>Matrícula</Th><Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_ALUNOS.map((a, i) => (
-              <tr key={i} style={styles.tr}>
-                <Td>{a.nome}</Td>
-                <Td muted>{a.email}</Td>
-                <Td><StatusBadge status={a.pagamento} /></Td>
-                <Td>
-                  <div style={styles.progressBarOuter}>
-                    <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
-                  </div>
-                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}%</span>
-                </Td>
-                <Td mono>{a.matricula}</Td>
-                <Td><button style={styles.linkBtn}>Ver detalhes →</button></Td>
+      {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+      {!loading && alunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aluno com acesso liberado ainda.</p>}
+      {!loading && alunos.length > 0 && (
+        <div style={styles.tableCard}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <Th>Nome</Th><Th>E-mail</Th><Th>Pagamento</Th><Th>Progresso</Th><Th>Matrícula</Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* API real: GET /api/admin/students · ação manual: liberar/bloquear acesso, reenviar certificado */}
+            </thead>
+            <tbody>
+              {alunos.map((a, i) => (
+                <tr key={a.id || i} style={styles.tr}>
+                  <Td>{a.nome}</Td>
+                  <Td muted>{a.email}</Td>
+                  <Td><StatusBadge status={a.pagamento} /></Td>
+                  <Td>
+                    <div style={styles.progressBarOuter}>
+                      <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
+                    </div>
+                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}%</span>
+                  </Td>
+                  <Td mono>{a.matricula}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* API real: GET listStudents */}
     </div>
   );
 }
 
 // ============================================================
 function Turmas() {
+  const [turmas, setTurmas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [attendeesFor, setAttendeesFor] = useState<string | null>(null);
+  const [attendees, setAttendees] = useState<any[]>([]);
+
+  function loadTurmas() {
+    setLoading(true);
+    authedFetch("listPresencialSessions?all=1")
+      .then((r) => r.json())
+      .then((data) => setTurmas(data.sessions || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTurmas();
+  }, []);
+
+  async function handleCriarTurma() {
+    const date = window.prompt("Data da turma (AAAA-MM-DD):");
+    if (!date) return;
+    const time = window.prompt("Horário (ex: 09:00):");
+    if (!time) return;
+    const location = window.prompt("Local:");
+    if (!location) return;
+    const vagas = parseInt(window.prompt("Número de vagas:") || "0", 10);
+    if (!vagas) return;
+
+    setCreating(true);
+    try {
+      const res = await authedFetch("createPresencialSession", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, time, location, vagas }),
+      });
+      if (!res.ok) throw new Error();
+      loadTurmas();
+    } catch {
+      alert("Não foi possível criar a turma.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function verLista(sessionId: string) {
+    setAttendeesFor(sessionId);
+    setAttendees([]);
+    try {
+      const res = await authedFetch(`listSessionAttendees?sessionId=${sessionId}`);
+      const data = await res.json();
+      setAttendees(data.attendees || []);
+    } catch {
+      setAttendees([]);
+    }
+  }
+
   return (
     <div>
       <PageHeader eyebrow="PRESENCIAL" title="Turmas Presenciais" subtitle="Datas marcadas, vagas ocupadas e confirmação de presença." />
 
-      <button style={styles.btnPrimary}>+ Criar nova turma</button>
+      <button style={styles.btnPrimary} onClick={handleCriarTurma} disabled={creating}>
+        {creating ? "Criando..." : "+ Criar nova turma"}
+      </button>
 
       <div style={{ marginTop: "1.4rem" }}>
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <Th>Data</Th><Th>Horário</Th><Th>Local</Th><Th>Vagas</Th><Th>Presença</Th><Th></Th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_TURMAS.map((t, i) => (
-                <tr key={i} style={styles.tr}>
-                  <Td mono>{t.data}</Td>
-                  <Td mono>{t.horario}</Td>
-                  <Td>{t.local}</Td>
-                  <Td mono>{t.vagas}</Td>
-                  <Td muted>{t.presentes}</Td>
-                  <Td><button style={styles.linkBtn}>Ver lista →</button></Td>
+        {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+        {!loading && turmas.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma turma criada ainda.</p>}
+        {!loading && turmas.length > 0 && (
+          <div style={styles.tableCard}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <Th>Data</Th><Th>Horário</Th><Th>Local</Th><Th>Vagas</Th><Th></Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {turmas.map((t) => (
+                  <tr key={t.id} style={styles.tr}>
+                    <Td mono>{t.date}</Td>
+                    <Td mono>{t.time}</Td>
+                    <Td>{t.location}</Td>
+                    <Td mono>{t.vagasOcupadas}/{t.vagasTotal}</Td>
+                    <Td><button style={styles.linkBtn} onClick={() => verLista(t.id)}>Ver lista →</button></Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      {/* API real: POST /api/admin/presencial (criar turma) · GET /api/admin/presencial/:id/attendees */}
+
+      {attendeesFor && (
+        <div style={{ marginTop: "1.6rem" }}>
+          <SectionLabel>INSCRITOS NESSA TURMA</SectionLabel>
+          {attendees.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Ninguém reservou vaga nessa turma ainda.</p>}
+          {attendees.map((a, i) => (
+            <div key={i} style={{ ...styles.activityRow }}>
+              <span style={{ fontSize: "0.85rem" }}>{a.nome}</span>
+              <StatusBadge status={a.status === "presente" ? "Pago" : a.status === "reservado" ? "Pendente" : a.status} />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* API real: listPresencialSessions?all=1 · createPresencialSession · listSessionAttendees */}
     </div>
   );
 }
@@ -508,37 +592,55 @@ function ImageField({ label, url, onUpload, uploading, compact }: { label: strin
 
 // ============================================================
 function Financeiro() {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [totals, setTotals] = useState({ aprovado: 0, pendente: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    authedFetch("listTransactions")
+      .then((r) => r.json())
+      .then((data) => {
+        setTransactions(data.transactions || []);
+        setTotals({ aprovado: data.aprovado || 0, pendente: data.pendente || 0 });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader eyebrow="FINANCEIRO" title="Transações" subtitle="Pagamentos aprovados, pendentes e recusados via Mercado Pago." />
 
       <div style={styles.statGrid}>
-        <StatCard label="APROVADO (MÊS)" value="R$ 18.880" />
-        <StatCard label="PENDENTE" value="R$ 497" />
-        <StatCard label="PARCELAS EM ABERTO" value="6" />
+        <StatCard label="APROVADO" value={`R$ ${totals.aprovado.toLocaleString("pt-BR")}`} />
+        <StatCard label="PENDENTE" value={`R$ ${totals.pendente.toLocaleString("pt-BR")}`} />
       </div>
 
       <div style={{ marginTop: "1.6rem" }}>
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <Th>Aluno</Th><Th>Valor</Th><Th>Método</Th><Th>Status</Th><Th>Data</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_TRANSACOES.map((t, i) => (
-                <tr key={i} style={styles.tr}>
-                  <Td>{t.aluno}</Td>
-                  <Td mono>{t.valor}</Td>
-                  <Td muted>{t.metodo}</Td>
-                  <Td><StatusBadge status={t.status} /></Td>
-                  <Td mono>{t.data}</Td>
+        {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+        {!loading && transactions.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma transação ainda.</p>}
+        {!loading && transactions.length > 0 && (
+          <div style={styles.tableCard}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <Th>Aluno</Th><Th>Valor</Th><Th>Método</Th><Th>Status</Th><Th>Data</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {transactions.map((t, i) => (
+                  <tr key={i} style={styles.tr}>
+                    <Td>{t.aluno}</Td>
+                    <Td mono>{t.valor}</Td>
+                    <Td muted>{t.metodo}</Td>
+                    <Td><StatusBadge status={t.status} /></Td>
+                    <Td mono>{t.data}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       {/* API real: GET /api/admin/transactions — vem do webhook do Mercado Pago já salvo no Firestore */}
     </div>
