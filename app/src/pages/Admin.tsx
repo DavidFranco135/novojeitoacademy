@@ -39,11 +39,6 @@ const MOCK_TRANSACOES = [
   { aluno: "Marcos Vinícius", valor: "R$ 497,00", metodo: "Boleto", status: "Pendente", data: "13/07/2026" },
 ];
 
-const MOCK_BOLSAS = [
-  { nome: "Vinícius Almeida", whatsapp: "(21) 98765-4321", idade: 22, profissao: "Desempregado", motivo: "Perdi meu emprego e quero uma nova profissão pra sustentar minha família...", status: "Novo" },
-  { nome: "Patrícia Souza", whatsapp: "(21) 97654-3210", idade: 19, profissao: "Estudante", motivo: "Sempre quis trabalhar com cabelo mas não tenho condições de pagar um curso agora...", status: "Contatado" },
-];
-
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -231,27 +226,44 @@ function Turmas() {
 
 // ============================================================
 function Bolsas() {
+  const [bolsas, setBolsas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/listScholarshipApplications")
+      .then((r) => r.json())
+      .then((data) => setBolsas(data.applications || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader eyebrow="VAGA SOLIDÁRIA" title="Candidaturas à Bolsa" subtitle="Pessoas que se candidataram à bolsa de 100% através do site." />
+
+      {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando candidaturas...</p>}
+
+      {!loading && bolsas.length === 0 && (
+        <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma candidatura recebida ainda.</p>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        {MOCK_BOLSAS.map((b, i) => (
-          <div key={i} style={styles.bolsaCard}>
+        {bolsas.map((b, i) => (
+          <div key={b.id || i} style={styles.bolsaCard}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{b.nome}</div>
-                <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{b.idade} anos · {b.profissao} · {b.whatsapp}</div>
+                <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{b.idade ? `${b.idade} anos · ` : ""}{b.profissao || "Não informado"} · {b.whatsapp}</div>
               </div>
-              <StatusBadge status={b.status} />
+              <StatusBadge status={b.status === "novo" ? "Novo" : b.status === "contatado" ? "Contatado" : b.status} />
             </div>
             <p style={{ fontSize: "0.86rem", color: "#c9c2b4", marginTop: "0.9rem", lineHeight: 1.6, fontStyle: "italic" }}>"{b.motivo}"</p>
             <div style={{ marginTop: "1rem" }}>
-              <a href={`https://wa.me/55${b.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={styles.linkBtn}>Chamar no WhatsApp →</a>
+              <a href={`https://wa.me/55${(b.whatsapp || "").replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={styles.linkBtn}>Chamar no WhatsApp →</a>
             </div>
           </div>
         ))}
       </div>
-      {/* API real: GET /listScholarshipApplications */}
     </div>
   );
 }
