@@ -373,19 +373,38 @@ function verifyToken(token: string): { enrollmentId: string; turmaId: string } |
 }
 
 function renderCheckinPage(success: boolean, message: string): string {
+  const color = success ? "#C58A4A" : "#e8746a";
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Check-in — Novo Jeito Academy</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
-  body{margin:0;background:#050505;color:#F5F0E8;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem}
-  .box{border:1px solid ${success ? "#C58A4A" : "#e8746a"};border-radius:8px;padding:2.4rem;max-width:380px}
-  .icon{font-size:2.6rem;margin-bottom:1rem}
-  h1{font-family:Georgia,serif;font-size:1.3rem;margin-bottom:.6rem;color:${success ? "#C58A4A" : "#e8746a"}}
-  p{color:#c9c2b4;font-size:.9rem}
+  *{box-sizing:border-box}
+  body{margin:0;background:#050505;color:#F5F0E8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem;position:relative;overflow:hidden}
+  .grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(197,138,74,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 60% 55% at 50% 45%,black 10%,transparent 75%)}
+  .logo{position:absolute;top:2rem;left:0;right:0;text-align:center;font-family:'Playfair Display',serif;font-weight:900;font-size:1rem;color:#F5F0E8;letter-spacing:.01em}
+  .logo em{color:#C58A4A;font-style:italic}
+  .box{position:relative;border:1px solid ${color};border-radius:8px;padding:2.6rem 2.2rem;max-width:380px;width:100%;background:linear-gradient(160deg,#0d0d0d,#050505);box-shadow:0 0 40px -12px ${color}55}
+  .corner{position:absolute;width:16px;height:16px;border-color:${color}}
+  .c-tl{top:10px;left:10px;border-top:1px solid;border-left:1px solid}
+  .c-tr{top:10px;right:10px;border-top:1px solid;border-right:1px solid}
+  .c-bl{bottom:10px;left:10px;border-bottom:1px solid;border-left:1px solid}
+  .c-br{bottom:10px;right:10px;border-bottom:1px solid;border-right:1px solid}
+  .icon{width:60px;height:60px;line-height:60px;border:1px solid ${color};border-radius:50%;font-size:1.8rem;margin:0 auto 1.2rem;color:${color}}
+  h1{font-family:'Playfair Display',serif;font-weight:900;font-size:1.4rem;margin:0 0 .8rem;color:${color}}
+  p{color:#c9c2b4;font-size:.9rem;line-height:1.6;margin:0}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.18em;color:#5a5348;margin-top:1.6rem;display:block}
 </style></head>
-<body><div class="box">
-  <div class="icon">${success ? "✓" : "✕"}</div>
-  <h1>${success ? "Check-in confirmado" : "Não foi possível confirmar"}</h1>
-  <p>${message}</p>
-</div></body></html>`;
+<body>
+  <div class="grid-bg"></div>
+  <div class="logo">Novo Jeito <em>Academy</em></div>
+  <div class="box">
+    <div class="corner c-tl"></div><div class="corner c-tr"></div>
+    <div class="corner c-bl"></div><div class="corner c-br"></div>
+    <div class="icon">${success ? "✓" : "✕"}</div>
+    <h1>${success ? "Check-in confirmado" : "Não foi possível confirmar"}</h1>
+    <p>${message}</p>
+    <span class="eyebrow">TURMA PRESENCIAL</span>
+  </div>
+</body></html>`;
 }
