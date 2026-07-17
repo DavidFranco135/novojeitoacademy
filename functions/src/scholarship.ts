@@ -102,10 +102,16 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
     } catch (e: any) {
       if (e.code !== "auth/email-already-exists") throw e;
     }
+    // Aviso ao aluno é feito manualmente pelo admin via WhatsApp
 
     await db.collection("scholarshipApplications").doc(applicationId).update({ status: "selecionado" });
 
-    res.status(200).json({ enrollmentId: enrollmentRef.id });
+    const loginLink = await admin.auth().generateSignInWithEmailLink(email, {
+      url: "https://novojeitoapp.pages.dev/login",
+      handleCodeInApp: true,
+    });
+
+    res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
   } catch (err) {
     console.error("grantScholarship error:", err);
     res.status(500).json({ error: "Erro interno" });
