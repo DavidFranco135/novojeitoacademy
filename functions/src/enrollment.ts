@@ -239,8 +239,24 @@ export const mercadopagoWebhook = onRequest(
               if (e.code !== "auth/email-already-exists") throw e;
             }
           }
+          // Aviso ao aluno é feito manualmente pelo admin via WhatsApp
+          // (painel Admin → Alunos → "Copiar link de acesso")
+        }
+      }
 
-          // TODO: disparar e-mail de boas-vindas com o link de primeiro acesso (/login)
+      // Reembolso, estorno ou contestação (chargeback) — revoga o acesso automaticamente
+      if (["refunded", "charged_back", "cancelled"].includes(paymentInfo.status || "")) {
+        const enrollmentId = paymentInfo.external_reference;
+        if (enrollmentId) {
+          const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+          if (enrollmentSnap.exists && enrollmentSnap.data()!.status === "acesso_liberado") {
+            await db.collection("enrollments").doc(enrollmentId).update({
+              status: "bloqueado",
+              bloqueioMotivo: `Pagamento ${paymentInfo.status} (revogado automaticamente)`,
+              bloqueadoEm: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`Acesso revogado automaticamente — matrícula ${enrollmentId}, motivo: ${paymentInfo.status}`);
+          }
         }
       }
 
