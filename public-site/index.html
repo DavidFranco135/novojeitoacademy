@@ -7,6 +7,7 @@
 <meta name="description" content="Formação completa de barbeiro profissional: do primeiro degradê ao seu próprio negócio. Aulas online + módulo presencial + certificado."/>
 <meta name="theme-color" content="#050505"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Novo Jeito Academy"/>
 <link rel="manifest" href="/manifest.json"/>
@@ -503,7 +504,7 @@
         content.galleryImages.forEach((url, i) => {
           if (!url) return;
           const item = document.querySelector(`.gallery-item[data-idx="${i}"]`);
-          if (item) item.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
+          if (item) item.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;background:#0a0a0a"/>`;
         });
       }
 
@@ -528,7 +529,7 @@
     if (placeholder) placeholder.style.display = 'none';
     const img = document.createElement('img');
     img.src = url;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#0a0a0a;position:absolute;inset:0';
     frame.appendChild(img);
   }
 
