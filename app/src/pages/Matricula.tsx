@@ -14,6 +14,9 @@ import { useState, useRef, useEffect } from "react";
 const GOLD = "#C58A4A";
 const GOLD2 = "#E8B97A";
 
+// Base real das Firebase Functions (projeto: barbearia-do-ico)
+const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
+
 type Step = 1 | 2 | 3;
 
 interface StudentData {
@@ -82,7 +85,7 @@ export default function EnrollmentFlow() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/createEnrollment", {
+      const res = await fetch(`${FUNCTIONS_BASE}/createEnrollment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -167,7 +170,7 @@ export default function EnrollmentFlow() {
       const canvas = canvasRef.current!;
       const signatureBase64 = canvas.toDataURL("image/png");
 
-      const res = await fetch("/api/signContract", {
+      const res = await fetch(`${FUNCTIONS_BASE}/signContract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,7 +193,7 @@ export default function EnrollmentFlow() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/createPaymentPreference", {
+      const res = await fetch(`${FUNCTIONS_BASE}/createPaymentPreference`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enrollmentId }),
