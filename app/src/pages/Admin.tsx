@@ -406,14 +406,42 @@ const inputStyle: React.CSSProperties = { background: "#111", border: "1px solid
 function Bolsas() {
   const [bolsas, setBolsas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [granting, setGranting] = useState<string | null>(null);
 
-  useEffect(() => {
+  function loadBolsas() {
     fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/listScholarshipApplications")
       .then((r) => r.json())
       .then((data) => setBolsas(data.applications || []))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadBolsas();
   }, []);
+
+  async function handleConceder(applicationId: string) {
+    const email = window.prompt("E-mail da pessoa (vai virar o login dela na área do aluno):");
+    if (!email) return;
+    const cpf = window.prompt("CPF da pessoa (necessário para o contrato):");
+    if (!cpf) return;
+
+    setGranting(applicationId);
+    try {
+      const res = await authedFetch("grantScholarship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, email, cpf }),
+      });
+      if (!res.ok) throw new Error();
+      alert("Bolsa concedida! A pessoa já pode fazer login em /login com esse e-mail.");
+      loadBolsas();
+    } catch {
+      alert("Não foi possível conceder a bolsa.");
+    } finally {
+      setGranting(null);
+    }
+  }
 
   return (
     <div>
@@ -433,11 +461,21 @@ function Bolsas() {
                 <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{b.nome}</div>
                 <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{b.idade ? `${b.idade} anos · ` : ""}{b.profissao || "Não informado"} · {b.whatsapp}</div>
               </div>
-              <StatusBadge status={b.status === "novo" ? "Novo" : b.status === "contatado" ? "Contatado" : b.status} />
+              <StatusBadge status={b.status === "novo" ? "Novo" : b.status === "selecionado" ? "Pago" : b.status === "contatado" ? "Contatado" : b.status} />
             </div>
             <p style={{ fontSize: "0.86rem", color: "#c9c2b4", marginTop: "0.9rem", lineHeight: 1.6, fontStyle: "italic" }}>"{b.motivo}"</p>
-            <div style={{ marginTop: "1rem" }}>
+            <div style={{ marginTop: "1rem", display: "flex", gap: "1.2rem", alignItems: "center", flexWrap: "wrap" }}>
               <a href={`https://wa.me/55${(b.whatsapp || "").replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={styles.linkBtn}>Chamar no WhatsApp →</a>
+              {b.status !== "selecionado" && (
+                <button
+                  style={{ ...styles.linkBtn, color: "#78c88c" }}
+                  disabled={granting === b.id}
+                  onClick={() => handleConceder(b.id)}
+                >
+                  {granting === b.id ? "Concedendo..." : "🎓 Conceder bolsa →"}
+                </button>
+              )}
+              {b.status === "selecionado" && <span style={{ fontSize: "0.78rem", color: "#78c88c" }}>✓ Bolsa concedida — acesso liberado</span>}
             </div>
           </div>
         ))}
