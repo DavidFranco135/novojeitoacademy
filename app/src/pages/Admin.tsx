@@ -22,6 +22,46 @@ async function authedFetch(path: string, options: RequestInit = {}) {
   });
 }
 
+// Exporta uma lista de objetos como arquivo CSV e dispara o download
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const escapeCell = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) => headers.map((h) => escapeCell(row[h])).join(",")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }); // \uFEFF = BOM, abre acentuação certa no Excel
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const PAGE_SIZE = 12;
+
+// Paginação simples client-side — corta a lista já carregada em páginas de PAGE_SIZE
+function usePagination<T>(items: T[]) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const pageItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  return { page, setPage, totalPages, pageItems };
+}
+
+function PaginationControls({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1rem", marginTop: "1.2rem" }}>
+      <button style={{ ...styles.linkBtn, opacity: page === 1 ? 0.35 : 1 }} disabled={page === 1} onClick={() => onChange(page - 1)}>← Anterior</button>
+      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.75rem", color: "#9d9384" }}>Página {page} de {totalPages}</span>
+      <button style={{ ...styles.linkBtn, opacity: page === totalPages ? 0.35 : 1 }} disabled={page === totalPages} onClick={() => onChange(page + 1)}>Próxima →</button>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -133,6 +173,7 @@ function Overview() {
 function Leads() {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { page, setPage, totalPages, pageItems } = usePagination(leads);
 
   useEffect(() => {
     authedFetch("listLeads")
@@ -142,9 +183,19 @@ function Leads() {
       .finally(() => setLoading(false));
   }, []);
 
+  function handleExport() {
+    exportToCSV(
+      leads.map((l) => ({ Nome: l.nome, Contato: l.contato, Status: l.status, Data: l.data })),
+      "leads_novo_jeito_academy.csv"
+    );
+  }
+
   return (
     <div>
       <PageHeader eyebrow="AQUISIÇÃO" title="Leads" subtitle="Pessoas que demonstraram interesse mas ainda não finalizaram a matrícula." />
+      {!loading && leads.length > 0 && (
+        <button style={{ ...styles.linkBtn, marginBottom: "1rem" }} onClick={handleExport}>⬇ Exportar CSV ({leads.length})</button>
+      )}
       {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
       {!loading && leads.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum lead capturado ainda.</p>}
       {!loading && leads.length > 0 && (
@@ -156,7 +207,7 @@ function Leads() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((l, i) => (
+              {pageItems.map((l, i) => (
                 <tr key={l.id || i} style={styles.tr}>
                   <Td>{l.nome}</Td>
                   <Td>{l.contato}</Td>
@@ -169,6 +220,7 @@ function Leads() {
           </table>
         </div>
       )}
+      <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
       {/* API real: GET listLeads */}
     </div>
   );
@@ -178,48 +230,133 @@ function Leads() {
 function Alunos() {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actingOn, setActingOn] = useState<string | null>(null);
+  const { page, setPage, totalPages, pageItems } = usePagination(alunos);
 
-  useEffect(() => {
+  function loadAlunos() {
+    setLoading(true);
     authedFetch("listStudents")
       .then((r) => r.json())
       .then((data) => setAlunos(data.students || []))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }
+
+  function handleExport() {
+    exportToCSV(
+      alunos.map((a) => ({ Nome: a.nome, Email: a.email, Pagamento: a.pagamento, Progresso: `${a.progresso}%`, Matricula: a.matricula })),
+      "alunos_novo_jeito_academy.csv"
+    );
+  }
+
+  useEffect(() => {
+    loadAlunos();
   }, []);
+
+  async function handleToggleAccess(aluno: any) {
+    const acao = aluno.bloqueado ? "desbloquear" : "bloquear";
+    if (!window.confirm(`Confirma ${acao} o acesso de ${aluno.nome}?`)) return;
+
+    setActingOn(aluno.id);
+    try {
+      await authedFetch("toggleStudentAccess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: aluno.id, blocked: !aluno.bloqueado }),
+      });
+      loadAlunos();
+    } catch {
+      alert("Não foi possível atualizar o acesso.");
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract", enrollmentId: string, linkField: string) {
+    setActingOn(enrollmentId);
+    try {
+      const res = await authedFetch(action, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+
+      const link = data[linkField];
+      if (link) {
+        try {
+          await navigator.clipboard.writeText(link);
+          alert("Link copiado! Agora é só colar no WhatsApp do aluno.");
+        } catch {
+          window.prompt("Copie o link abaixo e cole no WhatsApp do aluno:", link);
+        }
+      }
+      if (action === "resendCertificate") loadAlunos();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível concluir a ação.");
+    } finally {
+      setActingOn(null);
+    }
+  }
 
   return (
     <div>
-      <PageHeader eyebrow="GESTÃO" title="Alunos" subtitle="Cadastro, pagamento e progresso de cada aluno matriculado." />
+      <PageHeader eyebrow="GESTÃO" title="Alunos" subtitle="Cadastro, pagamento, progresso e ações sobre cada aluno matriculado." />
+      {!loading && alunos.length > 0 && (
+        <button style={{ ...styles.linkBtn, marginBottom: "1rem" }} onClick={handleExport}>⬇ Exportar CSV ({alunos.length})</button>
+      )}
       {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
       {!loading && alunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aluno com acesso liberado ainda.</p>}
-      {!loading && alunos.length > 0 && (
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <Th>Nome</Th><Th>E-mail</Th><Th>Pagamento</Th><Th>Progresso</Th><Th>Matrícula</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {alunos.map((a, i) => (
-                <tr key={a.id || i} style={styles.tr}>
-                  <Td>{a.nome}</Td>
-                  <Td muted>{a.email}</Td>
-                  <Td><StatusBadge status={a.pagamento} /></Td>
-                  <Td>
-                    <div style={styles.progressBarOuter}>
-                      <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
-                    </div>
-                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}%</span>
-                  </Td>
-                  <Td mono>{a.matricula}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {/* API real: GET listStudents */}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        {pageItems.map((a, i) => (
+          <div key={a.id || i} style={styles.bolsaCard}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{a.nome}</div>
+                <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{a.email} · matriculado em {a.matricula}</div>
+              </div>
+              <StatusBadge status={a.pagamento} />
+            </div>
+            {a.bloqueioMotivo && (
+              <div style={{ fontSize: "0.76rem", color: "#e8746a", marginTop: "0.5rem" }}>⚠️ {a.bloqueioMotivo}</div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.9rem" }}>
+              <div style={styles.progressBarOuter}>
+                <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
+              </div>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}% dos vídeos</span>
+            </div>
+
+            <div style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+              {a.contractUrl && <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>}
+              {a.certificateUrl && <a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado</a>}
+              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendAccessEmail", a.id, "loginLink")}>
+                Copiar link de acesso
+              </button>
+              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendCertificate", a.id, "certificateUrl")}>
+                Copiar link do certificado
+              </button>
+              {a.contractUrl && (
+                <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
+                  Copiar link do contrato
+                </button>
+              )}
+              <button
+                style={{ ...styles.linkBtn, color: a.bloqueado ? "#78c88c" : "#e8746a" }}
+                disabled={actingOn === a.id}
+                onClick={() => handleToggleAccess(a)}
+              >
+                {a.bloqueado ? "Desbloquear acesso" : "Bloquear acesso"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
+      {/* API real: listStudents · toggleStudentAccess · resendAccessEmail · resendCertificate · resendContract */}
     </div>
   );
 }
@@ -450,6 +587,7 @@ function Turmas() {
 }
 
 const inputStyle: React.CSSProperties = { background: "#111", border: "1px solid rgba(197,138,74,.25)", borderRadius: 3, padding: "0.6rem 0.8rem", color: "#F5F0E8", fontSize: "0.82rem", fontFamily: "inherit" };
+const smallInputStyle: React.CSSProperties = { background: "#0a0a0a", border: "1px solid rgba(197,138,74,.2)", borderRadius: 3, padding: "0.5rem 0.7rem", color: "#F5F0E8", fontSize: "0.8rem", fontFamily: "inherit" };
 
 // ============================================================
 function Bolsas() {
@@ -482,8 +620,17 @@ function Bolsas() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ applicationId, email, cpf }),
       });
+      const data = await res.json();
       if (!res.ok) throw new Error();
-      alert("Bolsa concedida! A pessoa já pode fazer login em /login com esse e-mail.");
+
+      if (data.loginLink) {
+        try {
+          await navigator.clipboard.writeText(data.loginLink);
+          alert("Bolsa concedida! Link de acesso copiado — cole no WhatsApp da pessoa.");
+        } catch {
+          window.prompt("Bolsa concedida! Copie o link e mande no WhatsApp da pessoa:", data.loginLink);
+        }
+      }
       loadBolsas();
     } catch {
       alert("Não foi possível conceder a bolsa.");
@@ -539,6 +686,18 @@ const GET_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net
 const UPDATE_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/updateSiteContent";
 const UPLOAD_IMAGE_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/uploadImage";
 
+interface Testimonial {
+  stars: number;
+  text: string;
+  autor: string;
+  turma: string;
+}
+
+interface FaqItem {
+  pergunta: string;
+  resposta: string;
+}
+
 interface SiteContent {
   heroTitle: string;
   heroLead: string;
@@ -556,6 +715,10 @@ interface SiteContent {
   instrutorAlunosFormados: number;
   price: number;
   priceInstallments: number;
+  testimonials: Testimonial[];
+  faq: FaqItem[];
+  scholarshipTitle: string;
+  scholarshipText: string;
 }
 
 const EMPTY_CONTENT: SiteContent = {
@@ -575,6 +738,10 @@ const EMPTY_CONTENT: SiteContent = {
   instrutorAlunosFormados: 0,
   price: 0,
   priceInstallments: 12,
+  testimonials: [],
+  faq: [],
+  scholarshipTitle: "",
+  scholarshipText: "",
 };
 
 function ConteudoSite() {
@@ -602,6 +769,34 @@ function ConteudoSite() {
       gallery[idx] = url;
       return { ...prev, galleryImages: gallery };
     });
+  }
+
+  function updateTestimonial(idx: number, field: keyof Testimonial, value: string | number) {
+    setContent((prev) => {
+      const list = [...prev.testimonials];
+      list[idx] = { ...list[idx], [field]: value };
+      return { ...prev, testimonials: list };
+    });
+  }
+  function addTestimonial() {
+    setContent((prev) => ({ ...prev, testimonials: [...prev.testimonials, { stars: 5, text: "", autor: "", turma: "" }] }));
+  }
+  function removeTestimonial(idx: number) {
+    setContent((prev) => ({ ...prev, testimonials: prev.testimonials.filter((_, i) => i !== idx) }));
+  }
+
+  function updateFaq(idx: number, field: keyof FaqItem, value: string) {
+    setContent((prev) => {
+      const list = [...prev.faq];
+      list[idx] = { ...list[idx], [field]: value };
+      return { ...prev, faq: list };
+    });
+  }
+  function addFaq() {
+    setContent((prev) => ({ ...prev, faq: [...prev.faq, { pergunta: "", resposta: "" }] }));
+  }
+  function removeFaq(idx: number) {
+    setContent((prev) => ({ ...prev, faq: prev.faq.filter((_, i) => i !== idx) }));
   }
 
   async function handleImageUpload(file: File, fieldKey: string, onDone: (url: string) => void) {
@@ -699,6 +894,39 @@ function ConteudoSite() {
         </div>
       </FieldGroup>
 
+      <FieldGroup title="Bolsa de 100%">
+        <TextField label="Título da seção" value={content.scholarshipTitle} onChange={(v) => update("scholarshipTitle", v)} hint="Pode usar <em>palavra</em> pra deixar em dourado itálico" />
+        <TextField label="Texto de apoio" value={content.scholarshipText} multiline onChange={(v) => update("scholarshipText", v)} />
+      </FieldGroup>
+
+      <FieldGroup title="Depoimentos">
+        {content.testimonials.map((t, i) => (
+          <div key={i} style={{ border: "1px solid rgba(197,138,74,.15)", borderRadius: 4, padding: "0.9rem", marginBottom: "0.6rem" }}>
+            <div style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem" }}>
+              <input placeholder="Nome" value={t.autor} onChange={(e) => updateTestimonial(i, "autor", e.target.value)} style={{ ...smallInputStyle, flex: 1 }} />
+              <input placeholder="Turma" value={t.turma} onChange={(e) => updateTestimonial(i, "turma", e.target.value)} style={{ ...smallInputStyle, width: 120 }} />
+              <input type="number" min={1} max={5} value={t.stars} onChange={(e) => updateTestimonial(i, "stars", parseInt(e.target.value) || 5)} style={{ ...smallInputStyle, width: 60 }} />
+              <button onClick={() => removeTestimonial(i)} style={{ ...styles.linkBtn, color: "#e8746a" }}>✕</button>
+            </div>
+            <textarea placeholder="Texto do depoimento" value={t.text} onChange={(e) => updateTestimonial(i, "text", e.target.value)} style={{ ...smallInputStyle, width: "100%", minHeight: 60 }} />
+          </div>
+        ))}
+        <button onClick={addTestimonial} style={{ ...styles.linkBtn, marginTop: "0.4rem" }}>+ Adicionar depoimento</button>
+      </FieldGroup>
+
+      <FieldGroup title="Perguntas Frequentes (FAQ)">
+        {content.faq.map((f, i) => (
+          <div key={i} style={{ border: "1px solid rgba(197,138,74,.15)", borderRadius: 4, padding: "0.9rem", marginBottom: "0.6rem" }}>
+            <div style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem" }}>
+              <input placeholder="Pergunta" value={f.pergunta} onChange={(e) => updateFaq(i, "pergunta", e.target.value)} style={{ ...smallInputStyle, flex: 1 }} />
+              <button onClick={() => removeFaq(i)} style={{ ...styles.linkBtn, color: "#e8746a" }}>✕</button>
+            </div>
+            <textarea placeholder="Resposta" value={f.resposta} onChange={(e) => updateFaq(i, "resposta", e.target.value)} style={{ ...smallInputStyle, width: "100%", minHeight: 60 }} />
+          </div>
+        ))}
+        <button onClick={addFaq} style={{ ...styles.linkBtn, marginTop: "0.4rem" }}>+ Adicionar pergunta</button>
+      </FieldGroup>
+
       <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "1rem" }}>
         <button style={styles.btnPrimary} onClick={handleSave} disabled={saving}>
           {saving ? "Salvando..." : "Salvar alterações"}
@@ -776,6 +1004,7 @@ function Financeiro() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [totals, setTotals] = useState({ aprovado: 0, pendente: 0 });
   const [loading, setLoading] = useState(true);
+  const { page, setPage, totalPages, pageItems } = usePagination(transactions);
 
   useEffect(() => {
     authedFetch("listTransactions")
@@ -788,6 +1017,13 @@ function Financeiro() {
       .finally(() => setLoading(false));
   }, []);
 
+  function handleExport() {
+    exportToCSV(
+      transactions.map((t) => ({ Aluno: t.aluno, Valor: t.valor, Metodo: t.metodo, Status: t.status, Data: t.data })),
+      "financeiro_novo_jeito_academy.csv"
+    );
+  }
+
   return (
     <div>
       <PageHeader eyebrow="FINANCEIRO" title="Transações" subtitle="Pagamentos aprovados, pendentes e recusados via Mercado Pago." />
@@ -798,6 +1034,9 @@ function Financeiro() {
       </div>
 
       <div style={{ marginTop: "1.6rem" }}>
+        {!loading && transactions.length > 0 && (
+          <button style={{ ...styles.linkBtn, marginBottom: "1rem" }} onClick={handleExport}>⬇ Exportar CSV ({transactions.length})</button>
+        )}
         {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
         {!loading && transactions.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma transação ainda.</p>}
         {!loading && transactions.length > 0 && (
@@ -809,7 +1048,7 @@ function Financeiro() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((t, i) => (
+                {pageItems.map((t, i) => (
                   <tr key={i} style={styles.tr}>
                     <Td>{t.aluno}</Td>
                     <Td mono>{t.valor}</Td>
@@ -822,6 +1061,7 @@ function Financeiro() {
             </table>
           </div>
         )}
+        <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
       </div>
       {/* API real: GET /api/admin/transactions — vem do webhook do Mercado Pago já salvo no Firestore */}
     </div>
@@ -869,6 +1109,7 @@ function StatusBadge({ status }: { status: string }) {
     Aprovado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
     Pendente: { bg: "rgba(197,138,74,.12)", color: GOLD },
     Selecionado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
+    Bloqueado: { bg: "rgba(232,116,106,.12)", color: "#e8746a" },
   };
   const s = map[status] || { bg: "rgba(150,150,150,.12)", color: "#999" };
   return <span style={{ background: s.bg, color: s.color, fontSize: "0.72rem", padding: "0.25rem 0.6rem", borderRadius: 3, fontWeight: 600 }}>{status}</span>;
