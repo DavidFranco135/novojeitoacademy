@@ -8,12 +8,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /presencialSessions/{sessionId} {
+    match /turmas/{turmaId} {
       allow read: if true; // lista pública de turmas com vaga
       allow write: if false;
     }
 
-    match /presencialBookings/{bookingId} {
+    match /turmaBookings/{bookingId} {
       allow read, write: if false;
     }
 
