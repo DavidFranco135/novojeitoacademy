@@ -1,0 +1,258 @@
+/**
+ * Turmas Presenciais — Novo Jeito Academy
+ *
+ * Um curso híbrido, com VÁRIOS encontros presenciais ao longo do tempo
+ * (assuntos diferentes em cada um), não um único módulo prático avulso.
+ *
+ * Modelo:
+ *  - Uma "Turma" é uma coorte com nome (ex: "Turma Julho/2026") e uma grade
+ *    de encontros (cada um com tópico, data, horário e local).
+ *  - O aluno se matricula na turma UMA VEZ e passa a ter acesso a todos os
+ *    encontros dela.
+ *  - No dia de cada encontro, o aluno mostra o MESMO QR Code pessoal — o
+ *    sistema identifica sozinho qual encontro é "hoje" e marca a presença
+ *    daquele dia específico.
+ *
+ * Dependência: nativo do Node (crypto), sem instalar nada extra.
+ */
+
+import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
+import * as admin from "firebase-admin";
+import * as crypto from "crypto";
+
+const db = admin.firestore();
+const CHECKIN_SECRET = defineSecret("CHECKIN_SECRET");
+
+interface Encontro {
+  topico: string;
+  data: string; // "2026-08-15"
+  horario: string; // "09:00"
+  local: string;
+}
+
+async function verificarAdmin(req: any): Promise<boolean> {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return false;
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    const adminDoc = await db.collection("admins").doc(decoded.uid).get();
+    return adminDoc.exists;
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================
+// 1) Admin cria uma turma com a grade completa de encontros
+// ============================================================
+export const createTurma = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { nome, vagasTotal, encontros } = req.body as { nome: string; vagasTotal: number; encontros: Encontro[] };
+    if (!nome || !vagasTotal || !Array.isArray(encontros) || encontros.length === 0) {
+      res.status(400).json({ error: "nome, vagasTotal e ao menos 1 encontro são obrigatórios" });
+      return;
+    }
+
+    const turmaRef = await db.collection("turmas").add({
+      nome,
+      vagasTotal,
+      vagasOcupadas: 0,
+      encontros: encontros.sort((a, b) => a.data.localeCompare(b.data)),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.status(200).json({ turmaId: turmaRef.id });
+  } catch (err) {
+    console.error("createTurma error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// 2) Lista turmas (aluno vê só as com vaga; admin vê todas com ?all=1)
+// ============================================================
+export const listTurmas = onRequest({ cors: true }, async (req, res) => {
+  try {
+    const snap = await db.collection("turmas").orderBy("createdAt", "desc").get();
+    let turmas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    const wantsAll = req.query.all === "1" && (await verificarAdmin(req));
+    if (!wantsAll) {
+      turmas = turmas.filter((t: any) => t.vagasOcupadas < t.vagasTotal);
+    }
+
+    res.status(200).json({ turmas });
+  } catch (err) {
+    console.error("listTurmas error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// 3) Aluno se matricula na turma (uma vez, vale pra todos os encontros)
+// ============================================================
+export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+  try {
+    const { enrollmentId, turmaId } = req.body;
+    if (!enrollmentId || !turmaId) {
+      res.status(400).json({ error: "Dados incompletos" });
+      return;
+    }
+
+    const turmaRef = db.collection("turmas").doc(turmaId);
+
+    await db.runTransaction(async (tx) => {
+      const turmaDoc = await tx.get(turmaRef);
+      if (!turmaDoc.exists) throw new Error("Turma não encontrada");
+      const turma = turmaDoc.data()!;
+
+      if (turma.vagasOcupadas >= turma.vagasTotal) throw new Error("Turma sem vagas disponíveis");
+
+      tx.update(turmaRef, { vagasOcupadas: turma.vagasOcupadas + 1 });
+
+      tx.set(db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`), {
+        enrollmentId,
+        turmaId,
+        presencas: {}, // preenchido conforme os check-ins acontecem: { "2026-08-15": true }
+        bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    const token = generateToken(enrollmentId, turmaId);
+    const checkinUrl = `https://us-central1-barbearia-do-ico.cloudfunctions.net/confirmCheckinTurma/${token}`;
+
+    res.status(200).json({ checkinUrl });
+  } catch (err: any) {
+    console.error("joinTurma error:", err);
+    res.status(400).json({ error: err.message || "Erro ao matricular na turma" });
+  }
+});
+
+// ============================================================
+// 4) Check-in via QR Code — identifica sozinho qual encontro é "hoje"
+// ============================================================
+export const confirmCheckinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+  const token = req.path.split("/").pop() || (req.query.token as string);
+
+  try {
+    const decoded = verifyToken(token || "");
+    if (!decoded) {
+      res.status(400).send(renderCheckinPage(false, "QR Code inválido ou expirado."));
+      return;
+    }
+
+    const { enrollmentId, turmaId } = decoded;
+    const bookingRef = db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`);
+    const [bookingDoc, turmaDoc] = await Promise.all([bookingRef.get(), db.collection("turmas").doc(turmaId).get()]);
+
+    if (!bookingDoc.exists || !turmaDoc.exists) {
+      res.status(404).send(renderCheckinPage(false, "Matrícula na turma não encontrada."));
+      return;
+    }
+
+    const turma = turmaDoc.data()!;
+    const hoje = new Date().toISOString().split("T")[0];
+    const encontroHoje = (turma.encontros as Encontro[]).find((e) => e.data === hoje);
+
+    if (!encontroHoje) {
+      res.status(200).send(renderCheckinPage(false, "Não há nenhum encontro dessa turma marcado para hoje."));
+      return;
+    }
+
+    const booking = bookingDoc.data()!;
+    if (booking.presencas?.[hoje]) {
+      res.status(200).send(renderCheckinPage(true, `Presença de hoje (${encontroHoje.topico}) já estava confirmada.`));
+      return;
+    }
+
+    await bookingRef.update({ [`presencas.${hoje}`]: true });
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    const nome = enrollmentSnap.exists ? enrollmentSnap.data()!.nome : "Aluno";
+
+    res.status(200).send(renderCheckinPage(true, `Presença confirmada em "${encontroHoje.topico}" — bem-vindo(a), ${nome}!`));
+  } catch (err) {
+    console.error("confirmCheckinTurma error:", err);
+    res.status(500).send(renderCheckinPage(false, "Erro ao confirmar presença."));
+  }
+});
+
+// ============================================================
+// 5) Admin vê a lista de matriculados numa turma + presença por encontro
+// ============================================================
+export const listTurmaAttendance = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const turmaId = req.query.turmaId as string;
+    if (!turmaId) {
+      res.status(400).json({ error: "turmaId obrigatório" });
+      return;
+    }
+
+    const bookingsSnap = await db.collection("turmaBookings").where("turmaId", "==", turmaId).get();
+
+    const alunos = await Promise.all(
+      bookingsSnap.docs.map(async (doc) => {
+        const booking = doc.data();
+        const enrollmentSnap = await db.collection("enrollments").doc(booking.enrollmentId).get();
+        return {
+          nome: enrollmentSnap.exists ? enrollmentSnap.data()!.nome : "Aluno não encontrado",
+          presencas: booking.presencas || {},
+        };
+      })
+    );
+
+    res.status(200).json({ alunos });
+  } catch (err) {
+    console.error("listTurmaAttendance error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+function generateToken(enrollmentId: string, turmaId: string): string {
+  const payload = `${enrollmentId}:${turmaId}`;
+  const signature = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(payload).digest("hex").slice(0, 16);
+  return Buffer.from(`${payload}:${signature}`).toString("base64url");
+}
+
+function verifyToken(token: string): { enrollmentId: string; turmaId: string } | null {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const [enrollmentId, turmaId, signature] = decoded.split(":");
+    const expected = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(`${enrollmentId}:${turmaId}`).digest("hex").slice(0, 16);
+    if (signature !== expected) return null;
+    return { enrollmentId, turmaId };
+  } catch {
+    return null;
+  }
+}
+
+function renderCheckinPage(success: boolean, message: string): string {
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Check-in — Novo Jeito Academy</title>
+<style>
+  body{margin:0;background:#050505;color:#F5F0E8;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem}
+  .box{border:1px solid ${success ? "#C58A4A" : "#e8746a"};border-radius:8px;padding:2.4rem;max-width:380px}
+  .icon{font-size:2.6rem;margin-bottom:1rem}
+  h1{font-family:Georgia,serif;font-size:1.3rem;margin-bottom:.6rem;color:${success ? "#C58A4A" : "#e8746a"}}
+  p{color:#c9c2b4;font-size:.9rem}
+</style></head>
+<body><div class="box">
+  <div class="icon">${success ? "✓" : "✕"}</div>
+  <h1>${success ? "Check-in confirmado" : "Não foi possível confirmar"}</h1>
+  <p>${message}</p>
+</div></body></html>`;
+}
