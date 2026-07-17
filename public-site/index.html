@@ -52,7 +52,20 @@
 
   /* ===== NAV ===== */
   nav{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;align-items:center;padding:1.1rem 6vw;backdrop-filter:blur(12px);background:rgba(5,5,5,.6);border-bottom:1px solid var(--line)}
-  .logo{font-family:'Playfair Display',serif;font-weight:900;font-size:1.1rem}
+  .logo,.logo em{
+    font-family:'Playfair Display',serif;font-weight:900;
+    font-size:clamp(1.15rem,4.6vw,1.5rem);
+    letter-spacing:.005em;
+    background:linear-gradient(100deg,#8a5f2e 0%,var(--gold) 22%,#f5d9a8 45%,var(--gold) 68%,#8a5f2e 100%);
+    background-size:250% auto;
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+    animation:logoShimmer 6s linear infinite,logoGlow 3.2s ease-in-out infinite;
+  }
+  .logo{display:inline-block}
+  .logo em{font-style:italic;font-weight:700}
+  @keyframes logoShimmer{0%{background-position:0% center}100%{background-position:250% center}}
+  @keyframes logoGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(197,138,74,.2))}50%{filter:drop-shadow(0 0 11px rgba(197,138,74,.5))}}
   .logo em{color:var(--gold);font-style:italic}
   .nav-cta{border:1px solid var(--gold);padding:.55rem 1.3rem;border-radius:2px;font-size:.76rem;letter-spacing:.04em;transition:.25s;white-space:nowrap}
   .nav-cta:hover{background:var(--gold);color:var(--dark)}
@@ -210,6 +223,7 @@
     .testimonial-grid{grid-template-columns:1fr}
     section{padding:3.2rem 6vw}
     .nav-cta{display:none}
+    nav{justify-content:center}
     body{padding-bottom:calc(64px + var(--safe-bottom))}
     .sticky-cta{
       display:flex;position:fixed;left:0;right:0;bottom:0;z-index:70;
