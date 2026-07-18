@@ -72,21 +72,24 @@ export const listTransactions = onRequest({ cors: true }, async (req, res) => {
     const snap = await db.collection("enrollments").orderBy("createdAt", "desc").limit(100).get();
 
     const transactions = snap.docs
-      .filter((doc) => doc.data().paymentId || doc.data().status === "contrato_assinado")
+      .filter((doc) => doc.data().paymentId || doc.data().paymentMethod === "dinheiro" || doc.data().status === "contrato_assinado")
       .map((doc) => {
         const data = doc.data();
+        const valorPago = data.valorPago || COURSE_PRICE;
         const status = data.status === "acesso_liberado" ? "Aprovado" : "Pendente";
+        const metodo = data.paymentMethod === "dinheiro" ? "Dinheiro" : data.paymentId ? "Mercado Pago" : "-";
         return {
           aluno: data.nome,
-          valor: `R$ ${COURSE_PRICE.toFixed(2).replace(".", ",")}`,
-          metodo: data.paymentId ? "Mercado Pago" : "-",
+          valor: `R$ ${valorPago.toFixed(2).replace(".", ",")}`,
+          valorNumerico: valorPago,
+          metodo,
           status,
           data: data.paidAt ? data.paidAt.toDate().toLocaleDateString("pt-BR") : data.signedAt ? data.signedAt.toDate().toLocaleDateString("pt-BR") : "-",
         };
       });
 
-    const aprovado = transactions.filter((t) => t.status === "Aprovado").length * COURSE_PRICE;
-    const pendente = transactions.filter((t) => t.status === "Pendente").length * COURSE_PRICE;
+    const aprovado = transactions.filter((t) => t.status === "Aprovado").reduce((sum, t) => sum + t.valorNumerico, 0);
+    const pendente = transactions.filter((t) => t.status === "Pendente").reduce((sum, t) => sum + t.valorNumerico, 0);
 
     res.status(200).json({ transactions, aprovado, pendente });
   } catch (err) {
@@ -118,7 +121,7 @@ export const getOverviewStats = onRequest({ cors: true }, async (req, res) => {
         const paidAt = d.data().paidAt?.toDate?.();
         return paidAt && paidAt.getMonth() === now.getMonth() && paidAt.getFullYear() === now.getFullYear();
       })
-      .length * COURSE_PRICE;
+      .reduce((sum, d) => sum + (d.data().valorPago || COURSE_PRICE), 0);
 
     const conversao = totalCadastros > 0 ? Math.round((totalAlunos / totalCadastros) * 1000) / 10 : 0;
 
@@ -268,6 +271,53 @@ export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
     res.status(200).json({ ok: true, loginLink });
   } catch (err) {
     console.error("resendAccessEmail error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Registrar matrícula paga em dinheiro (fora do Mercado Pago) — libera acesso na hora
+// ============================================================
+export const registerCashPayment = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { nome, email, telefone, cpf, valor } = req.body;
+    if (!nome || !email || !telefone || !cpf) {
+      res.status(400).json({ error: "nome, email, telefone e cpf são obrigatórios" });
+      return;
+    }
+
+    const enrollmentRef = await db.collection("enrollments").add({
+      nome,
+      email,
+      telefone,
+      cpf,
+      status: "acesso_liberado",
+      paymentMethod: "dinheiro",
+      valorPago: valor || COURSE_PRICE,
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // cria o login do aluno (mesmo padrão do pagamento online e da bolsa)
+    try {
+      await admin.auth().createUser({ email, displayName: nome });
+    } catch (e: any) {
+      if (e.code !== "auth/email-already-exists") throw e;
+    }
+
+    const loginLink = await admin.auth().generateSignInWithEmailLink(email, {
+      url: "https://novojeitoapp.pages.dev/login",
+      handleCodeInApp: true,
+    });
+
+    res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
+  } catch (err) {
+    console.error("registerCashPayment error:", err);
     res.status(500).json({ error: "Erro interno" });
   }
 });
