@@ -58,6 +58,19 @@ const COURSE_MODULES: Module[] = [
       { id: "l7", title: "Toalha quente e finalização", duration: "13:15", videoUid: "", completed: false },
     ],
   },
+  {
+    id: "m4",
+    title: "Gestão da Própria Barbearia",
+    lessons: [
+      { id: "l8", title: "Precificação de serviços", duration: "14:00", videoUid: "", completed: false },
+      { id: "l9", title: "Como montar seu portfólio", duration: "15:00", videoUid: "", completed: false },
+      { id: "l10", title: "Atendimento e experiência do cliente", duration: "16:00", videoUid: "", completed: false },
+      { id: "l11", title: "Fidelização e programa de indicação", duration: "14:00", videoUid: "", completed: false },
+      { id: "l12", title: "Redes sociais para barbeiros", duration: "17:00", videoUid: "", completed: false },
+      { id: "l13", title: "Gestão financeira básica", duration: "15:00", videoUid: "", completed: false },
+      { id: "l14", title: "Como abrir sua própria barbearia", duration: "19:00", videoUid: "", completed: false },
+    ],
+  },
 ];
 
 export default function StudentDashboard() {
