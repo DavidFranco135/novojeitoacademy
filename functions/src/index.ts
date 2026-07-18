@@ -23,3 +23,4 @@ export { getSiteContent, updateSiteContent } from "./siteContent";
 export { getStudentProgress, markLessonComplete } from "./progress";
 export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment } from "./admin";
 export { registerLead, listLeads } from "./leads";
+export { generateComprovante } from "./comprovante";
