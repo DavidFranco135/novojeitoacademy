@@ -369,6 +369,7 @@ const ONLINE_MODULES = [
   { id: "m2", title: "03 · Cortes Clássicos e Degradês" },
   { id: "m3", title: "05 · Barba e Acabamento" },
   { id: "m4", title: "07 · Gestão da Própria Barbearia" },
+  { id: "m5", title: "09 · Tendências 2026: Nevou e Coloração" },
 ];
 
 function Turmas() {
