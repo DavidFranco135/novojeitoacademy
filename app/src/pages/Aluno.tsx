@@ -90,6 +90,17 @@ const COURSE_MODULES: Module[] = [
       { id: "l14", title: "Como abrir sua própria barbearia", duration: "19:00", videoUid: "", completed: false },
     ],
   },
+  {
+    id: "m5",
+    title: "Tendências 2026: Nevou e Coloração Masculina",
+    lessons: [
+      { id: "l34", title: "Fades modernos: low, mid, high e taper fade", duration: "18:00", videoUid: "", completed: false },
+      { id: "l35", title: "Textured crop e mullet moderno na prática", duration: "20:00", videoUid: "", completed: false },
+      { id: "l36", title: "Nevou: teste de mecha e preparação segura", duration: "16:00", videoUid: "", completed: false },
+      { id: "l37", title: "Descoloração masculina passo a passo", duration: "24:00", videoUid: "", completed: false },
+      { id: "l38", title: "Matização e cuidados pós-coloração", duration: "14:00", videoUid: "", completed: false },
+    ],
+  },
 ];
 
 export default function StudentDashboard() {
