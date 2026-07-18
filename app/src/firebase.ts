@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 /**
@@ -17,3 +17,10 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Força a sessão a ficar salva no dispositivo (sobrevive a fechar o navegador/app).
+// Isso reduz — mas não elimina 100% — o problema de navegadores embutidos
+// (WhatsApp, Instagram) que às vezes limpam o armazenamento entre aberturas.
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.error("Falha ao configurar persistência de login:", err);
+});
