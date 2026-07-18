@@ -71,6 +71,10 @@ export default function StudentDashboard() {
   const [certPendingReason, setCertPendingReason] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ nome: string; email: string; telefone: string; cpf: string; matricula: string | null; contractUrl: string | null } | null>(null);
   const [showMeusDados, setShowMeusDados] = useState(false);
+  const [showCronograma, setShowCronograma] = useState(false);
+  const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string }[] } | null>(null);
+  const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
+  const [loadingTurma, setLoadingTurma] = useState(false);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
@@ -181,6 +185,27 @@ export default function StudentDashboard() {
     if (idx < allLessons.length - 1) setActiveLessonId(allLessons[idx + 1].id);
   }
 
+  async function openCronograma() {
+    setShowCronograma(true);
+    if (minhaTurma) return; // já buscou antes, não busca de novo
+    setLoadingTurma(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`${FUNCTIONS_BASE}/getMyTurma`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.turma) {
+        setMinhaTurma(data.turma);
+        setMinhasPresencas(data.presencas || {});
+      }
+    } catch (e) {
+      console.error("Falha ao carregar turma pro cronograma", e);
+    } finally {
+      setLoadingTurma(false);
+    }
+  }
+
   async function handleLogout() {
     if (!window.confirm("Sair da sua área do aluno?")) return;
     await signOut(auth);
@@ -227,6 +252,9 @@ export default function StudentDashboard() {
           <button style={styles.topbarLink} onClick={() => setShowMeusDados(true)}>
             👤 <span className="topbar-label">Meus Dados</span>
           </button>
+          <button style={styles.topbarLink} onClick={openCronograma}>
+            📅 <span className="topbar-label">Meu Cronograma</span>
+          </button>
           <a href="/aluno/presencial" style={styles.topbarLink}>
             📍 <span className="topbar-label">Turma Presencial</span>
           </a>
@@ -253,6 +281,63 @@ export default function StudentDashboard() {
             )}
             <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "1.4rem", lineHeight: 1.6 }}>Pra corrigir algum desses dados, entre em contato com a barbearia diretamente.</p>
             <button style={{ ...styles.btnGhostGold, width: "100%", marginTop: "1rem" }} onClick={() => setShowMeusDados(false)}>Fechar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL MEU CRONOGRAMA ===== */}
+      {showCronograma && (
+        <div style={styles.modalOverlay} onClick={() => setShowCronograma(false)}>
+          <div style={{ ...styles.modalBox, maxWidth: 560, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.eyebrow}>SEQUÊNCIA COMPLETA</div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", marginBottom: "1.4rem" }}>Meu Cronograma</h2>
+
+            <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>AULAS ONLINE — assista quando quiser</div>
+            <div style={{ marginBottom: "1.6rem" }}>
+              {allLessons.map((lesson, i) => {
+                const mod = modules.find((m) => m.lessons.some((l) => l.id === lesson.id));
+                return (
+                  <div key={lesson.id} style={styles.cronoRow}>
+                    <div>
+                      <span style={styles.cronoBadgeOnline}>ONLINE</span>
+                      <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{lesson.title}</div>
+                      <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>{mod?.title} · {lesson.duration}</div>
+                    </div>
+                    <span style={{ color: lesson.completed ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{lesson.completed ? "✓" : "○"}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>ENCONTROS PRESENCIAIS — data e horário marcados</div>
+            {loadingTurma && <p style={styles.p}>Carregando...</p>}
+            {!loadingTurma && !minhaTurma && (
+              <p style={styles.p}>
+                Você ainda não se matriculou em nenhuma turma presencial.{" "}
+                <a href="/aluno/presencial" style={{ color: GOLD }}>Escolher turma →</a>
+              </p>
+            )}
+            {!loadingTurma && minhaTurma && (
+              <div>
+                {minhaTurma.encontros.map((e, i) => {
+                  const confirmado = minhasPresencas[e.data];
+                  return (
+                    <div key={i} style={styles.cronoRow}>
+                      <div>
+                        <span style={styles.cronoBadgePresencial}>PRESENCIAL</span>
+                        <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{e.topico}</div>
+                        <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>
+                          {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} · {e.horario} · {e.local}
+                        </div>
+                      </div>
+                      <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{confirmado ? "✓" : "○"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button style={{ ...styles.btnGhostGold, width: "100%", marginTop: "1.4rem" }} onClick={() => setShowCronograma(false)}>Fechar</button>
           </div>
         </div>
       )}
@@ -380,6 +465,10 @@ const styles: Record<string, React.CSSProperties> = {
   modalBox: { background: "linear-gradient(160deg,#0d0d0d,#050505)", border: "1px solid rgba(197,138,74,.25)", borderRadius: 8, padding: "2rem", maxWidth: 380, width: "100%", color: "#F5F0E8" },
   dataRow: { display: "flex", justifyContent: "space-between", padding: "0.6rem 0", borderBottom: "1px solid rgba(197,138,74,.1)", fontSize: "0.85rem" },
   dataLabel: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", color: GOLD, letterSpacing: "0.04em" },
+
+  cronoRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "0.7rem 0", borderBottom: "1px solid rgba(197,138,74,.1)" },
+  cronoBadgeOnline: { fontFamily: "'Space Mono',monospace", fontSize: "0.58rem", letterSpacing: "0.06em", border: "1px solid rgba(197,138,74,.35)", color: GOLD, padding: "0.15rem 0.4rem", borderRadius: 2 },
+  cronoBadgePresencial: { fontFamily: "'Space Mono',monospace", fontSize: "0.58rem", letterSpacing: "0.06em", background: GOLD, color: "#050505", padding: "0.15rem 0.4rem", borderRadius: 2 },
 
   page: { display: "flex", minHeight: "calc(100vh - 53px)", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
 
