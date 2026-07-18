@@ -1004,9 +1004,11 @@ function Financeiro() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [totals, setTotals] = useState({ aprovado: 0, pendente: 0 });
   const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
   const { page, setPage, totalPages, pageItems } = usePagination(transactions);
 
-  useEffect(() => {
+  function loadTransactions() {
+    setLoading(true);
     authedFetch("listTransactions")
       .then((r) => r.json())
       .then((data) => {
@@ -1015,6 +1017,10 @@ function Financeiro() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTransactions();
   }, []);
 
   function handleExport() {
@@ -1024,11 +1030,54 @@ function Financeiro() {
     );
   }
 
+  async function handleRegistrarDinheiro() {
+    const nome = window.prompt("Nome completo do aluno:");
+    if (!nome) return;
+    const email = window.prompt("E-mail (vai virar o login dele):");
+    if (!email) return;
+    const telefone = window.prompt("WhatsApp:");
+    if (!telefone) return;
+    const cpf = window.prompt("CPF (necessário para o contrato):");
+    if (!cpf) return;
+    const valorStr = window.prompt("Valor pago em dinheiro (R$):", "497");
+    if (!valorStr) return;
+    const valor = parseFloat(valorStr.replace(",", "."));
+
+    setRegistering(true);
+    try {
+      const res = await authedFetch("registerCashPayment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, email, telefone, cpf, valor }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+
+      if (data.loginLink) {
+        try {
+          await navigator.clipboard.writeText(data.loginLink);
+          alert("Matrícula registrada! Link de acesso copiado — cole no WhatsApp do aluno.");
+        } catch {
+          window.prompt("Matrícula registrada! Copie o link e mande no WhatsApp do aluno:", data.loginLink);
+        }
+      }
+      loadTransactions();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível registrar o pagamento.");
+    } finally {
+      setRegistering(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader eyebrow="FINANCEIRO" title="Transações" subtitle="Pagamentos aprovados, pendentes e recusados via Mercado Pago." />
 
-      <div style={styles.statGrid}>
+      <button style={styles.btnPrimary} disabled={registering} onClick={handleRegistrarDinheiro}>
+        {registering ? "Registrando..." : "+ Registrar pagamento em dinheiro"}
+      </button>
+
+      <div style={{ ...styles.statGrid, marginTop: "1.2rem" }}>
         <StatCard label="APROVADO" value={`R$ ${totals.aprovado.toLocaleString("pt-BR")}`} />
         <StatCard label="PENDENTE" value={`R$ ${totals.pendente.toLocaleString("pt-BR")}`} />
       </div>
