@@ -362,11 +362,20 @@ function Alunos() {
 }
 
 // ============================================================
+// Módulos online — precisa bater com os ids/títulos definidos em Aluno.tsx (COURSE_MODULES)
+const ONLINE_MODULES = [
+  { id: "", title: "Nenhum — não vincular a um módulo" },
+  { id: "m1", title: "01 · Fundamentos da Navalha" },
+  { id: "m2", title: "03 · Cortes Clássicos e Degradês" },
+  { id: "m3", title: "05 · Barba e Acabamento" },
+  { id: "m4", title: "07 · Gestão da Própria Barbearia" },
+];
+
 function Turmas() {
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [encontrosForm, setEncontrosForm] = useState([{ topico: "", data: "", horario: "", local: "" }]);
+  const [encontrosForm, setEncontrosForm] = useState([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
   const [nomeTurma, setNomeTurma] = useState("");
   const [vagasTurma, setVagasTurma] = useState(10);
   const [showForm, setShowForm] = useState(false);
@@ -396,7 +405,7 @@ function Turmas() {
   }, []);
 
   function addEncontroRow() {
-    setEncontrosForm((prev) => [...prev, { topico: "", data: "", horario: "", local: "" }]);
+    setEncontrosForm((prev) => [...prev, { topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
   }
 
   function updateEncontro(idx: number, field: string, value: string) {
@@ -423,7 +432,7 @@ function Turmas() {
       if (!res.ok) throw new Error();
       setNomeTurma("");
       setVagasTurma(10);
-      setEncontrosForm([{ topico: "", data: "", horario: "", local: "" }]);
+      setEncontrosForm([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
       setShowForm(false);
       loadTurmas();
     } catch {
@@ -494,6 +503,15 @@ function Turmas() {
               {encontrosForm.length > 1 && (
                 <button onClick={() => removeEncontro(idx)} style={{ ...styles.linkBtn, color: "#e8746a" }}>✕</button>
               )}
+              <select
+                value={enc.moduloRelacionado}
+                onChange={(e) => updateEncontro(idx, "moduloRelacionado", e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              >
+                {ONLINE_MODULES.map((m) => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
             </div>
           ))}
           <button onClick={addEncontroRow} style={{ ...styles.linkBtn, marginTop: "0.8rem" }}>+ Adicionar outro encontro</button>
