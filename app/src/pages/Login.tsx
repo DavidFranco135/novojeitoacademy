@@ -38,7 +38,7 @@ export default function Login() {
             window.localStorage.removeItem("emailParaLogin");
             window.location.href = "/aluno";
           })
-          .catch(() => setError("Link inválido ou expirado. Peça um novo link pra barbearia."))
+          .catch(() => setError("Link inválido ou expirado. Se você abriu esse link direto de dentro do WhatsApp, tente copiar o link e abrir no Safari ou Chrome — às vezes o navegador embutido do WhatsApp não salva o login direito. Se continuar, peça um novo link pra barbearia."))
           .finally(() => setCheckingLink(false));
       } else {
         setCheckingLink(false);
