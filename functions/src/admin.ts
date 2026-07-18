@@ -269,6 +269,8 @@ export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
       handleCodeInApp: true,
     });
     const loginLink = toBrandedLoginLink(rawLink);
+    console.log("DIAGNOSTICO resendAccessEmail — rawLink:", rawLink);
+    console.log("DIAGNOSTICO resendAccessEmail — loginLink:", loginLink);
 
     res.status(200).json({ ok: true, loginLink });
   } catch (err) {
