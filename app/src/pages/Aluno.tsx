@@ -40,6 +40,9 @@ const COURSE_MODULES: Module[] = [
       { id: "l1", title: "Afiação e cuidado das lâminas", duration: "14:20", videoUid: "", completed: false },
       { id: "l2", title: "Postura e ergonomia", duration: "11:05", videoUid: "", completed: false },
       { id: "l3", title: "Segurança de trabalho", duration: "09:40", videoUid: "", completed: false },
+      { id: "l15", title: "Tipos de navalha e escolha do equipamento", duration: "20:00", videoUid: "", completed: false },
+      { id: "l16", title: "Manutenção e conservação das ferramentas", duration: "18:00", videoUid: "", completed: false },
+      { id: "l17", title: "Preparação do cliente e do ambiente de trabalho", duration: "26:55", videoUid: "", completed: false },
     ],
   },
   {
@@ -48,6 +51,16 @@ const COURSE_MODULES: Module[] = [
     lessons: [
       { id: "l4", title: "Social clássico passo a passo", duration: "22:10", videoUid: "", completed: false },
       { id: "l5", title: "Skin fade do zero", duration: "26:45", videoUid: "", completed: false },
+      { id: "l18", title: "Degradê baixo (low fade)", duration: "16:00", videoUid: "", completed: false },
+      { id: "l19", title: "Degradê médio (mid fade)", duration: "16:00", videoUid: "", completed: false },
+      { id: "l20", title: "Degradê alto (high fade)", duration: "15:00", videoUid: "", completed: false },
+      { id: "l21", title: "Corte social moderno", duration: "14:00", videoUid: "", completed: false },
+      { id: "l22", title: "Corte navalhado", duration: "15:00", videoUid: "", completed: false },
+      { id: "l23", title: "Risco e desenhos (line up)", duration: "12:00", videoUid: "", completed: false },
+      { id: "l24", title: "Textura e finalização com tesoura", duration: "15:00", videoUid: "", completed: false },
+      { id: "l25", title: "Corte infantil", duration: "13:00", videoUid: "", completed: false },
+      { id: "l26", title: "Adaptando o corte ao formato do rosto", duration: "17:00", videoUid: "", completed: false },
+      { id: "l27", title: "Acabamento com máquina zero", duration: "18:05", videoUid: "", completed: false },
     ],
   },
   {
@@ -56,6 +69,12 @@ const COURSE_MODULES: Module[] = [
     lessons: [
       { id: "l6", title: "Desenho de barba", duration: "16:30", videoUid: "", completed: false },
       { id: "l7", title: "Toalha quente e finalização", duration: "13:15", videoUid: "", completed: false },
+      { id: "l28", title: "Produtos para barba: óleos e balms", duration: "14:00", videoUid: "", completed: false },
+      { id: "l29", title: "Barba estilo degradê (fade de barba)", duration: "16:00", videoUid: "", completed: false },
+      { id: "l30", title: "Contorno e alinhamento", duration: "15:00", videoUid: "", completed: false },
+      { id: "l31", title: "Barboterapia", duration: "18:00", videoUid: "", completed: false },
+      { id: "l32", title: "Bigode: técnicas de aparo", duration: "13:00", videoUid: "", completed: false },
+      { id: "l33", title: "Cuidados pós-atendimento", duration: "24:15", videoUid: "", completed: false },
     ],
   },
   {
