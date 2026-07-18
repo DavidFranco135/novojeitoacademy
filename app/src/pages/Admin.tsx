@@ -272,7 +272,7 @@ function Alunos() {
     }
   }
 
-  async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract", enrollmentId: string, linkField: string) {
+  async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract" | "generateComprovante", enrollmentId: string, linkField: string) {
     setActingOn(enrollmentId);
     try {
       const res = await authedFetch(action, {
@@ -338,6 +338,9 @@ function Alunos() {
               </button>
               <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendCertificate", a.id, "certificateUrl")}>
                 Copiar link do certificado
+              </button>
+              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("generateComprovante", a.id, "comprovanteUrl")}>
+                Copiar comprovante de adesão
               </button>
               {a.contractUrl && (
                 <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
