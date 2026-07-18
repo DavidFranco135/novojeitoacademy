@@ -49,6 +49,11 @@ export const getStudentProgress = onRequest({ cors: true }, async (req, res) => 
     res.status(200).json({
       enrollmentId: enrollment.id,
       nome: enrollment.data.nome,
+      email: enrollment.data.email,
+      telefone: enrollment.data.telefone,
+      cpf: enrollment.data.cpf,
+      matricula: enrollment.data.paidAt ? enrollment.data.paidAt.toDate().toLocaleDateString("pt-BR") : null,
+      contractUrl: enrollment.data.contractUrl || null,
       completedLessons: progress.completedLessons || [],
       percent: progress.percent || 0,
       certificateUrl: enrollment.data.certificateUrl || null,
