@@ -6,6 +6,7 @@
 
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { toBrandedLoginLink } from "./utils";
 
 const db = admin.firestore();
 
@@ -106,10 +107,11 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
 
     await db.collection("scholarshipApplications").doc(applicationId).update({ status: "selecionado" });
 
-    const loginLink = await admin.auth().generateSignInWithEmailLink(email, {
+    const rawLink = await admin.auth().generateSignInWithEmailLink(email, {
       url: "https://novojeitoapp.pages.dev/login",
       handleCodeInApp: true,
     });
+    const loginLink = toBrandedLoginLink(rawLink);
 
     res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
   } catch (err) {
