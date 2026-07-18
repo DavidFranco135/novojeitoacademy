@@ -115,6 +115,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState<{ nome: string; email: string; telefone: string; cpf: string; matricula: string | null; contractUrl: string | null } | null>(null);
   const [showMeusDados, setShowMeusDados] = useState(false);
   const [showCronograma, setShowCronograma] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string; moduloRelacionado?: string }[] } | null>(null);
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
   const [loadingTurma, setLoadingTurma] = useState(false);
@@ -200,6 +201,23 @@ export default function StudentDashboard() {
     }
     loadTurma();
   }, []);
+
+  // mostra o banner de "instalar app" só se ainda não estiver instalado e o aluno não tiver dispensado antes
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+    const dismissed = localStorage.getItem("installBannerDismissed") === "1";
+    if (!isStandalone && !dismissed) {
+      setShowInstallBanner(true);
+    }
+  }, []);
+
+  function dismissInstallBanner() {
+    localStorage.setItem("installBannerDismissed", "1");
+    setShowInstallBanner(false);
+  }
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   async function markComplete(lessonId: string) {
     // atualiza a tela na hora (otimista), e confirma com o backend em seguida
@@ -327,6 +345,22 @@ export default function StudentDashboard() {
           </button>
         </div>
       </header>
+
+      {/* ===== BANNER DE INSTALAÇÃO (some sozinho se já instalado ou dispensado) ===== */}
+      {showInstallBanner && (
+        <div style={styles.installBanner}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>📲 Instale o app na tela inicial</div>
+            <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.25rem" }}>
+              {isIOS
+                ? <>Toque no ícone de compartilhar <b>⬆️</b> do Safari e depois em <b>"Adicionar à Tela de Início"</b>. Assim você abre direto, sem precisar de link toda vez.</>
+                : <>Toque no menu <b>⋮</b> do navegador e depois em <b>"Instalar app"</b> ou <b>"Adicionar à tela inicial"</b>. Assim você abre direto, sem precisar de link toda vez.</>
+              }
+            </div>
+          </div>
+          <button onClick={dismissInstallBanner} style={styles.installBannerClose}>✕</button>
+        </div>
+      )}
 
       {/* ===== MODAL MEUS DADOS ===== */}
       {showMeusDados && profile && (
@@ -543,6 +577,9 @@ const styles: Record<string, React.CSSProperties> = {
   topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
   topbarLogo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#F5F0E8" },
   topbarLink: { background: "none", border: "none", color: "#c9c2b4", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem", textDecoration: "none", fontFamily: "'Inter',sans-serif" },
+
+  installBanner: { display: "flex", alignItems: "flex-start", gap: "1rem", padding: "0.9rem 1.4rem", background: "rgba(197,138,74,.08)", borderBottom: "1px solid rgba(197,138,74,.2)" },
+  installBannerClose: { background: "none", border: "none", color: "#9d9384", fontSize: "1rem", cursor: "pointer", flexShrink: 0, padding: "0.2rem" },
 
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
   modalBox: { background: "linear-gradient(160deg,#0d0d0d,#050505)", border: "1px solid rgba(197,138,74,.25)", borderRadius: 8, padding: "2rem", maxWidth: 380, width: "100%", color: "#F5F0E8" },
