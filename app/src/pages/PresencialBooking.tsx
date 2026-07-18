@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { auth } from "../firebase";
+import { signOut } from "firebase/auth";
 
 /**
  * Matrícula em Turma Presencial — Novo Jeito Academy
@@ -42,7 +43,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  // ao carregar, primeiro checa se o aluno JÁ está matriculado em alguma turma
   useEffect(() => {
     async function checkExisting() {
       const token = await auth.currentUser?.getIdToken();
@@ -69,7 +69,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
     checkExisting();
   }, []);
 
-  // só busca a lista de turmas disponíveis se o aluno AINDA não estiver matriculado em nenhuma
   useEffect(() => {
     if (checkingExisting || minhaTurma) return;
     fetch(`${FUNCTIONS_BASE}/listTurmas`)
@@ -100,17 +99,28 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
     }
   }
 
-  if (checkingExisting) {
-    return <div style={styles.wrap}><p style={styles.p}>Carregando...</p></div>;
+  async function handleLogout() {
+    if (!window.confirm("Sair da sua área do aluno?")) return;
+    await signOut(auth);
+    window.location.href = "/login";
   }
 
-  // ===== JÁ MATRICULADO: mostra a grade completa + o QR pessoal =====
-  if (minhaTurma && checkinUrl) {
+  function formatDate(iso: string) {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+  }
+
+  // ---------- conteúdo interno, conforme o estado ----------
+  let content;
+
+  if (checkingExisting) {
+    content = <p style={styles.p}>Carregando...</p>;
+  } else if (minhaTurma && checkinUrl) {
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&color=C58A4A&bgcolor=050505&data=${encodeURIComponent(checkinUrl)}`;
     const hoje = new Date().toISOString().split("T")[0];
 
-    return (
-      <div style={styles.wrap}>
+    content = (
+      <>
         <div style={{ marginBottom: "1.6rem" }}>
           <div style={styles.eyebrow}>SUA TURMA</div>
           <h2 style={styles.h2}>{minhaTurma.nome}</h2>
@@ -143,67 +153,79 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
           </div>
           <p style={styles.hint}>Mostre esse QR no dia de cada encontro — o sistema identifica sozinho qual aula é a de hoje.</p>
         </div>
-      </div>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <div style={{ marginBottom: "1.6rem" }}>
+          <div style={styles.eyebrow}>MÓDULO PRÁTICO</div>
+          <h2 style={styles.h2}>Escolha sua turma presencial</h2>
+          <p style={styles.p}>Cada turma tem sua própria grade de encontros, com assuntos diferentes em cada aula. Escolha a que melhor encaixa na sua agenda.</p>
+        </div>
+
+        {loading && <p style={styles.p}>Carregando turmas...</p>}
+        {error && <p style={styles.error}>{error}</p>}
+
+        <div style={styles.turmaList}>
+          {turmas.map((t) => {
+            const vagasRestantes = t.vagasTotal - t.vagasOcupadas;
+            const isExpanded = expandedId === t.id;
+            return (
+              <div key={t.id} style={styles.turmaCard}>
+                <div style={styles.turmaHeader} onClick={() => setExpandedId(isExpanded ? null : t.id)}>
+                  <div>
+                    <div style={styles.turmaNome}>{t.nome}</div>
+                    <div style={styles.turmaMeta}>{t.encontros.length} encontros · {vagasRestantes} {vagasRestantes === 1 ? "vaga restante" : "vagas restantes"}</div>
+                  </div>
+                  <span style={{ color: GOLD, fontSize: "1.1rem" }}>{isExpanded ? "−" : "+"}</span>
+                </div>
+
+                {isExpanded && (
+                  <div style={styles.encontrosList}>
+                    {t.encontros.map((e, i) => (
+                      <div key={i} style={styles.encontroRow}>
+                        <span style={styles.encontroData}>{formatDate(e.data)} · {e.horario}</span>
+                        <span style={styles.encontroTopico}>{e.topico}</span>
+                      </div>
+                    ))}
+                    <button style={styles.btnPrimary} disabled={joining} onClick={() => handleJoin(t.id)}>
+                      {joining ? "Matriculando..." : "Matricular nessa turma"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!loading && turmas.length === 0 && (
+            <p style={styles.p}>Nenhuma turma com vaga disponível no momento. Novas turmas são adicionadas periodicamente.</p>
+          )}
+        </div>
+      </>
     );
   }
 
-  // ===== AINDA NÃO MATRICULADO: escolher turma =====
+  // ---------- wrapper de página, sempre igual (fundo, barra de volta) ----------
   return (
-    <div style={styles.wrap}>
-      <div style={{ marginBottom: "1.6rem" }}>
-        <div style={styles.eyebrow}>MÓDULO PRÁTICO</div>
-        <h2 style={styles.h2}>Escolha sua turma presencial</h2>
-        <p style={styles.p}>Cada turma tem sua própria grade de encontros, com assuntos diferentes em cada aula. Escolha a que melhor encaixa na sua agenda.</p>
-      </div>
-
-      {loading && <p style={styles.p}>Carregando turmas...</p>}
-      {error && <p style={styles.error}>{error}</p>}
-
-      <div style={styles.turmaList}>
-        {turmas.map((t) => {
-          const vagasRestantes = t.vagasTotal - t.vagasOcupadas;
-          const isExpanded = expandedId === t.id;
-          return (
-            <div key={t.id} style={styles.turmaCard}>
-              <div style={styles.turmaHeader} onClick={() => setExpandedId(isExpanded ? null : t.id)}>
-                <div>
-                  <div style={styles.turmaNome}>{t.nome}</div>
-                  <div style={styles.turmaMeta}>{t.encontros.length} encontros · {vagasRestantes} {vagasRestantes === 1 ? "vaga restante" : "vagas restantes"}</div>
-                </div>
-                <span style={{ color: GOLD, fontSize: "1.1rem" }}>{isExpanded ? "−" : "+"}</span>
-              </div>
-
-              {isExpanded && (
-                <div style={styles.encontrosList}>
-                  {t.encontros.map((e, i) => (
-                    <div key={i} style={styles.encontroRow}>
-                      <span style={styles.encontroData}>{formatDate(e.data)} · {e.horario}</span>
-                      <span style={styles.encontroTopico}>{e.topico}</span>
-                    </div>
-                  ))}
-                  <button style={styles.btnPrimary} disabled={joining} onClick={() => handleJoin(t.id)}>
-                    {joining ? "Matriculando..." : "Matricular nessa turma"}
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {!loading && turmas.length === 0 && (
-          <p style={styles.p}>Nenhuma turma com vaga disponível no momento. Novas turmas são adicionadas periodicamente.</p>
-        )}
+    <div style={styles.outerWrap}>
+      <header style={styles.topbar}>
+        <a href="/aluno" style={styles.topbarLink}>← Voltar pra área do aluno</a>
+        <button style={{ ...styles.topbarLink, color: "#e8746a" }} onClick={handleLogout}>⏻ Sair</button>
+      </header>
+      <div style={styles.pageBody}>
+        <div style={styles.wrap}>{content}</div>
       </div>
     </div>
   );
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
-}
-
 const styles: Record<string, React.CSSProperties> = {
-  wrap: { maxWidth: 600, fontFamily: "'Inter',sans-serif", color: "#F5F0E8" },
+  outerWrap: { minHeight: "100vh", background: "#050505" },
+  topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
+  topbarLink: { background: "none", border: "none", color: "#c9c2b4", fontSize: "0.82rem", cursor: "pointer", textDecoration: "none", fontFamily: "'Inter',sans-serif" },
+  pageBody: { display: "flex", justifyContent: "center", padding: "2.4rem 1.5rem" },
+
+  wrap: { maxWidth: 600, width: "100%", fontFamily: "'Inter',sans-serif", color: "#F5F0E8" },
   eyebrow: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.15em", color: GOLD, marginBottom: "0.4rem" },
   h2: { fontFamily: "'Playfair Display',serif", fontSize: "1.5rem", marginBottom: "0.5rem" },
   p: { fontSize: "0.88rem", color: "#9d9384", lineHeight: 1.6 },
