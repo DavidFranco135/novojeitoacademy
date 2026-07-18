@@ -30,6 +30,7 @@ interface Encontro {
   data: string; // "2026-08-15"
   horario: string; // "09:00"
   local: string;
+  moduloRelacionado?: string; // ex: "m2" — depois de qual módulo online esse encontro aparece na trilha do aluno
 }
 
 async function verificarAdmin(req: any): Promise<boolean> {
