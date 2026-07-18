@@ -104,7 +104,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState<{ nome: string; email: string; telefone: string; cpf: string; matricula: string | null; contractUrl: string | null } | null>(null);
   const [showMeusDados, setShowMeusDados] = useState(false);
   const [showCronograma, setShowCronograma] = useState(false);
-  const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string }[] } | null>(null);
+  const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string; moduloRelacionado?: string }[] } | null>(null);
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
   const [loadingTurma, setLoadingTurma] = useState(false);
 
@@ -167,6 +167,27 @@ export default function StudentDashboard() {
       }
     }
     loadProgress();
+  }, []);
+
+  // busca a turma presencial do aluno (se tiver) já ao carregar, pra mostrar na trilha
+  useEffect(() => {
+    async function loadTurma() {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/getMyTurma`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.turma) {
+          setMinhaTurma(data.turma);
+          setMinhasPresencas(data.presencas || {});
+        }
+      } catch (e) {
+        console.error("Falha ao carregar turma", e);
+      }
+    }
+    loadTurma();
   }, []);
 
   async function markComplete(lessonId: string) {
@@ -394,34 +415,53 @@ export default function StudentDashboard() {
         </div>
 
         <nav style={styles.moduleNav}>
-          {modules.map((mod, mi) => (
-            <div key={mod.id} style={{ marginBottom: "1.4rem" }}>
-              <div style={styles.moduleTitle}>
-                <span style={styles.moduleNum}>{String(mi + 1).padStart(2, "0")}</span>
-                {mod.title}
-              </div>
-              {mod.lessons.map((lesson) => {
-                const isActive = lesson.id === activeLessonId;
-                return (
-                  <button
-                    key={lesson.id}
-                    onClick={() => setActiveLessonId(lesson.id)}
-                    style={{
-                      ...styles.lessonItem,
-                      background: isActive ? "rgba(197,138,74,.1)" : "transparent",
-                      borderLeft: isActive ? `2px solid ${GOLD}` : "2px solid transparent",
-                    }}
-                  >
-                    <span style={{ ...styles.lessonCheck, background: lesson.completed ? GOLD : "transparent", borderColor: lesson.completed ? GOLD : "rgba(197,138,74,.35)" }}>
-                      {lesson.completed ? "✓" : ""}
+          {modules.map((mod, mi) => {
+            const encontroVinculado = minhaTurma?.encontros.find((e: any) => e.moduloRelacionado === mod.id);
+            const presencaConfirmada = encontroVinculado && minhasPresencas[encontroVinculado.data];
+            return (
+              <div key={mod.id} style={{ marginBottom: "1.4rem" }}>
+                <div style={styles.moduleTitle}>
+                  <span style={styles.moduleNum}>{String(mi + 1).padStart(2, "0")}</span>
+                  {mod.title}
+                </div>
+                {mod.lessons.map((lesson) => {
+                  const isActive = lesson.id === activeLessonId;
+                  return (
+                    <button
+                      key={lesson.id}
+                      onClick={() => setActiveLessonId(lesson.id)}
+                      style={{
+                        ...styles.lessonItem,
+                        background: isActive ? "rgba(197,138,74,.1)" : "transparent",
+                        borderLeft: isActive ? `2px solid ${GOLD}` : "2px solid transparent",
+                      }}
+                    >
+                      <span style={{ ...styles.lessonCheck, background: lesson.completed ? GOLD : "transparent", borderColor: lesson.completed ? GOLD : "rgba(197,138,74,.35)" }}>
+                        {lesson.completed ? "✓" : ""}
+                      </span>
+                      <span style={{ flex: 1, textAlign: "left", color: isActive ? "#F5F0E8" : "#9d9384", fontSize: "0.82rem" }}>{lesson.title}</span>
+                      <span style={styles.lessonDuration}>{lesson.duration}</span>
+                    </button>
+                  );
+                })}
+
+                {encontroVinculado && (
+                  <a href="/aluno/presencial" style={styles.presencialInline}>
+                    <span style={{ ...styles.lessonCheck, background: presencaConfirmada ? GOLD : "transparent", borderColor: presencaConfirmada ? GOLD : "rgba(197,138,74,.35)" }}>
+                      {presencaConfirmada ? "✓" : ""}
                     </span>
-                    <span style={{ flex: 1, textAlign: "left", color: isActive ? "#F5F0E8" : "#9d9384", fontSize: "0.82rem" }}>{lesson.title}</span>
-                    <span style={styles.lessonDuration}>{lesson.duration}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+                    <span style={{ flex: 1, textAlign: "left" }}>
+                      <span style={styles.cronoBadgePresencial}>PRÁTICA</span>
+                      <div style={{ fontSize: "0.8rem", marginTop: "0.2rem" }}>{encontroVinculado.topico}</div>
+                      <div style={{ fontSize: "0.68rem", color: "#5a5348" }}>
+                        {new Date(encontroVinculado.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {encontroVinculado.horario}
+                      </div>
+                    </span>
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {isComplete && certificateUrl ? (
@@ -516,6 +556,7 @@ const styles: Record<string, React.CSSProperties> = {
   moduleNum: { fontFamily: "'Space Mono',monospace", color: GOLD },
 
   lessonItem: { display: "flex", alignItems: "center", gap: "0.7rem", width: "100%", padding: "0.55rem 0.6rem", border: "none", borderRadius: 3, cursor: "pointer", marginBottom: "0.15rem" },
+  presencialInline: { display: "flex", alignItems: "flex-start", gap: "0.7rem", width: "100%", padding: "0.6rem", marginTop: "0.3rem", borderRadius: 3, textDecoration: "none", color: "#F5F0E8", background: "rgba(197,138,74,.06)", border: "1px dashed rgba(197,138,74,.3)" },
   lessonCheck: { width: 16, height: 16, borderRadius: "50%", border: "1px solid", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#050505" },
   lessonDuration: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", color: "#5a5348", flexShrink: 0 },
 
