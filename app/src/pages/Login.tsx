@@ -1,36 +1,32 @@
 import { useState, useEffect } from "react";
-import {
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  sendSignInLinkToEmail,
-} from "firebase/auth";
+import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import { auth } from "../firebase";
 
 /**
  * Login sem senha (magic link) — Novo Jeito Academy
  *
- * Fluxo:
- *  1) Aluno digita o e-mail usado na matrícula
- *  2) Recebe um link por e-mail (via Firebase Auth, sem custo extra de servidor de e-mail)
- *  3) Ao clicar, é autenticado automaticamente e redirecionado pra área do aluno
+ * IMPORTANTE: a opção de autoatendimento (aluno digitar o próprio e-mail e pedir
+ * o link sozinho) foi DESATIVADA de propósito — isso disparava um e-mail automático
+ * do Firebase com o nome do projeto antigo ("barbearia-do-ico") no remetente, que
+ * não tem como ser personalizado nem tirado.
  *
- * Configuração necessária no Firebase Console:
- *  Authentication → Sign-in method → ativar "E-mail link (sem senha)"
- *  Authentication → Settings → Domínios autorizados → adicionar seu domínio real
+ * O fluxo oficial agora é: o admin gera o link pelo painel (Alunos → "Copiar link
+ * de acesso") e manda direto por WhatsApp — isso NÃO passa pelo e-mail do Firebase
+ * em nenhum momento, é só um link puro.
+ *
+ * Essa página ainda precisa existir e continuar processando o clique no link
+ * (isSignInWithEmailLink / signInWithEmailLink) — é o que efetivamente loga o
+ * aluno quando ele clica no link recebido pelo WhatsApp.
  */
 
 const GOLD = "#C58A4A";
-const ACTION_URL = "https://novojeitoapp.pages.dev/login";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingLink, setCheckingLink] = useState(true);
 
   useEffect(() => {
-    // se o usuário chegou aqui clicando no link do e-mail, completa o login automaticamente
+    // se o aluno chegou aqui clicando no link (recebido por WhatsApp), completa o login
     if (isSignInWithEmailLink(auth, window.location.href)) {
       let storedEmail = window.localStorage.getItem("emailParaLogin");
       if (!storedEmail) {
@@ -42,7 +38,7 @@ export default function Login() {
             window.localStorage.removeItem("emailParaLogin");
             window.location.href = "/aluno";
           })
-          .catch(() => setError("Link inválido ou expirado. Solicite um novo."))
+          .catch(() => setError("Link inválido ou expirado. Peça um novo link pra barbearia."))
           .finally(() => setCheckingLink(false));
       } else {
         setCheckingLink(false);
@@ -51,27 +47,6 @@ export default function Login() {
       setCheckingLink(false);
     }
   }, []);
-
-  async function handleSendLink() {
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("Digite um e-mail válido.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      await sendSignInLinkToEmail(auth, email, {
-        url: ACTION_URL,
-        handleCodeInApp: true,
-      });
-      window.localStorage.setItem("emailParaLogin", email);
-      setSent(true);
-    } catch (e) {
-      setError("Não foi possível enviar o link. Verifique o e-mail e tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (checkingLink) {
     return <div style={styles.page}><p style={styles.p}>Verificando login...</p></div>;
@@ -85,28 +60,15 @@ export default function Login() {
         <div style={styles.corner_bl}></div><div style={styles.corner_br}></div>
         <div style={styles.logo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
 
-        {!sent ? (
-          <>
-            <h2 style={styles.h2}>Acessar minha área</h2>
-            <p style={styles.p}>Digite o e-mail usado na matrícula. Você vai receber um link de acesso — sem senha para lembrar.</p>
-            <input
-              style={styles.input}
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            {error && <p style={styles.error}>{error}</p>}
-            <button style={styles.btnPrimary} onClick={handleSendLink} disabled={loading}>
-              {loading ? "Enviando..." : "Enviar link de acesso"}
-            </button>
-          </>
-        ) : (
-          <>
-            <h2 style={styles.h2}>Verifique seu e-mail</h2>
-            <p style={styles.p}>Enviamos um link de acesso para <b style={{ color: GOLD }}>{email}</b>. Clique nele para entrar automaticamente.</p>
-          </>
-        )}
+        <h2 style={styles.h2}>Acesse pelo link do WhatsApp</h2>
+        <p style={styles.p}>
+          O acesso à sua área do aluno é enviado direto no seu WhatsApp, assim que sua matrícula é confirmada.
+        </p>
+        <p style={styles.p}>
+          Não recebeu ou o link expirou? Chame a barbearia pelo WhatsApp que um novo link é enviado na hora.
+        </p>
+
+        {error && <p style={styles.error}>{error}</p>}
       </div>
     </div>
   );
@@ -121,9 +83,7 @@ const styles: Record<string, React.CSSProperties> = {
   corner_bl: { position: "absolute", bottom: 10, left: 10, width: 16, height: 16, borderBottom: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },
   corner_br: { position: "absolute", bottom: 10, right: 10, width: 16, height: 16, borderBottom: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}` },
   logo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.15rem", marginBottom: "1.8rem", textAlign: "center" },
-  h2: { fontFamily: "'Playfair Display',serif", fontSize: "1.35rem", marginBottom: "0.6rem" },
-  p: { fontSize: "0.88rem", color: "#9d9384", lineHeight: 1.6, marginBottom: "1.4rem" },
-  input: { width: "100%", background: "#111", border: "1px solid rgba(197,138,74,.25)", borderRadius: 3, padding: "0.8rem 0.9rem", color: "#F5F0E8", fontSize: "0.9rem", outline: "none", marginBottom: "1rem" },
+  h2: { fontFamily: "'Playfair Display',serif", fontSize: "1.35rem", marginBottom: "0.8rem" },
+  p: { fontSize: "0.88rem", color: "#9d9384", lineHeight: 1.6, marginBottom: "1rem" },
   error: { color: "#e8746a", fontSize: "0.82rem", marginBottom: "1rem" },
-  btnPrimary: { width: "100%", background: GOLD, color: "#050505", border: "none", padding: "0.9rem", borderRadius: 3, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" },
 };
