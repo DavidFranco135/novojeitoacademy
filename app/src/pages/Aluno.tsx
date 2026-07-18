@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { auth } from "../firebase";
+import { signOut } from "firebase/auth";
 
 /**
  * Área do Aluno — Novo Jeito Academy
@@ -68,6 +69,8 @@ export default function StudentDashboard() {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
   const [generatingCert, setGeneratingCert] = useState(false);
   const [certPendingReason, setCertPendingReason] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ nome: string; email: string; telefone: string; cpf: string; matricula: string | null; contractUrl: string | null } | null>(null);
+  const [showMeusDados, setShowMeusDados] = useState(false);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
@@ -92,6 +95,14 @@ export default function StudentDashboard() {
         const data = await res.json();
         if (res.ok) {
           setEnrollmentId(data.enrollmentId);
+          setProfile({
+            nome: data.nome,
+            email: data.email,
+            telefone: data.telefone,
+            cpf: data.cpf,
+            matricula: data.matricula,
+            contractUrl: data.contractUrl,
+          });
           setCertificateUrl(data.certificateUrl || null);
           const completedIds: string[] = data.completedLessons || [];
           setModules((prev) =>
@@ -170,6 +181,12 @@ export default function StudentDashboard() {
     if (idx < allLessons.length - 1) setActiveLessonId(allLessons[idx + 1].id);
   }
 
+  async function handleLogout() {
+    if (!window.confirm("Sair da sua área do aluno?")) return;
+    await signOut(auth);
+    window.location.href = "/login";
+  }
+
   const circumference = 2 * Math.PI * 26;
   const dashOffset = circumference - (progressPct / 100) * circumference;
 
@@ -182,7 +199,7 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div style={styles.page} className="aluno-page">
+    <div style={styles.outerWrap}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         ::-webkit-scrollbar{width:6px}
@@ -199,9 +216,48 @@ export default function StudentDashboard() {
             max-height: 60vh !important;
           }
           .aluno-main { padding: 1.4rem 1.2rem !important; max-width: 100% !important; }
+          .topbar-label { display: none !important; }
         }
       `}</style>
 
+      {/* ===== BARRA FIXA — sempre visível, não depende de rolar nada ===== */}
+      <header style={styles.topbar}>
+        <div style={styles.topbarLogo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
+        <div style={{ display: "flex", gap: "1.4rem", alignItems: "center" }}>
+          <button style={styles.topbarLink} onClick={() => setShowMeusDados(true)}>
+            👤 <span className="topbar-label">Meus Dados</span>
+          </button>
+          <a href="/aluno/presencial" style={styles.topbarLink}>
+            📍 <span className="topbar-label">Turma Presencial</span>
+          </a>
+          <button style={{ ...styles.topbarLink, color: "#e8746a" }} onClick={handleLogout}>
+            ⏻ <span className="topbar-label">Sair</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ===== MODAL MEUS DADOS ===== */}
+      {showMeusDados && profile && (
+        <div style={styles.modalOverlay} onClick={() => setShowMeusDados(false)}>
+          <div style={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.eyebrow}>MEUS DADOS</div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", marginBottom: "1.2rem" }}>{profile.nome}</h2>
+            <div style={styles.dataRow}><span style={styles.dataLabel}>E-MAIL</span><span>{profile.email}</span></div>
+            <div style={styles.dataRow}><span style={styles.dataLabel}>WHATSAPP</span><span>{profile.telefone}</span></div>
+            <div style={styles.dataRow}><span style={styles.dataLabel}>CPF</span><span>{profile.cpf}</span></div>
+            {profile.matricula && <div style={styles.dataRow}><span style={styles.dataLabel}>MATRÍCULA</span><span>{profile.matricula}</span></div>}
+            {profile.contractUrl && (
+              <a href={profile.contractUrl} target="_blank" rel="noreferrer" style={{ ...styles.btnGhostGold, display: "inline-block", marginTop: "1.2rem", textDecoration: "none", textAlign: "center" }}>
+                Ver meu contrato
+              </a>
+            )}
+            <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "1.4rem", lineHeight: 1.6 }}>Pra corrigir algum desses dados, entre em contato com a barbearia diretamente.</p>
+            <button style={{ ...styles.btnGhostGold, width: "100%", marginTop: "1rem" }} onClick={() => setShowMeusDados(false)}>Fechar</button>
+          </div>
+        </div>
+      )}
+
+    <div style={styles.page} className="aluno-page">
       {/* ===== SIDEBAR ===== */}
       <aside style={styles.sidebar} className="aluno-sidebar">
         <div style={styles.sidebarLogo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
@@ -252,10 +308,6 @@ export default function StudentDashboard() {
             </div>
           ))}
         </nav>
-
-        <a href="/aluno/presencial" style={{ ...styles.certificateBtn, textDecoration: "none", display: "block", textAlign: "center", marginTop: 0, marginBottom: "0.8rem" }}>
-          📍 Turma Presencial
-        </a>
 
         {isComplete && certificateUrl ? (
           <a href={certificateUrl} target="_blank" rel="noreferrer" style={{ ...styles.certificateBtn, textDecoration: "none", display: "block", textAlign: "center" }}>
@@ -316,13 +368,24 @@ export default function StudentDashboard() {
         </div>
       </main>
     </div>
+    </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
+  outerWrap: { background: "#050505" },
+  topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
+  topbarLogo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#F5F0E8" },
+  topbarLink: { background: "none", border: "none", color: "#c9c2b4", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem", textDecoration: "none", fontFamily: "'Inter',sans-serif" },
 
-  sidebar: { width: 320, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.4rem", display: "flex", flexDirection: "column", height: "100vh", position: "sticky", top: 0, overflowY: "auto" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
+  modalBox: { background: "linear-gradient(160deg,#0d0d0d,#050505)", border: "1px solid rgba(197,138,74,.25)", borderRadius: 8, padding: "2rem", maxWidth: 380, width: "100%", color: "#F5F0E8" },
+  dataRow: { display: "flex", justifyContent: "space-between", padding: "0.6rem 0", borderBottom: "1px solid rgba(197,138,74,.1)", fontSize: "0.85rem" },
+  dataLabel: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", color: GOLD, letterSpacing: "0.04em" },
+
+  page: { display: "flex", minHeight: "calc(100vh - 53px)", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
+
+  sidebar: { width: 320, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.4rem", display: "flex", flexDirection: "column", height: "calc(100vh - 53px)", position: "sticky", top: 53, overflowY: "auto" },
   sidebarLogo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.05rem", marginBottom: "1.6rem" },
 
   progressCard: { display: "flex", alignItems: "center", gap: "0.9rem", border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, padding: "0.9rem", marginBottom: "1.8rem", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
