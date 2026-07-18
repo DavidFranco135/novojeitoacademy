@@ -11,7 +11,7 @@ import { auth, db } from "../firebase";
  * liberar um admin direto pelo Console do Firebase:
  *
  *   1) Firebase Console → Authentication → Users → copie o UID da pessoa
- *      (ela precisa ter feito login pelo menos uma vez em /login antes de ter um UID)
+ *      (ela precisa ter feito login pelo menos uma vez antes de ter um UID)
  *   2) Firebase Console → Firestore Database → "Iniciar coleção"
  *   3) ID da coleção: admins
  *   4) ID do documento: cole o UID copiado no passo 1
