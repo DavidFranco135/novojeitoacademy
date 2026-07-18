@@ -260,8 +260,6 @@ export default function StudentDashboard() {
     <div style={styles.page} className="aluno-page">
       {/* ===== SIDEBAR ===== */}
       <aside style={styles.sidebar} className="aluno-sidebar">
-        <div style={styles.sidebarLogo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
-
         <div style={styles.progressCard}>
           <svg width="64" height="64" viewBox="0 0 64 64">
             <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(197,138,74,.15)" strokeWidth="5" />
