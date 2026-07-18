@@ -287,10 +287,13 @@ function Alunos() {
       if (link) {
         try {
           await navigator.clipboard.writeText(link);
-          alert("Link copiado! Agora é só colar no WhatsApp do aluno.");
         } catch {
-          window.prompt("Copie o link abaixo e cole no WhatsApp do aluno:", link);
+          // clipboard pode falhar silenciosamente em alguns navegadores — segue mesmo assim,
+          // o prompt abaixo garante que o admin vê e pode copiar na mão de qualquer forma
         }
+        // sempre mostra o link na tela (não só copia "no escuro") — assim dá pra confirmar
+        // visualmente que é um link novo antes de mandar, e copiar de novo se precisar
+        window.prompt("Link gerado agora (já copiado — confirme e cole no WhatsApp do aluno):", link);
       }
       if (action === "resendCertificate") loadAlunos();
     } catch (e: any) {
@@ -648,10 +651,10 @@ function Bolsas() {
       if (data.loginLink) {
         try {
           await navigator.clipboard.writeText(data.loginLink);
-          alert("Bolsa concedida! Link de acesso copiado — cole no WhatsApp da pessoa.");
         } catch {
-          window.prompt("Bolsa concedida! Copie o link e mande no WhatsApp da pessoa:", data.loginLink);
+          // segue mesmo se falhar — o prompt abaixo garante a cópia manual
         }
+        window.prompt("Bolsa concedida! Link de acesso (já copiado — confirme e cole no WhatsApp):", data.loginLink);
       }
       loadBolsas();
     } catch {
@@ -1078,10 +1081,10 @@ function Financeiro() {
       if (data.loginLink) {
         try {
           await navigator.clipboard.writeText(data.loginLink);
-          alert("Matrícula registrada! Link de acesso copiado — cole no WhatsApp do aluno.");
         } catch {
-          window.prompt("Matrícula registrada! Copie o link e mande no WhatsApp do aluno:", data.loginLink);
+          // segue mesmo se falhar — o prompt abaixo garante a cópia manual
         }
+        window.prompt("Matrícula registrada! Link de acesso (já copiado — confirme e cole no WhatsApp):", data.loginLink);
       }
       loadTransactions();
     } catch (e: any) {
