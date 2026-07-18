@@ -21,5 +21,5 @@ export { uploadImage } from "./imgbb";
 export { applyScholarship, listScholarshipApplications, grantScholarship } from "./scholarship";
 export { getSiteContent, updateSiteContent } from "./siteContent";
 export { getStudentProgress, markLessonComplete } from "./progress";
-export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail } from "./admin";
+export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment } from "./admin";
 export { registerLead, listLeads } from "./leads";
