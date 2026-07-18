@@ -6,6 +6,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { generateCertificateForEnrollment } from "./certificate";
+import { toBrandedLoginLink } from "./utils";
 
 const db = admin.firestore();
 const COURSE_PRICE = 497.0;
@@ -263,10 +264,11 @@ export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
     }
     const enrollment = enrollmentSnap.data()!;
 
-    const loginLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
+    const rawLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
       url: "https://novojeitoapp.pages.dev/login",
       handleCodeInApp: true,
     });
+    const loginLink = toBrandedLoginLink(rawLink);
 
     res.status(200).json({ ok: true, loginLink });
   } catch (err) {
@@ -310,10 +312,11 @@ export const registerCashPayment = onRequest({ cors: true }, async (req, res) =>
       if (e.code !== "auth/email-already-exists") throw e;
     }
 
-    const loginLink = await admin.auth().generateSignInWithEmailLink(email, {
+    const rawLink = await admin.auth().generateSignInWithEmailLink(email, {
       url: "https://novojeitoapp.pages.dev/login",
       handleCodeInApp: true,
     });
+    const loginLink = toBrandedLoginLink(rawLink);
 
     res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
   } catch (err) {
