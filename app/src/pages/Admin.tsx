@@ -744,6 +744,8 @@ interface SiteContent {
   faq: FaqItem[];
   scholarshipTitle: string;
   scholarshipText: string;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
 }
 
 const EMPTY_CONTENT: SiteContent = {
@@ -767,6 +769,8 @@ const EMPTY_CONTENT: SiteContent = {
   faq: [],
   scholarshipTitle: "",
   scholarshipText: "",
+  maintenanceMode: false,
+  maintenanceMessage: "Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!",
 };
 
 function ConteudoSite() {
@@ -874,6 +878,32 @@ function ConteudoSite() {
   return (
     <div style={{ maxWidth: 720 }}>
       <PageHeader eyebrow="SITE PÚBLICO" title="Conteúdo do Site" subtitle="Edite fotos, textos, vídeo e preço da página que os visitantes veem — sem mexer em código." />
+
+      <div style={{
+        border: `1px solid ${content.maintenanceMode ? "#e8746a" : "rgba(197,138,74,.25)"}`,
+        borderRadius: 6, padding: "1.2rem 1.4rem", marginBottom: "2rem",
+        background: content.maintenanceMode ? "rgba(232,116,106,.08)" : "linear-gradient(160deg,#0d0d0d,#050505)",
+      }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.8rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={content.maintenanceMode}
+            onChange={(e) => update("maintenanceMode", e.target.checked)}
+            style={{ width: 18, height: 18, cursor: "pointer" }}
+          />
+          <span style={{ fontWeight: 600, fontSize: "0.9rem", color: content.maintenanceMode ? "#e8746a" : "#F5F0E8" }}>
+            🛠️ Site em manutenção {content.maintenanceMode ? "(ATIVO — visitantes veem só a tela de manutenção)" : ""}
+          </span>
+        </label>
+        {content.maintenanceMode && (
+          <div style={{ marginTop: "1rem" }}>
+            <TextField label="Mensagem exibida" value={content.maintenanceMessage} multiline onChange={(v) => update("maintenanceMessage", v)} />
+          </div>
+        )}
+        <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.8rem" }}>
+          Quando ativado, o site público inteiro (novojeitoacademy.pages.dev) mostra só essa tela — ninguém vê o resto do conteúdo até você desativar aqui de novo. Não precisa fazer deploy nenhum, é instantâneo depois de salvar.
+        </p>
+      </div>
 
       <FieldGroup title="Capa (Hero)">
         <ImageField label="Foto de capa" url={content.heroImageUrl} uploading={uploadingField === "hero"} onUpload={(f) => handleImageUpload(f, "hero", (url) => update("heroImageUrl", url))} />
