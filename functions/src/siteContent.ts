@@ -42,6 +42,8 @@ const DEFAULT_CONTENT = {
   ],
   scholarshipTitle: "Concorra a uma bolsa de 100%.",
   scholarshipText: "A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.",
+  maintenanceMode: false,
+  maintenanceMessage: "Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!",
 };
 
 // checa se o token de autenticação enviado pertence a um admin cadastrado
