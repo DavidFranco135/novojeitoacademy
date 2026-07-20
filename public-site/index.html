@@ -564,8 +564,30 @@
   const GET_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/getSiteContent";
   const CACHE_KEY = "nj_site_content_cache";
 
+  function showMaintenancePage(message) {
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(197,138,74,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 60% 55% at 50% 45%,black 10%,transparent 75%)"></div>
+        <div style="position:relative;border:1px solid var(--gold);border-radius:8px;padding:3rem 2.2rem;max-width:420px;width:100%;text-align:center;background:linear-gradient(160deg,#0d0d0d,#050505);box-shadow:0 0 40px -12px rgba(197,138,74,.4)">
+          <div style="position:absolute;top:10px;left:10px;width:16px;height:16px;border-top:1px solid var(--gold);border-left:1px solid var(--gold)"></div>
+          <div style="position:absolute;top:10px;right:10px;width:16px;height:16px;border-top:1px solid var(--gold);border-right:1px solid var(--gold)"></div>
+          <div style="position:absolute;bottom:10px;left:10px;width:16px;height:16px;border-bottom:1px solid var(--gold);border-left:1px solid var(--gold)"></div>
+          <div style="position:absolute;bottom:10px;right:10px;width:16px;height:16px;border-bottom:1px solid var(--gold);border-right:1px solid var(--gold)"></div>
+          <div class="logo" style="margin-bottom:1.6rem;font-size:1.3rem">Novo Jeito <em>Academy</em></div>
+          <div style="width:56px;height:56px;line-height:56px;border:1px solid var(--gold);border-radius:50%;font-size:1.6rem;margin:0 auto 1.2rem;color:var(--gold)">🛠️</div>
+          <h1 style="font-family:'Playfair Display',serif;font-weight:900;font-size:1.4rem;margin:0 0 .9rem;color:var(--white)">Voltamos já já</h1>
+          <p style="color:#c9c2b4;font-size:.9rem;line-height:1.7;margin:0">${message || 'Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!'}</p>
+        </div>
+      </div>`;
+  }
+
   function applySiteContent(content) {
     if (!content) return;
+
+    if (content.maintenanceMode) {
+      showMaintenancePage(content.maintenanceMessage);
+      return; // não continua aplicando o resto do conteúdo — a página já foi substituída
+    }
 
     if (content.heroTitle) document.getElementById('heroTitle').innerHTML = content.heroTitle.split('\n').join('<br/>');
     if (content.heroLead) document.getElementById('heroLead').textContent = content.heroLead;
