@@ -7,9 +7,9 @@ import { signOut } from "firebase/auth";
  * Dashboard estilo plataforma premium: sidebar de trilha, player central,
  * anel de progresso, certificado liberado ao concluir 100%.
  *
- * A grade curricular (títulos/duração/vídeo) é fixa no código — é o conteúdo
- * do curso, não muda por aluno. O que É por aluno (quais aulas já assistiu)
- * vem de verdade do backend via getStudentProgress / markLessonComplete.
+ * A grade curricular (módulos/aulas) vem do backend via getCourseContent —
+ * editável pelo painel Admin, aba "Currículo". O progresso de cada aluno
+ * (quais aulas já assistiu) vem separadamente via getStudentProgress.
  */
 
 const GOLD = "#C58A4A";
@@ -30,83 +30,10 @@ interface Module {
   lessons: Lesson[];
 }
 
-// Grade curricular do curso — conteúdo fixo, igual pra todo aluno.
-// "completed" começa falso aqui e é preenchido com o progresso real após a busca.
-const COURSE_MODULES: Module[] = [
-  {
-    id: "m1",
-    title: "Fundamentos da Navalha",
-    lessons: [
-      { id: "l1", title: "Afiação e cuidado das lâminas", duration: "14:20", videoUid: "", completed: false },
-      { id: "l2", title: "Postura e ergonomia", duration: "11:05", videoUid: "", completed: false },
-      { id: "l3", title: "Segurança de trabalho", duration: "09:40", videoUid: "", completed: false },
-      { id: "l15", title: "Tipos de navalha e escolha do equipamento", duration: "20:00", videoUid: "", completed: false },
-      { id: "l16", title: "Manutenção e conservação das ferramentas", duration: "18:00", videoUid: "", completed: false },
-      { id: "l17", title: "Preparação do cliente e do ambiente de trabalho", duration: "26:55", videoUid: "", completed: false },
-    ],
-  },
-  {
-    id: "m2",
-    title: "Cortes Clássicos e Degradês",
-    lessons: [
-      { id: "l4", title: "Social clássico passo a passo", duration: "22:10", videoUid: "", completed: false },
-      { id: "l5", title: "Skin fade do zero", duration: "26:45", videoUid: "", completed: false },
-      { id: "l18", title: "Degradê baixo (low fade)", duration: "16:00", videoUid: "", completed: false },
-      { id: "l19", title: "Degradê médio (mid fade)", duration: "16:00", videoUid: "", completed: false },
-      { id: "l20", title: "Degradê alto (high fade)", duration: "15:00", videoUid: "", completed: false },
-      { id: "l21", title: "Corte social moderno", duration: "14:00", videoUid: "", completed: false },
-      { id: "l22", title: "Corte navalhado", duration: "15:00", videoUid: "", completed: false },
-      { id: "l23", title: "Risco e desenhos (line up)", duration: "12:00", videoUid: "", completed: false },
-      { id: "l24", title: "Textura e finalização com tesoura", duration: "15:00", videoUid: "", completed: false },
-      { id: "l25", title: "Corte infantil", duration: "13:00", videoUid: "", completed: false },
-      { id: "l26", title: "Adaptando o corte ao formato do rosto", duration: "17:00", videoUid: "", completed: false },
-      { id: "l27", title: "Acabamento com máquina zero", duration: "18:05", videoUid: "", completed: false },
-    ],
-  },
-  {
-    id: "m3",
-    title: "Barba e Acabamento",
-    lessons: [
-      { id: "l6", title: "Desenho de barba", duration: "16:30", videoUid: "", completed: false },
-      { id: "l7", title: "Toalha quente e finalização", duration: "13:15", videoUid: "", completed: false },
-      { id: "l28", title: "Produtos para barba: óleos e balms", duration: "14:00", videoUid: "", completed: false },
-      { id: "l29", title: "Barba estilo degradê (fade de barba)", duration: "16:00", videoUid: "", completed: false },
-      { id: "l30", title: "Contorno e alinhamento", duration: "15:00", videoUid: "", completed: false },
-      { id: "l31", title: "Barboterapia", duration: "18:00", videoUid: "", completed: false },
-      { id: "l32", title: "Bigode: técnicas de aparo", duration: "13:00", videoUid: "", completed: false },
-      { id: "l33", title: "Cuidados pós-atendimento", duration: "24:15", videoUid: "", completed: false },
-    ],
-  },
-  {
-    id: "m4",
-    title: "Gestão da Própria Barbearia",
-    lessons: [
-      { id: "l8", title: "Precificação de serviços", duration: "14:00", videoUid: "", completed: false },
-      { id: "l9", title: "Como montar seu portfólio", duration: "15:00", videoUid: "", completed: false },
-      { id: "l10", title: "Atendimento e experiência do cliente", duration: "16:00", videoUid: "", completed: false },
-      { id: "l11", title: "Fidelização e programa de indicação", duration: "14:00", videoUid: "", completed: false },
-      { id: "l12", title: "Redes sociais para barbeiros", duration: "17:00", videoUid: "", completed: false },
-      { id: "l13", title: "Gestão financeira básica", duration: "15:00", videoUid: "", completed: false },
-      { id: "l14", title: "Como abrir sua própria barbearia", duration: "19:00", videoUid: "", completed: false },
-    ],
-  },
-  {
-    id: "m5",
-    title: "Tendências 2026: Nevou e Coloração Masculina",
-    lessons: [
-      { id: "l34", title: "Fades modernos: low, mid, high e taper fade", duration: "18:00", videoUid: "", completed: false },
-      { id: "l35", title: "Textured crop e mullet moderno na prática", duration: "20:00", videoUid: "", completed: false },
-      { id: "l36", title: "Nevou: teste de mecha e preparação segura", duration: "16:00", videoUid: "", completed: false },
-      { id: "l37", title: "Descoloração masculina passo a passo", duration: "24:00", videoUid: "", completed: false },
-      { id: "l38", title: "Matização e cuidados pós-coloração", duration: "14:00", videoUid: "", completed: false },
-    ],
-  },
-];
-
 export default function StudentDashboard() {
-  const [modules, setModules] = useState<Module[]>(COURSE_MODULES);
+  const [modules, setModules] = useState<Module[]>([]);
   const allLessons = useMemo(() => modules.flatMap((m) => m.lessons), [modules]);
-  const [activeLessonId, setActiveLessonId] = useState(allLessons[0].id);
+  const [activeLessonId, setActiveLessonId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
@@ -130,7 +57,25 @@ export default function StudentDashboard() {
 
   // busca o progresso real do aluno logado ao carregar
   useEffect(() => {
-    async function loadProgress() {
+    async function loadCourseAndProgress() {
+      // 1) busca o currículo (módulos/aulas) — público, editável pelo painel Admin
+      let loadedModules: Module[] = [];
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/getCourseContent`);
+        const data = await res.json();
+        loadedModules = (data.modules || []).map((m: any) => ({
+          ...m,
+          lessons: m.lessons.map((l: any) => ({ ...l, completed: false })),
+        }));
+      } catch (e) {
+        console.error("Falha ao carregar currículo", e);
+      }
+      setModules(loadedModules);
+      if (loadedModules[0]?.lessons[0]) {
+        setActiveLessonId(loadedModules[0].lessons[0].id);
+      }
+
+      // 2) busca o progresso do aluno logado, pra marcar quais aulas já foram concluídas
       const token = await auth.currentUser?.getIdToken();
       if (!token) {
         setLoading(false);
@@ -178,7 +123,7 @@ export default function StudentDashboard() {
         setLoading(false);
       }
     }
-    loadProgress();
+    loadCourseAndProgress();
   }, []);
 
   // busca a turma presencial do aluno (se tiver) já ao carregar, pra mostrar na trilha
@@ -301,6 +246,15 @@ export default function StudentDashboard() {
     return (
       <div style={{ ...styles.page, alignItems: "center", justifyContent: "center" }}>
         <p style={{ color: "#9d9384" }}>Carregando sua área...</p>
+      </div>
+    );
+  }
+
+  if (modules.length === 0 || !activeLesson) {
+    return (
+      <div style={{ ...styles.page, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.6rem" }}>
+        <p style={{ color: "#9d9384" }}>O conteúdo do curso ainda não foi cadastrado.</p>
+        <p style={{ color: "#5a5348", fontSize: "0.82rem" }}>Assim que os módulos forem criados no painel Admin, eles aparecem aqui automaticamente.</p>
       </div>
     );
   }
