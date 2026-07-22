@@ -12,7 +12,7 @@ import { auth } from "../firebase";
 const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
 
-type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo";
+type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo";
 
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();
@@ -111,6 +111,7 @@ export default function AdminDashboard() {
             ["turmas", "📍", "Turmas Presenciais"],
             ["bolsas", "🎓", "Bolsas"],
             ["conteudo", "🖼️", "Conteúdo do Site"],
+            ["curriculo", "📚", "Currículo"],
             ["financeiro", "💰", "Financeiro"],
           ] as [Tab, string, string][]).map(([id, icon, label]) => (
             <button
@@ -132,6 +133,7 @@ export default function AdminDashboard() {
         {tab === "turmas" && <Turmas />}
         {tab === "bolsas" && <Bolsas />}
         {tab === "conteudo" && <ConteudoSite />}
+        {tab === "curriculo" && <Curriculo />}
         {tab === "financeiro" && <Financeiro />}
       </main>
     </div>
@@ -272,6 +274,52 @@ function Alunos() {
     }
   }
 
+  async function handleEditar(aluno: any) {
+    const nome = window.prompt("Nome completo:", aluno.nome);
+    if (nome === null) return;
+    const email = window.prompt("E-mail (cuidado: isso muda o login dele):", aluno.email);
+    if (email === null) return;
+    const telefone = window.prompt("WhatsApp:", aluno.telefone || "");
+    if (telefone === null) return;
+    const cpf = window.prompt("CPF:", aluno.cpf || "");
+    if (cpf === null) return;
+
+    setActingOn(aluno.id);
+    try {
+      const res = await authedFetch("updateStudent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: aluno.id, nome, email, telefone, cpf }),
+      });
+      if (!res.ok) throw new Error();
+      loadAlunos();
+    } catch {
+      alert("Não foi possível salvar as alterações.");
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  async function handleExcluir(aluno: any) {
+    if (!window.confirm(`Tem certeza que quer EXCLUIR ${aluno.nome} por completo? Isso apaga matrícula, progresso, login e vaga em turma. Não tem como desfazer.`)) return;
+    if (!window.confirm(`Confirma de novo: excluir ${aluno.nome} definitivamente?`)) return;
+
+    setActingOn(aluno.id);
+    try {
+      const res = await authedFetch("deleteStudent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: aluno.id }),
+      });
+      if (!res.ok) throw new Error();
+      loadAlunos();
+    } catch {
+      alert("Não foi possível excluir o aluno.");
+    } finally {
+      setActingOn(null);
+    }
+  }
+
   async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract" | "generateComprovante", enrollmentId: string, linkField: string) {
     setActingOn(enrollmentId);
     try {
@@ -357,6 +405,12 @@ function Alunos() {
               >
                 {a.bloqueado ? "Desbloquear acesso" : "Bloquear acesso"}
               </button>
+              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleEditar(a)}>
+                Editar dados
+              </button>
+              <button style={{ ...styles.linkBtn, color: "#e8746a" }} disabled={actingOn === a.id} onClick={() => handleExcluir(a)}>
+                Excluir aluno
+              </button>
             </div>
           </div>
         ))}
@@ -368,16 +422,6 @@ function Alunos() {
 }
 
 // ============================================================
-// Módulos online — precisa bater com os ids/títulos definidos em Aluno.tsx (COURSE_MODULES)
-const ONLINE_MODULES = [
-  { id: "", title: "Nenhum — não vincular a um módulo" },
-  { id: "m1", title: "01 · Fundamentos da Navalha" },
-  { id: "m2", title: "03 · Cortes Clássicos e Degradês" },
-  { id: "m3", title: "05 · Barba e Acabamento" },
-  { id: "m4", title: "07 · Gestão da Própria Barbearia" },
-  { id: "m5", title: "09 · Tendências 2026: Nevou e Coloração" },
-];
-
 function Turmas() {
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -393,6 +437,22 @@ function Turmas() {
   const [assigningTurmaId, setAssigningTurmaId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [onlineModules, setOnlineModules] = useState<{ id: string; title: string }[]>([
+    { id: "", title: "Nenhum — não vincular a um módulo" },
+  ]);
+
+  useEffect(() => {
+    fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent")
+      .then((r) => r.json())
+      .then((data) => {
+        const mods = (data.modules || []).map((m: any, i: number) => ({
+          id: m.id,
+          title: `${String(i + 1).padStart(2, "0")} · ${m.title}`,
+        }));
+        setOnlineModules([{ id: "", title: "Nenhum — não vincular a um módulo" }, ...mods]);
+      })
+      .catch(() => {});
+  }, []);
 
   function loadTurmas() {
     setLoading(true);
@@ -515,7 +575,7 @@ function Turmas() {
                 onChange={(e) => updateEncontro(idx, "moduloRelacionado", e.target.value)}
                 style={{ ...inputStyle, width: "100%" }}
               >
-                {ONLINE_MODULES.map((m) => (
+                {onlineModules.map((m) => (
                   <option key={m.id} value={m.id}>{m.title}</option>
                 ))}
               </select>
@@ -772,6 +832,129 @@ const EMPTY_CONTENT: SiteContent = {
   maintenanceMode: false,
   maintenanceMessage: "Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!",
 };
+
+// ============================================================
+function Curriculo() {
+  const [modules, setModules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
+
+  useEffect(() => {
+    fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent")
+      .then((r) => r.json())
+      .then((data) => setModules(data.modules || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function addModule() {
+    setModules((prev) => [...prev, { id: `m_${Date.now()}`, title: "Novo módulo", description: "", lessons: [] }]);
+  }
+  function removeModule(idx: number) {
+    if (!window.confirm("Excluir esse módulo inteiro (e todas as aulas dele)?")) return;
+    setModules((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function updateModule(idx: number, field: string, value: string) {
+    setModules((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
+  }
+  function addLesson(moduleIdx: number) {
+    setModules((prev) =>
+      prev.map((m, i) =>
+        i === moduleIdx
+          ? { ...m, lessons: [...m.lessons, { id: `l_${Date.now()}`, title: "Nova aula", duration: "10:00", videoUid: "" }] }
+          : m
+      )
+    );
+  }
+  function removeLesson(moduleIdx: number, lessonIdx: number) {
+    setModules((prev) =>
+      prev.map((m, i) => (i === moduleIdx ? { ...m, lessons: m.lessons.filter((_: any, li: number) => li !== lessonIdx) } : m))
+    );
+  }
+  function updateLesson(moduleIdx: number, lessonIdx: number, field: string, value: string) {
+    setModules((prev) =>
+      prev.map((m, i) =>
+        i === moduleIdx
+          ? { ...m, lessons: m.lessons.map((l: any, li: number) => (li === lessonIdx ? { ...l, [field]: value } : l)) }
+          : m
+      )
+    );
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSavedMsg("");
+    try {
+      const res = await authedFetch("updateCourseContent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modules }),
+      });
+      if (!res.ok) throw new Error();
+      setSavedMsg("✓ Currículo salvo — já atualizado na Área do Aluno e no site público.");
+    } catch {
+      setSavedMsg("Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSavedMsg(""), 4000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader eyebrow="CONTEÚDO DO CURSO" title="Currículo" />
+        <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <PageHeader eyebrow="CONTEÚDO DO CURSO" title="Currículo" subtitle="Módulos e aulas online — o que aparece na Área do Aluno e na grade curricular do site público." />
+
+      {modules.map((mod, mi) => (
+        <div key={mod.id} style={{ border: "1px solid rgba(197,138,74,.2)", borderRadius: 6, padding: "1.2rem 1.4rem", marginBottom: "1.2rem", background: "linear-gradient(160deg,#0d0d0d,#050505)" }}>
+          <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", marginBottom: "0.8rem" }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", color: GOLD, fontSize: "0.85rem" }}>{String(mi + 1).padStart(2, "0")}</span>
+            <input value={mod.title} onChange={(e) => updateModule(mi, "title", e.target.value)} placeholder="Título do módulo" style={{ ...inputStyle, flex: 1, fontWeight: 600 }} />
+            <button onClick={() => removeModule(mi)} style={{ ...styles.linkBtn, color: "#e8746a" }}>Excluir módulo</button>
+          </div>
+          <input
+            value={mod.description || ""}
+            onChange={(e) => updateModule(mi, "description", e.target.value)}
+            placeholder="Descrição curta (aparece no site público)"
+            style={{ ...inputStyle, width: "100%", marginBottom: "1rem" }}
+          />
+
+          <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>AULAS DESSE MÓDULO</div>
+          {mod.lessons.map((lesson: any, li: number) => (
+            <div key={lesson.id} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+              <input value={lesson.title} onChange={(e) => updateLesson(mi, li, "title", e.target.value)} placeholder="Título da aula" style={{ ...smallInputStyle, flex: 2, minWidth: 160 }} />
+              <input value={lesson.duration} onChange={(e) => updateLesson(mi, li, "duration", e.target.value)} placeholder="MM:SS" style={{ ...smallInputStyle, width: 80 }} />
+              <input value={lesson.videoUid} onChange={(e) => updateLesson(mi, li, "videoUid", e.target.value)} placeholder="ID do vídeo (Cloudflare Stream)" style={{ ...smallInputStyle, flex: 1, minWidth: 160 }} />
+              <button onClick={() => removeLesson(mi, li)} style={{ ...styles.linkBtn, color: "#e8746a" }}>✕</button>
+            </div>
+          ))}
+          <button onClick={() => addLesson(mi)} style={{ ...styles.linkBtn, marginTop: "0.4rem" }}>+ Adicionar aula nesse módulo</button>
+        </div>
+      ))}
+
+      <button onClick={addModule} style={{ ...styles.btnGhostGold, marginBottom: "1.6rem" }}>+ Adicionar novo módulo</button>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <button style={styles.btnPrimary} onClick={handleSave} disabled={saving}>
+          {saving ? "Salvando..." : "Salvar currículo"}
+        </button>
+        {savedMsg && <span style={{ fontSize: "0.82rem", color: savedMsg.startsWith("✓") ? "#78c88c" : "#e8746a" }}>{savedMsg}</span>}
+      </div>
+      <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "1rem" }}>
+        Dica: editar título/duração de uma aula existente não afeta o progresso de quem já assistiu. Só excluir a aula é que "perde" essa marcação específica pra quem já tinha assistido ela.
+      </p>
+    </div>
+  );
+}
 
 function ConteudoSite() {
   const [content, setContent] = useState<SiteContent>(EMPTY_CONTENT);
