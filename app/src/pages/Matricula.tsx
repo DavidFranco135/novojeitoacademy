@@ -24,31 +24,78 @@ interface StudentData {
   email: string;
   telefone: string;
   cpf: string;
+  rg: string;
+  dataNascimento: string;
+  endereco: string;
+  cidade: string;
 }
 
-const CONTRACT_TEXT = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
+// CPF do responsável legal pela Novo Jeito Academy — preencha uma vez com o dado real
+const CONTRATADA_CPF = "___.___.___-__"; // TODO: trocar pelo CPF real de Marcus Vinícius da Silva Narciso
 
-Pelo presente instrumento, de um lado NOVO JEITO ACADEMY ("CONTRATADA") e, de outro lado, o(a) aluno(a) identificado(a) no cadastro ("CONTRATANTE"), têm entre si justo e contratado o seguinte:
+function buildContractText(data: StudentData) {
+  return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
+CURSO DE BARBEIRO PROFISSIONAL – NOVO JEITO ACADEMY
 
-1. OBJETO
-A CONTRATADA se compromete a fornecer ao CONTRATANTE acesso ao curso online "Formação Completa de Barbeiro Profissional", composto por aulas em vídeo, materiais de apoio e certificado de conclusão.
+1. DAS PARTES
 
-2. ACESSO E VIGÊNCIA
-O acesso ao curso é vitalício a partir da confirmação do pagamento, ficando sujeito às atualizações de conteúdo que a CONTRATADA realizar.
+CONTRATADA:
+Novo Jeito Academy, representada por Marcus Vinícius da Silva Narciso, barbeiro profissional, CPF nº ${CONTRATADA_CPF}, com sede em São Gonçalo – RJ.
 
-3. PAGAMENTO
-O valor e a forma de pagamento são os apresentados na etapa de checkout, sendo o acesso liberado automaticamente após a confirmação do pagamento pelo meio escolhido.
+CONTRATANTE (ALUNO):
+Nome: ${data.nome || "-"}
+CPF: ${data.cpf || "-"}
+RG: ${data.rg || "-"}
+Data de nascimento: ${data.dataNascimento || "-"}
+Endereço: ${data.endereco || "-"}
+Cidade: ${data.cidade || "-"}
+Telefone: ${data.telefone || "-"}
+E-mail: ${data.email || "-"}
 
-4. CERTIFICAÇÃO
-O certificado de conclusão será emitido automaticamente ao CONTRATANTE que completar 100% das aulas do curso.
+2. DO OBJETO
+O presente contrato tem por objeto a prestação de serviços educacionais referentes ao Curso de Barbeiro Profissional Novo Jeito Academy, composto por: conteúdo online; aulas presenciais; materiais complementares; avaliações; certificação.
 
-5. DIREITOS AUTORAIS
-Todo o conteúdo do curso é de propriedade da CONTRATADA, sendo vedada sua reprodução, compartilhamento ou revenda sem autorização expressa.
+3. DA CARGA HORÁRIA
+O curso será composto por aulas online gravadas, encontros presenciais, atividades práticas supervisionadas e exercícios de fixação. A carga horária total será informada no ato da matrícula.
 
-6. CANCELAMENTO
-Aplica-se o direito de arrependimento em até 7 (sete) dias corridos após a compra, conforme Código de Defesa do Consumidor, mediante solicitação por e-mail.
+4. DAS AULAS PRESENCIAIS
+As aulas presenciais serão realizadas na sede da Novo Jeito Academy, em São Gonçalo – RJ. As datas serão previamente informadas ao aluno. Caso o aluno não compareça, não haverá obrigação de reposição, salvo disponibilidade da escola.
 
-Ao assinar abaixo, o(a) CONTRATANTE declara ter lido e concordado com todos os termos deste contrato.`;
+5. DO ACESSO À PLATAFORMA
+Após confirmação do pagamento, o aluno receberá acesso exclusivo à plataforma. O acesso é individual, intransferível e protegido. É proibido compartilhar login, compartilhar senha, vender acesso ou reproduzir as aulas. Caso seja detectado uso simultâneo em dispositivos diferentes ou qualquer tentativa de fraude, o acesso poderá ser cancelado sem direito a reembolso.
+
+6. DOS DIREITOS AUTORAIS
+Todo o conteúdo do curso pertence à Novo Jeito Academy. É proibido gravar aulas, copiar apostilas, distribuir materiais ou comercializar o conteúdo. O descumprimento poderá gerar responsabilização civil e criminal.
+
+7. DA CERTIFICAÇÃO
+Receberá certificado o aluno que concluir os módulos obrigatórios, participar das atividades presenciais e cumprir os critérios mínimos de aproveitamento definidos pela escola.
+
+8. DO INVESTIMENTO
+O valor do curso e a forma de pagamento são os apresentados na etapa de checkout desta matrícula. A matrícula somente será confirmada após a aprovação do pagamento.
+
+9. DO CANCELAMENTO
+O aluno poderá desistir da compra no prazo legal de 7 (sete) dias, contado da confirmação da contratação, conforme o Código de Defesa do Consumidor, quando aplicável às contratações realizadas pela internet. Após esse prazo, não haverá devolução de valores referentes ao conteúdo já disponibilizado; pedidos excepcionais serão analisados individualmente pela escola.
+
+10. DAS OBRIGAÇÕES DO ALUNO
+O aluno compromete-se a respeitar professores e colegas, preservar equipamentos e comparecer às aulas presenciais em condições adequadas. É proibido qualquer comportamento que coloque em risco a integridade física ou moral dos participantes.
+
+11. DAS OBRIGAÇÕES DA ESCOLA
+A Novo Jeito Academy compromete-se a fornecer acesso à plataforma, disponibilizar os conteúdos contratados, realizar os encontros presenciais, emitir certificado aos alunos aprovados e prestar suporte dentro dos canais oficiais.
+
+12. DA LGPD
+Os dados pessoais serão utilizados exclusivamente para matrícula, emissão de certificado, comunicação acadêmica e obrigações legais. A escola compromete-se a proteger as informações do aluno conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
+
+13. DO USO DE IMAGEM
+O aluno autoriza, de forma gratuita, a utilização de fotografias e vídeos realizados durante as aulas para divulgação institucional da Novo Jeito Academy, em redes sociais, site e materiais publicitários. Caso não autorize, deverá comunicar por escrito antes do início das aulas.
+
+14. DISPOSIÇÕES GERAIS
+A aquisição do curso não garante emprego, renda mínima ou abertura de negócio próprio. O desempenho dependerá do comprometimento individual do aluno.
+
+15. DO FORO
+Fica eleito o foro da Comarca de São Gonçalo – RJ para dirimir quaisquer controvérsias decorrentes deste contrato.
+
+Ao marcar "Li e aceito os termos do contrato" e assinar abaixo, o(a) CONTRATANTE declara ter lido integralmente este Contrato de Prestação de Serviços Educacionais, compreendido suas cláusulas e concordado com todos os seus termos — manifestando sua concordância eletrônica, que produz os mesmos efeitos jurídicos da assinatura física, nos termos da legislação brasileira aplicável.`;
+}
 
 export default function EnrollmentFlow() {
   const [step, setStep] = useState<Step>(1);
@@ -61,6 +108,10 @@ export default function EnrollmentFlow() {
     email: "",
     telefone: "",
     cpf: "",
+    rg: "",
+    dataNascimento: "",
+    endereco: "",
+    cidade: "",
   });
 
   // ---------- Etapa 1: dados ----------
@@ -73,7 +124,11 @@ export default function EnrollmentFlow() {
       data.nome.trim().length > 3 &&
       /\S+@\S+\.\S+/.test(data.email) &&
       data.telefone.replace(/\D/g, "").length >= 10 &&
-      data.cpf.replace(/\D/g, "").length === 11
+      data.cpf.replace(/\D/g, "").length === 11 &&
+      data.rg.trim().length >= 5 &&
+      data.dataNascimento.trim().length > 0 &&
+      data.endereco.trim().length > 5 &&
+      data.cidade.trim().length > 1
     );
   }
 
@@ -176,7 +231,7 @@ export default function EnrollmentFlow() {
         body: JSON.stringify({
           enrollmentId,
           signatureBase64,
-          contractText: CONTRACT_TEXT,
+          contractText: buildContractText(data),
         }),
       });
       if (!res.ok) throw new Error("Falha ao registrar assinatura");
@@ -251,6 +306,18 @@ export default function EnrollmentFlow() {
               <label style={styles.label}>CPF</label>
               <input style={styles.input} value={data.cpf} onChange={(e) => handleDataChange("cpf", e.target.value)} placeholder="000.000.000-00" />
 
+              <label style={styles.label}>RG</label>
+              <input style={styles.input} value={data.rg} onChange={(e) => handleDataChange("rg", e.target.value)} placeholder="00.000.000-0" />
+
+              <label style={styles.label}>Data de nascimento</label>
+              <input style={styles.input} type="date" value={data.dataNascimento} onChange={(e) => handleDataChange("dataNascimento", e.target.value)} />
+
+              <label style={styles.label}>Endereço</label>
+              <input style={styles.input} value={data.endereco} onChange={(e) => handleDataChange("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+
+              <label style={styles.label}>Cidade</label>
+              <input style={styles.input} value={data.cidade} onChange={(e) => handleDataChange("cidade", e.target.value)} placeholder="Sua cidade" />
+
               {error && <p style={styles.error}>{error}</p>}
 
               <button style={styles.btnPrimary} onClick={submitStep1} disabled={loading}>
@@ -263,7 +330,7 @@ export default function EnrollmentFlow() {
             <>
               <h2 style={styles.h2}>Contrato de matrícula</h2>
               <div style={styles.contractBox}>
-                <pre style={styles.contractText}>{CONTRACT_TEXT}</pre>
+                <pre style={styles.contractText}>{buildContractText(data)}</pre>
               </div>
 
               <label style={styles.label}>Assine no campo abaixo</label>
@@ -286,7 +353,7 @@ export default function EnrollmentFlow() {
 
               <label style={styles.checkboxRow}>
                 <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-                <span>Li e concordo com os termos do contrato acima.</span>
+                <span>Declaro que li integralmente este Contrato de Prestação de Serviços Educacionais, compreendi suas cláusulas e concordo com todos os seus termos.</span>
               </label>
 
               {error && <p style={styles.error}>{error}</p>}
