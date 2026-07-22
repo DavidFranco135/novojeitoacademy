@@ -31,11 +31,23 @@ export const createEnrollment = onRequest(
   { cors: true },
   async (req, res) => {
     try {
-      const { nome, email, telefone, cpf } = req.body;
+      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId } = req.body;
 
       if (!nome || !email || !telefone || !cpf) {
         res.status(400).json({ error: "Dados incompletos" });
         return;
+      }
+
+      // Se veio turmaAvulsaId, é uma matrícula avulsa (só naquela turma presencial,
+      // com preço próprio) — não dá acesso ao curso online completo.
+      let turmaAvulsaNome: string | null = null;
+      if (turmaAvulsaId) {
+        const turmaSnap = await db.collection("turmas").doc(turmaAvulsaId).get();
+        if (!turmaSnap.exists || !turmaSnap.data()!.somentePresencial) {
+          res.status(400).json({ error: "Turma avulsa inválida" });
+          return;
+        }
+        turmaAvulsaNome = turmaSnap.data()!.nome;
       }
 
       const enrollmentRef = await db.collection("enrollments").add({
@@ -43,7 +55,14 @@ export const createEnrollment = onRequest(
         email,
         telefone,
         cpf,
+        rg: rg || null,
+        dataNascimento: dataNascimento || null,
+        endereco: endereco || null,
+        cidade: cidade || null,
         status: "cadastrado", // cadastrado -> contrato_assinado -> pago -> acesso_liberado
+        tipo: turmaAvulsaId ? "turma_avulsa" : "curso_completo",
+        turmaAvulsaId: turmaAvulsaId || null,
+        turmaAvulsaNome,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
@@ -76,35 +95,44 @@ export const signContract = onRequest(
       }
       const enrollment = enrollmentSnap.data()!;
 
-      // ---- gera o PDF do contrato ----
+      // ---- gera o PDF do contrato (múltiplas páginas, conforme o tamanho do texto) ----
       const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([595, 842]); // A4
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-      let y = 800;
-      page.drawText("CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS", {
-        x: 50, y, size: 13, font: fontBold, color: rgb(0.1, 0.1, 0.1),
-      });
-      y -= 30;
+      const PAGE_WIDTH = 595;
+      const PAGE_HEIGHT = 842;
+      const MARGIN_TOP = 800;
+      const MARGIN_BOTTOM = 50;
 
-      // quebra o texto do contrato em linhas simples (largura ~90 chars)
-      const lines = wrapText(contractText, 95);
-      for (const line of lines) {
-        if (y < 160) {
-          // nova página se acabar o espaço
-          break;
+      let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      let y = MARGIN_TOP;
+
+      function newPageIfNeeded(minSpaceNeeded = 14) {
+        if (y < MARGIN_BOTTOM + minSpaceNeeded) {
+          page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+          y = MARGIN_TOP;
         }
-        page.drawText(line, { x: 50, y, size: 9.5, font, color: rgb(0.15, 0.15, 0.15) });
-        y -= 14;
       }
 
-      // dados do contratante
-      y -= 10;
-      page.drawText(`Contratante: ${enrollment.nome}`, { x: 50, y, size: 10, font: fontBold });
-      y -= 14;
-      page.drawText(`CPF: ${enrollment.cpf}   E-mail: ${enrollment.email}`, { x: 50, y, size: 9.5, font });
-      y -= 14;
+      page.drawText("CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS", {
+        x: 50, y, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1),
+      });
+      y -= 26;
+
+      // quebra o texto do contrato em linhas simples, criando página nova sempre que precisar
+      const lines = wrapText(contractText, 95);
+      for (const line of lines) {
+        newPageIfNeeded();
+        // linhas de título de seção (ex: "1. DAS PARTES") ficam em negrito
+        const isSectionTitle = /^\d+\.\s[A-ZÀÁÂÃÉÊÍÓÔÕÚÇ]/.test(line);
+        page.drawText(line, { x: 50, y, size: 9.5, font: isSectionTitle ? fontBold : font, color: rgb(0.15, 0.15, 0.15) });
+        y -= 13;
+      }
+
+      // dados de assinatura eletrônica (data/hora, IP) — sempre numa página com espaço garantido
+      newPageIfNeeded(140);
+      y -= 16;
       page.drawText(`Data/hora da assinatura: ${new Date().toLocaleString("pt-BR")}`, { x: 50, y, size: 9.5, font });
       y -= 14;
       const ip = req.headers["x-forwarded-for"] || req.ip || "não identificado";
@@ -115,6 +143,7 @@ export const signContract = onRequest(
       const pngBytes = Buffer.from(signatureBase64.split(",")[1], "base64");
       const pngImage = await pdfDoc.embedPng(pngBytes);
       const sigDims = pngImage.scale(0.35);
+      newPageIfNeeded(sigDims.height + 20);
       page.drawText("Assinatura:", { x: 50, y, size: 9.5, font: fontBold });
       y -= sigDims.height;
       page.drawImage(pngImage, { x: 50, y, width: sigDims.width, height: sigDims.height });
@@ -161,6 +190,18 @@ export const createPaymentPreference = onRequest(
       }
       const enrollment = enrollmentSnap.data()!;
 
+      // se for matrícula avulsa (só naquela turma presencial), usa o preço da turma;
+      // senão, usa o preço padrão do curso completo
+      let precoFinal = COURSE_PRICE;
+      let tituloFinal = COURSE_TITLE;
+      if (enrollment.turmaAvulsaId) {
+        const turmaSnap = await db.collection("turmas").doc(enrollment.turmaAvulsaId).get();
+        if (turmaSnap.exists && turmaSnap.data()!.preco) {
+          precoFinal = turmaSnap.data()!.preco;
+          tituloFinal = `Turma: ${turmaSnap.data()!.nome}`;
+        }
+      }
+
       const client = new MercadoPagoConfig({ accessToken: MERCADOPAGO_ACCESS_TOKEN.value() });
       const preference = new Preference(client);
 
@@ -169,9 +210,9 @@ export const createPaymentPreference = onRequest(
           items: [
             {
               id: enrollmentId,
-              title: COURSE_TITLE,
+              title: tituloFinal,
               quantity: 1,
-              unit_price: COURSE_PRICE,
+              unit_price: precoFinal,
               currency_id: "BRL",
             },
           ],
@@ -221,9 +262,12 @@ export const mercadopagoWebhook = onRequest(
           const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
           const enrollment = enrollmentSnap.data();
 
+          const valorPago = paymentInfo.transaction_amount || COURSE_PRICE;
+
           await db.collection("enrollments").doc(enrollmentId).update({
             status: "acesso_liberado",
             paymentId,
+            valorPago,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
@@ -237,6 +281,31 @@ export const mercadopagoWebhook = onRequest(
             } catch (e: any) {
               // se o usuário já existir (ex: reenvio de webhook), apenas ignora
               if (e.code !== "auth/email-already-exists") throw e;
+            }
+          }
+
+          // matrícula avulsa (só naquela turma presencial) — já reserva a vaga automaticamente,
+          // sem o aluno precisar escolher de novo depois de pagar
+          if (enrollment?.turmaAvulsaId) {
+            const turmaId = enrollment.turmaAvulsaId;
+            const bookingRef = db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`);
+            const turmaRef = db.collection("turmas").doc(turmaId);
+            try {
+              await db.runTransaction(async (tx) => {
+                const [turmaDoc, bookingDoc] = await Promise.all([tx.get(turmaRef), tx.get(bookingRef)]);
+                if (!turmaDoc.exists || bookingDoc.exists) return;
+                const turma = turmaDoc.data()!;
+                if (turma.vagasOcupadas >= turma.vagasTotal) return; // esgotou entre o clique e o pagamento — caso raro
+                tx.update(turmaRef, { vagasOcupadas: turma.vagasOcupadas + 1 });
+                tx.set(bookingRef, {
+                  enrollmentId,
+                  turmaId,
+                  presencas: {},
+                  bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+              });
+            } catch (e) {
+              console.error("Falha ao matricular automaticamente na turma avulsa:", e);
             }
           }
           // Aviso ao aluno é feito manualmente pelo admin via WhatsApp
