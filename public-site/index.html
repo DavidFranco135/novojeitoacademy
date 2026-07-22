@@ -583,46 +583,57 @@
     if (content.statAvaliacao) document.getElementById('statAvaliacao').textContent = content.statAvaliacao;
 
     // Quadro do topo: vídeo tem prioridade; sem vídeo cadastrado, usa a foto de capa; sem nenhum dos dois, fica o placeholder
-    if (content.videoEmbedUrl && !document.getElementById('youtubeVideoIframe')) {
-      const frame = document.getElementById('heroMediaFrame');
-      const placeholder = document.getElementById('heroMediaPlaceholder');
-      const playBtn = document.getElementById('heroPlayButton');
-      if (placeholder) placeholder.style.display = 'none';
-      if (playBtn) playBtn.remove();
+    const heroFrame = document.getElementById('heroMediaFrame');
+    const currentIframe = heroFrame ? heroFrame.querySelector('iframe') : null;
+    const currentImg = heroFrame ? heroFrame.querySelector('img') : null;
 
-      const isYouTube = content.videoEmbedUrl.includes('youtube.com/embed');
-      let src = content.videoEmbedUrl;
+    if (content.videoEmbedUrl) {
+      // já tem o vídeo certo carregado? não faz nada (evita recarregar/piscar o player)
+      const alreadyLoaded = currentIframe && currentIframe.src && currentIframe.src.indexOf(content.videoEmbedUrl.split('?')[0]) !== -1;
+      if (!alreadyLoaded) {
+        if (currentImg) currentImg.remove(); // tira qualquer foto que tenha ficado de uma passada anterior (cache antigo)
+        if (currentIframe) currentIframe.remove(); // tira vídeo antigo/errado antes de colocar o certo
 
-      const iframe = document.createElement('iframe');
-      if (isYouTube) {
-        const separator = src.includes('?') ? '&' : '?';
-        src += `${separator}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
-        iframe.id = 'youtubeVideoIframe';
-      }
-      iframe.src = src;
-      iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
-      iframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
-      iframe.allowFullscreen = true;
-      frame.appendChild(iframe);
+        const placeholder = document.getElementById('heroMediaPlaceholder');
+        const playBtn = document.getElementById('heroPlayButton');
+        if (placeholder) placeholder.style.display = 'none';
+        if (playBtn) playBtn.remove();
 
-      if (isYouTube && !window.__ytApiLoaded) {
-        window.__ytApiLoaded = true;
-        const ytScript = document.createElement('script');
-        ytScript.src = 'https://www.youtube.com/iframe_api';
-        document.body.appendChild(ytScript);
-        window.onYouTubeIframeAPIReady = function () {
-          new YT.Player('youtubeVideoIframe', {
-            events: {
-              onStateChange: function (e) {
-                if (e.data === 1) frame.classList.add('video-playing');
-                else frame.classList.remove('video-playing');
+        const isYouTube = content.videoEmbedUrl.includes('youtube.com/embed');
+        let src = content.videoEmbedUrl;
+
+        const iframe = document.createElement('iframe');
+        if (isYouTube) {
+          const separator = src.includes('?') ? '&' : '?';
+          src += `${separator}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+          iframe.id = 'youtubeVideoIframe';
+        }
+        iframe.src = src;
+        iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
+        iframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+        iframe.allowFullscreen = true;
+        heroFrame.appendChild(iframe);
+
+        if (isYouTube && !window.__ytApiLoaded) {
+          window.__ytApiLoaded = true;
+          const ytScript = document.createElement('script');
+          ytScript.src = 'https://www.youtube.com/iframe_api';
+          document.body.appendChild(ytScript);
+          window.onYouTubeIframeAPIReady = function () {
+            new YT.Player('youtubeVideoIframe', {
+              events: {
+                onStateChange: function (e) {
+                  if (e.data === 1) heroFrame.classList.add('video-playing');
+                  else heroFrame.classList.remove('video-playing');
+                },
               },
-            },
-          });
-        };
+            });
+          };
+        }
       }
     } else if (content.heroImageUrl) {
-      // sem vídeo cadastrado ainda — mostra a foto de capa nesse mesmo quadro
+      // sem vídeo cadastrado — mostra a foto de capa nesse mesmo quadro
+      if (currentIframe) currentIframe.remove(); // tira vídeo antigo, se tinha ficado de uma passada anterior
       setFrameImage('heroMediaFrame', 'heroMediaPlaceholder', content.heroImageUrl);
       const playBtn = document.getElementById('heroPlayButton');
       if (playBtn) playBtn.remove();
