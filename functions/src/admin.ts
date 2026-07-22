@@ -9,7 +9,7 @@ import { generateCertificateForEnrollment } from "./certificate";
 import { toBrandedLoginLink } from "./utils";
 
 const db = admin.firestore();
-const COURSE_PRICE = 497.0;
+const COURSE_PRICE = 697.0;
 
 async function verificarAdmin(req: any): Promise<boolean> {
   const authHeader = req.headers.authorization || "";
