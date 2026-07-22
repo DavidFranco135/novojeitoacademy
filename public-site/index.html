@@ -88,7 +88,7 @@
   .stat b{font-family:'Space Mono',monospace;font-size:1.25rem;color:var(--gold);display:block}
   .stat span{font-size:.68rem;color:var(--gray);letter-spacing:.03em}
 
-  .media-frame{position:relative;aspect-ratio:9/11;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(197,138,74,.08),transparent 70%),linear-gradient(160deg,#141414 0%,#0a0a0a 100%)}
+  .media-frame{position:relative;aspect-ratio:16/10;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:radial-gradient(ellipse 70% 60% at 50% 45%,rgba(197,138,74,.08),transparent 70%),linear-gradient(160deg,#141414 0%,#0a0a0a 100%)}
   .media-frame.wide{aspect-ratio:16/10}
   .media-frame::after{content:'';position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),var(--gold2),var(--gold),transparent);box-shadow:0 0 16px 2px var(--gold);animation:scan 5s ease-in-out infinite}
   @keyframes scan{0%,100%{top:0;opacity:0}10%{opacity:1}50%{top:100%;opacity:1}60%{opacity:0}}
@@ -255,7 +255,6 @@
       <p class="lead" id="heroLead">Do primeiro degradê ao seu próprio negócio: a formação completa de barbeiro profissional, direto de quem vive a barbearia todos os dias.</p>
       <div class="hero-actions">
         <a href="#pricing" class="btn-primary">Quero me inscrever</a>
-        <a href="#video" class="btn-ghost"><span class="play-circle">▸</span> Assistir apresentação</a>
       </div>
       <div class="stat-row">
         <div class="stat"><b id="statAlunos">412</b><span>ALUNOS FORMADOS</span></div>
@@ -263,14 +262,14 @@
         <div class="stat"><b id="statAvaliacao">4.9</b><span>AVALIAÇÃO MÉDIA</span></div>
       </div>
     </div>
-    <div class="media-frame" id="heroImageFrame">
+    <div class="media-frame" id="heroMediaFrame">
       <div class="corner c-tl"></div><div class="corner c-tr"></div>
       <div class="corner c-bl"></div><div class="corner c-br"></div>
-      <!-- Preenchido automaticamente via painel Admin → Conteúdo do Site -->
-      <div class="placeholder-icon" id="heroImagePlaceholder">📷</div>
-      <div class="center-play">
+      <!-- Preenchido automaticamente via painel Admin → Conteúdo do Site (vídeo tem prioridade; sem vídeo, mostra a foto de capa) -->
+      <div class="placeholder-icon" id="heroMediaPlaceholder">🎬</div>
+      <div class="center-play" id="heroPlayButton">
         <div class="ring">▸</div>
-        <span>FOTO DE CAPA AQUI</span>
+        <span>VÍDEO DE APRESENTAÇÃO</span>
       </div>
     </div>
   </div>
@@ -283,26 +282,6 @@
   <div class="trust-item"><b>✓</b> Módulo presencial incluso</div>
   <div class="trust-item"><b>✓</b> Suporte direto com o instrutor</div>
 </div>
-
-<!-- ===== VÍDEO DE APRESENTAÇÃO ===== -->
-<section id="video">
-  <div class="section-head reveal">
-    <span class="eyebrow">Conheça o curso</span>
-    <h2>Veja por dentro <em>da formação.</em></h2>
-    <p>Um raio-x completo do que te espera nos módulos online e no encontro presencial.</p>
-  </div>
-  <div class="media-frame wide" id="videoFrame" style="max-width:900px;margin:0 auto" class="reveal">
-    <div class="corner c-tl"></div><div class="corner c-tr"></div>
-    <div class="corner c-bl"></div><div class="corner c-br"></div>
-    <!-- Preenchido automaticamente via painel Admin → Conteúdo do Site -->
-    <div class="placeholder-icon" id="videoPlaceholder">🎬</div>
-    <div class="center-play" id="videoPlayButton" onclick="alert('Aqui entra o player de vídeo real (Panda Video / YouTube / Vimeo)')">
-      <div class="ring">▸</div>
-      <span>VÍDEO DE APRESENTAÇÃO</span>
-    </div>
-  </div>
-  <div class="mid-cta reveal"><a href="#pricing" class="btn-primary">Quero começar agora</a></div>
-</section>
 
 <!-- ===== GRADE CURRICULAR ===== -->
 <section id="curriculum">
@@ -604,16 +583,16 @@
 
     if (content.heroTitle) document.getElementById('heroTitle').innerHTML = content.heroTitle.split('\n').join('<br/>');
     if (content.heroLead) document.getElementById('heroLead').textContent = content.heroLead;
-    if (content.heroImageUrl) setFrameImage('heroImageFrame', 'heroImagePlaceholder', content.heroImageUrl);
 
     if (content.statAlunos) document.getElementById('statAlunos').textContent = content.statAlunos;
     if (content.statAulas) document.getElementById('statAulas').textContent = content.statAulas;
     if (content.statAvaliacao) document.getElementById('statAvaliacao').textContent = content.statAvaliacao;
 
+    // Quadro do topo: vídeo tem prioridade; sem vídeo cadastrado, usa a foto de capa; sem nenhum dos dois, fica o placeholder
     if (content.videoEmbedUrl && !document.getElementById('youtubeVideoIframe')) {
-      const frame = document.getElementById('videoFrame');
-      const placeholder = document.getElementById('videoPlaceholder');
-      const playBtn = document.getElementById('videoPlayButton');
+      const frame = document.getElementById('heroMediaFrame');
+      const placeholder = document.getElementById('heroMediaPlaceholder');
+      const playBtn = document.getElementById('heroPlayButton');
       if (placeholder) placeholder.style.display = 'none';
       if (playBtn) playBtn.remove();
 
@@ -648,6 +627,11 @@
           });
         };
       }
+    } else if (content.heroImageUrl) {
+      // sem vídeo cadastrado ainda — mostra a foto de capa nesse mesmo quadro
+      setFrameImage('heroMediaFrame', 'heroMediaPlaceholder', content.heroImageUrl);
+      const playBtn = document.getElementById('heroPlayButton');
+      if (playBtn) playBtn.remove();
     }
 
     if (Array.isArray(content.galleryImages)) {
