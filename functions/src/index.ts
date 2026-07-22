@@ -16,11 +16,13 @@ export {
   listTurmaAttendance,
   getMyTurma,
   adminAssignTurma,
+  getTurmaAvulsa,
 } from "./turmas";
 export { uploadImage } from "./imgbb";
 export { applyScholarship, listScholarshipApplications, grantScholarship } from "./scholarship";
 export { getSiteContent, updateSiteContent } from "./siteContent";
 export { getStudentProgress, markLessonComplete } from "./progress";
-export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment } from "./admin";
+export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment, updateStudent, deleteStudent } from "./admin";
+export { getCourseContent, updateCourseContent } from "./courseContent";
 export { registerLead, listLeads } from "./leads";
 export { generateComprovante } from "./comprovante";
