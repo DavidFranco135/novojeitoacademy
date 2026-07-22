@@ -56,7 +56,14 @@ export const createTurma = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const { nome, vagasTotal, encontros } = req.body as { nome: string; vagasTotal: number; encontros: Encontro[] };
+    const { nome, vagasTotal, encontros, preco, somentePresencial, descricao } = req.body as {
+      nome: string;
+      vagasTotal: number;
+      encontros: Encontro[];
+      preco?: number;
+      somentePresencial?: boolean;
+      descricao?: string;
+    };
     if (!nome || !vagasTotal || !Array.isArray(encontros) || encontros.length === 0) {
       res.status(400).json({ error: "nome, vagasTotal e ao menos 1 encontro são obrigatórios" });
       return;
@@ -67,6 +74,9 @@ export const createTurma = onRequest({ cors: true }, async (req, res) => {
       vagasTotal,
       vagasOcupadas: 0,
       encontros: encontros.sort((a, b) => a.data.localeCompare(b.data)),
+      preco: preco || null, // se não preencher, usa o preço padrão do curso (configurado em Conteúdo do Site)
+      somentePresencial: somentePresencial || false, // true = workshop avulso, sem pacote de aulas online
+      descricao: descricao || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -372,6 +382,45 @@ function verifyToken(token: string): { enrollmentId: string; turmaId: string } |
     return null;
   }
 }
+
+// ============================================================
+// Busca os dados de UMA turma específica — usado pela página de matrícula
+// avulsa, pra mostrar nome/preço/descrição antes do pagamento
+// ============================================================
+export const getTurmaAvulsa = onRequest({ cors: true }, async (req, res) => {
+  try {
+    const turmaId = (req.query.turmaId as string) || req.path.split("/").pop();
+    if (!turmaId) {
+      res.status(400).json({ error: "turmaId obrigatório" });
+      return;
+    }
+
+    const turmaSnap = await db.collection("turmas").doc(turmaId).get();
+    if (!turmaSnap.exists) {
+      res.status(404).json({ error: "Turma não encontrada" });
+      return;
+    }
+    const turma = turmaSnap.data()!;
+
+    if (!turma.somentePresencial) {
+      res.status(400).json({ error: "Essa turma não é vendida separadamente" });
+      return;
+    }
+
+    const vagasRestantes = turma.vagasTotal - turma.vagasOcupadas;
+    res.status(200).json({
+      id: turmaSnap.id,
+      nome: turma.nome,
+      descricao: turma.descricao || "",
+      preco: turma.preco,
+      encontros: turma.encontros,
+      vagasRestantes,
+    });
+  } catch (err) {
+    console.error("getTurmaAvulsa error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
 
 function renderCheckinPage(success: boolean, message: string): string {
   const color = success ? "#C58A4A" : "#e8746a";
