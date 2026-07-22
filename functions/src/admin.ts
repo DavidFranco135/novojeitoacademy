@@ -44,6 +44,8 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           id: doc.id,
           nome: data.nome,
           email: data.email,
+          telefone: data.telefone || "",
+          cpf: data.cpf || "",
           pagamento: data.status === "bloqueado" ? "Bloqueado" : "Pago",
           bloqueado: data.status === "bloqueado",
           bloqueioMotivo: data.bloqueioMotivo || null,
@@ -323,6 +325,112 @@ export const registerCashPayment = onRequest({ cors: true }, async (req, res) =>
     res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
   } catch (err) {
     console.error("registerCashPayment error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Editar os dados de um aluno (nome, e-mail, telefone, CPF)
+// ============================================================
+export const updateStudent = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId, nome, email, telefone, cpf } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    const updates: Record<string, any> = {};
+    if (nome) updates.nome = nome;
+    if (telefone) updates.telefone = telefone;
+    if (cpf) updates.cpf = cpf;
+
+    // se o e-mail mudou, atualiza também no Firebase Auth (é ele quem faz o login)
+    if (email && email !== enrollment.email) {
+      try {
+        const userRecord = await admin.auth().getUserByEmail(enrollment.email);
+        await admin.auth().updateUser(userRecord.uid, { email, displayName: nome || enrollment.nome });
+      } catch (e: any) {
+        if (e.code !== "auth/user-not-found") throw e; // se o aluno ainda não tinha login criado, só ignora
+      }
+      updates.email = email;
+    }
+
+    await db.collection("enrollments").doc(enrollmentId).update(updates);
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("updateStudent error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Excluir um aluno por completo (matrícula, progresso, turmas, login)
+// ============================================================
+export const deleteStudent = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    // libera as vagas de qualquer turma em que esse aluno estivesse matriculado
+    const bookingsSnap = await db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).get();
+    for (const bookingDoc of bookingsSnap.docs) {
+      const booking = bookingDoc.data();
+      const turmaRef = db.collection("turmas").doc(booking.turmaId);
+      const turmaDoc = await turmaRef.get();
+      if (turmaDoc.exists) {
+        await turmaRef.update({ vagasOcupadas: Math.max(0, turmaDoc.data()!.vagasOcupadas - 1) });
+      }
+      await bookingDoc.ref.delete();
+    }
+
+    // remove o progresso salvo
+    await db.collection("progress").doc(enrollmentId).delete().catch(() => {});
+
+    // remove o login do Firebase Auth, se existir
+    if (enrollment.email) {
+      try {
+        const userRecord = await admin.auth().getUserByEmail(enrollment.email);
+        await admin.auth().deleteUser(userRecord.uid);
+      } catch (e: any) {
+        if (e.code !== "auth/user-not-found") throw e;
+      }
+    }
+
+    // por fim, remove a matrícula
+    await db.collection("enrollments").doc(enrollmentId).delete();
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("deleteStudent error:", err);
     res.status(500).json({ error: "Erro interno" });
   }
 });
