@@ -290,57 +290,8 @@
     <h2>Formação <em>híbrida.</em> Teoria online, mão na navalha ao vivo.</h2>
     <p>O curso mistura aulas em vídeo com <strong>vários encontros presenciais</strong>, cada um com um assunto prático diferente — não é só um dia de treino, é acompanhamento real ao longo de toda a formação.</p>
   </div>
-  <div class="curriculum reveal">
-    <div class="mod">
-      <div class="mod-num">01</div>
-      <div><span class="mod-badge online">ONLINE</span><h3>Fundamentos da Navalha</h3><p>Afiação, ergonomia, posturas e segurança de trabalho.</p></div>
-      <div class="mod-meta">6 AULAS · 1H40</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">02</div>
-      <div><span class="mod-badge presencial">PRESENCIAL</span><h3>Encontro 1 — Prática de Afiação</h3><p>Mão na navalha com supervisão direta do instrutor.</p></div>
-      <div class="mod-meta">TURMA · AO VIVO</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">03</div>
-      <div><span class="mod-badge online">ONLINE</span><h3>Cortes Clássicos e Degradês</h3><p>Do social ao skin fade, técnica passo a passo.</p></div>
-      <div class="mod-meta">12 AULAS · 3H20</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">04</div>
-      <div><span class="mod-badge presencial">PRESENCIAL</span><h3>Encontro 2 — Degradê na Prática</h3><p>Execução real em modelo, com correção individual.</p></div>
-      <div class="mod-meta">TURMA · AO VIVO</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">05</div>
-      <div><span class="mod-badge online">ONLINE</span><h3>Barba e Acabamento</h3><p>Desenho, toalha quente, produtos e finalização.</p></div>
-      <div class="mod-meta">8 AULAS · 2H10</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">06</div>
-      <div><span class="mod-badge presencial">PRESENCIAL</span><h3>Encontro 3 — Barba ao Vivo</h3><p>Desenho e finalização completa em modelo real.</p></div>
-      <div class="mod-meta">TURMA · AO VIVO</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">07</div>
-      <div><span class="mod-badge online">ONLINE</span><h3>Gestão da Própria Barbearia</h3><p>Precificação, atendimento e fidelização de clientes.</p></div>
-      <div class="mod-meta">7 AULAS · 1H50</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">09</div>
-      <div><span class="mod-badge online">ONLINE</span><h3>Tendências 2026: Nevou e Coloração Masculina</h3><p>Fades modernos, textured crop, mullet e descoloração masculina — o que está bombando agora.</p></div>
-      <div class="mod-meta">5 AULAS · 1H32</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">10</div>
-      <div><span class="mod-badge presencial">PRESENCIAL</span><h3>Encontro Bônus — Nevou na Prática</h3><p>Descoloração e coloração masculina executada ao vivo, com supervisão.</p></div>
-      <div class="mod-meta">TURMA · AO VIVO</div>
-    </div>
-    <div class="mod">
-      <div class="mod-num">11</div>
-      <div><span class="mod-badge presencial">PRESENCIAL</span><h3>Encontro Final — Avaliação</h3><p>Avaliação prática completa e entrega do certificado.</p></div>
-      <div class="mod-meta">TURMA · AO VIVO</div>
-    </div>
+  <div class="curriculum reveal" id="curriculumList">
+    <div class="mod"><p style="color:var(--gray);font-size:.85rem">Carregando grade curricular...</p></div>
   </div>
   <p style="text-align:center;color:var(--gray);font-size:.8rem;margin-top:1.4rem">A grade exata de datas de cada turma presencial é definida na matrícula — <a href="#pricing" style="color:var(--gold)">veja as próximas turmas abertas</a>.</p>
   <div class="mid-cta reveal"><a href="#pricing" class="btn-primary">Garantir minha vaga</a></div>
@@ -541,7 +492,50 @@
   // ===== Carrega conteúdo editável do site (fotos, textos, vídeo, preço) =====
   // Troque pela URL real da function após o deploy
   const GET_CONTENT_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/getSiteContent";
+  const GET_COURSE_URL = "https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent";
   const CACHE_KEY = "nj_site_content_cache";
+  const COURSE_CACHE_KEY = "nj_course_content_cache";
+
+  // soma as durações "MM:SS" de uma lista de aulas e devolve algo tipo "1H40" ou "45 MIN"
+  function sumDurations(lessons) {
+    let totalSeconds = 0;
+    lessons.forEach(l => {
+      const parts = (l.duration || "0:0").split(":").map(Number);
+      totalSeconds += (parts[0] || 0) * 60 + (parts[1] || 0);
+    });
+    const totalMin = Math.round(totalSeconds / 60);
+    if (totalMin >= 60) return `${Math.floor(totalMin / 60)}H${String(totalMin % 60).padStart(2, "0")}`;
+    return `${totalMin} MIN`;
+  }
+
+  function renderCurriculum(modules) {
+    const list = document.getElementById('curriculumList');
+    if (!list || !Array.isArray(modules) || modules.length === 0) return;
+    list.innerHTML = modules.map((m, i) => `
+      <div class="mod">
+        <div class="mod-num">${String(i + 1).padStart(2, "0")}</div>
+        <div>
+          <span class="mod-badge online">ONLINE</span>
+          <h3>${m.title}</h3>
+          <p>${m.description || ""}</p>
+        </div>
+        <div class="mod-meta">${m.lessons.length} AULAS · ${sumDurations(m.lessons)}</div>
+      </div>`).join('');
+  }
+
+  // mostra o currículo do cache instantaneamente, depois busca a versão mais atual
+  try {
+    const cachedCourse = localStorage.getItem(COURSE_CACHE_KEY);
+    if (cachedCourse) renderCurriculum(JSON.parse(cachedCourse));
+  } catch (e) {}
+
+  fetch(GET_COURSE_URL)
+    .then(r => r.json())
+    .then(data => {
+      renderCurriculum(data.modules);
+      try { localStorage.setItem(COURSE_CACHE_KEY, JSON.stringify(data.modules)); } catch (e) {}
+    })
+    .catch(() => { /* mantém o que já estava (cache ou "carregando"), nunca quebra a página */ });
 
   function showMaintenancePage(message) {
     let overlay = document.getElementById('maintenanceOverlay');
