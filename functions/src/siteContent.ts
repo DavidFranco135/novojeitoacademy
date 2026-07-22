@@ -26,8 +26,9 @@ const DEFAULT_CONTENT = {
   instrutorPhotoUrl: "",
   instrutorAnos: 12,
   instrutorAlunosFormados: 400,
-  price: 497.0,
-  priceInstallments: 12,
+  price: 697.0,
+  priceParcelaValor: 197.0,
+  priceParcelaQtd: 4,
   testimonials: [
     { stars: 5, text: "Entrei sem nunca ter pego numa navalha e saí montando minha própria barbearia seis meses depois. O módulo presencial fez toda diferença.", autor: "Rafael T.", turma: "Turma 2026.1" },
     { stars: 5, text: "Já cortava cabelo há anos, mas o curso me deu técnica de verdade. O certificado abriu portas em barbearia grande da minha cidade.", autor: "Diego M.", turma: "Turma 2025.2" },
