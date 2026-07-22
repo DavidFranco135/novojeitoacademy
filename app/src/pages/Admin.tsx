@@ -799,7 +799,8 @@ interface SiteContent {
   instrutorAnos: number;
   instrutorAlunosFormados: number;
   price: number;
-  priceInstallments: number;
+  priceParcelaValor: number;
+  priceParcelaQtd: number;
   testimonials: Testimonial[];
   faq: FaqItem[];
   scholarshipTitle: string;
@@ -823,8 +824,9 @@ const EMPTY_CONTENT: SiteContent = {
   instrutorPhotoUrl: "",
   instrutorAnos: 0,
   instrutorAlunosFormados: 0,
-  price: 0,
-  priceInstallments: 12,
+  price: 697,
+  priceParcelaValor: 197,
+  priceParcelaQtd: 4,
   testimonials: [],
   faq: [],
   scholarshipTitle: "",
@@ -1126,10 +1128,14 @@ function ConteudoSite() {
       </FieldGroup>
 
       <FieldGroup title="Investimento">
-        <div style={{ display: "flex", gap: "1rem" }}>
-          <NumberField label="Preço (R$)" value={content.price} step="0.01" onChange={(v) => update("price", v)} />
-          <NumberField label="Nº de parcelas" value={content.priceInstallments} onChange={(v) => update("priceInstallments", v)} />
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <NumberField label="Preço à vista (R$)" value={content.price} step="0.01" onChange={(v) => update("price", v)} />
+          <NumberField label="Valor de cada parcela (R$)" value={content.priceParcelaValor} step="0.01" onChange={(v) => update("priceParcelaValor", v)} />
+          <NumberField label="Nº de parcelas" value={content.priceParcelaQtd} onChange={(v) => update("priceParcelaQtd", v)} />
         </div>
+        <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.6rem" }}>
+          O preço à vista e o parcelado são independentes — não é uma divisão automática. Ex: R$ 697 à vista <em>ou</em> 4x de R$ 197 (total R$ 788 no parcelado).
+        </p>
       </FieldGroup>
 
       <FieldGroup title="Bolsa de 100%">
@@ -1277,7 +1283,7 @@ function Financeiro() {
     if (!telefone) return;
     const cpf = window.prompt("CPF (necessário para o contrato):");
     if (!cpf) return;
-    const valorStr = window.prompt("Valor pago em dinheiro (R$):", "497");
+    const valorStr = window.prompt("Valor pago em dinheiro (R$):", "697");
     if (!valorStr) return;
     const valor = parseFloat(valorStr.replace(",", "."));
 
