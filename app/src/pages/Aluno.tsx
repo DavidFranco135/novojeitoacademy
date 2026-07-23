@@ -326,10 +326,20 @@ export default function StudentDashboard() {
             <div style={styles.dataRow}><span style={styles.dataLabel}>WHATSAPP</span><span>{profile.telefone}</span></div>
             <div style={styles.dataRow}><span style={styles.dataLabel}>CPF</span><span>{profile.cpf}</span></div>
             {profile.matricula && <div style={styles.dataRow}><span style={styles.dataLabel}>MATRÍCULA</span><span>{profile.matricula}</span></div>}
-            {profile.contractUrl && (
+            {profile.contractUrl ? (
               <a href={profile.contractUrl} target="_blank" rel="noreferrer" style={{ ...styles.btnGhostGold, display: "inline-block", marginTop: "1.2rem", textDecoration: "none", textAlign: "center" }}>
                 Ver meu contrato
               </a>
+            ) : (
+              <>
+                <p style={{ fontSize: "0.78rem", color: "#e8746a", marginTop: "1.2rem" }}>⚠️ Seu contrato ainda não foi assinado.</p>
+                <a
+                  href={`/matricula?assinar=${enrollmentId}`}
+                  style={{ ...styles.btnGhostGold, display: "inline-block", marginTop: "0.6rem", textDecoration: "none", textAlign: "center" }}
+                >
+                  Assinar contrato agora
+                </a>
+              </>
             )}
             <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "1.4rem", lineHeight: 1.6 }}>Pra corrigir algum desses dados, entre em contato com a barbearia diretamente.</p>
             <button style={{ ...styles.btnGhostGold, width: "100%", marginTop: "1rem" }} onClick={() => setShowMeusDados(false)}>Fechar</button>

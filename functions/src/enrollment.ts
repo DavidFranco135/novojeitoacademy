@@ -243,6 +243,54 @@ export const signContract = onRequest(
 );
 
 // ============================================================
+// 2b) Retorna os dados de uma matrícula já existente para permitir assinar (ou
+// reassinar) o contrato retroativamente — usado pela tela /matricula?assinar=<id>,
+// pro caso de bolsa/dinheiro cadastrados antes da assinatura ser obrigatória e que
+// por isso nunca tiveram contractUrl gerado.
+// ============================================================
+export const getEnrollmentForSigning = onRequest(
+  { cors: true },
+  async (req, res) => {
+    try {
+      const { enrollmentId } = req.body;
+      if (!enrollmentId) {
+        res.status(400).json({ error: "enrollmentId obrigatório" });
+        return;
+      }
+
+      const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+      if (!enrollmentSnap.exists) {
+        res.status(404).json({ error: "Matrícula não encontrada" });
+        return;
+      }
+      const enrollment = enrollmentSnap.data()!;
+
+      if (enrollment.status === "bloqueado") {
+        res.status(403).json({ error: "Este acesso está bloqueado. Fale com a administração." });
+        return;
+      }
+
+      res.status(200).json({
+        nome: enrollment.nome || "",
+        email: enrollment.email || "",
+        telefone: enrollment.telefone || "",
+        cpf: enrollment.cpf || "",
+        rg: enrollment.rg || "",
+        dataNascimento: enrollment.dataNascimento || "",
+        endereco: enrollment.endereco || "",
+        cidade: enrollment.cidade || "",
+        isBolsa: !!enrollment.isBolsa,
+        paymentMethod: enrollment.paymentMethod || null,
+        contractUrl: enrollment.contractUrl || null,
+      });
+    } catch (err) {
+      console.error("getEnrollmentForSigning error:", err);
+      res.status(500).json({ error: "Erro interno" });
+    }
+  }
+);
+
+// ============================================================
 // 3) Criar preferência de pagamento (Mercado Pago)
 // ============================================================
 export const createPaymentPreference = onRequest(

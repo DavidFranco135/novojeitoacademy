@@ -102,9 +102,22 @@ export default function EnrollmentFlow() {
   const [searchParams] = useSearchParams();
   const isBolsaMode = searchParams.get("bolsa") === "1";
   const isDinheiroMode = searchParams.get("dinheiro") === "1";
-  const modo: "pago" | "bolsa" | "dinheiro" = isBolsaMode ? "bolsa" : isDinheiroMode ? "dinheiro" : "pago";
   const scholarshipApplicationId = searchParams.get("scholarshipApplicationId") || null;
   const valorCombinado = searchParams.get("valor") || null;
+
+  // Modo "assinar": reabre a etapa de assinatura pra uma matrícula que já existe
+  // (ex: bolsa/dinheiro cadastrados antes da assinatura ser obrigatória, que nunca
+  // tiveram contrato gerado) — pulando a etapa de dados, já preenchida com o que
+  // já está salvo.
+  const assinarId = searchParams.get("assinar");
+  const [assinarState, setAssinarState] = useState<"idle" | "loading" | "ready" | "already_signed" | "error">(
+    assinarId ? "loading" : "idle"
+  );
+  const [assinarErrorMsg, setAssinarErrorMsg] = useState("");
+  const [assinarContractUrl, setAssinarContractUrl] = useState<string | null>(null);
+  const [modoRetroativo, setModoRetroativo] = useState<"pago" | "bolsa" | "dinheiro" | null>(null);
+
+  const modo: "pago" | "bolsa" | "dinheiro" = modoRetroativo || (isBolsaMode ? "bolsa" : isDinheiroMode ? "dinheiro" : "pago");
 
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -121,6 +134,48 @@ export default function EnrollmentFlow() {
     endereco: "",
     cidade: "",
   });
+
+  useEffect(() => {
+    if (!assinarId) return;
+    (async () => {
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/getEnrollmentForSigning`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enrollmentId: assinarId }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setAssinarErrorMsg(json.error || "Não foi possível carregar seus dados.");
+          setAssinarState("error");
+          return;
+        }
+        if (json.contractUrl) {
+          setAssinarContractUrl(json.contractUrl);
+          setAssinarState("already_signed");
+          return;
+        }
+        setData({
+          nome: json.nome || "",
+          email: json.email || "",
+          telefone: json.telefone || "",
+          cpf: json.cpf || "",
+          rg: json.rg || "",
+          dataNascimento: json.dataNascimento || "",
+          endereco: json.endereco || "",
+          cidade: json.cidade || "",
+        });
+        setEnrollmentId(assinarId);
+        setModoRetroativo(json.isBolsa ? "bolsa" : json.paymentMethod === "dinheiro" ? "dinheiro" : "pago");
+        setStep(2);
+        setAssinarState("ready");
+      } catch {
+        setAssinarErrorMsg("Não foi possível carregar seus dados. Tente novamente.");
+        setAssinarState("error");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinarId]);
 
   // ---------- Etapa 1: dados ----------
   function handleDataChange(field: keyof StudentData, value: string) {
@@ -301,6 +356,35 @@ export default function EnrollmentFlow() {
           })}
         </div>
 
+        {assinarId && assinarState === "loading" && (
+          <div style={styles.card}>
+            <p style={styles.p}>Carregando seus dados...</p>
+          </div>
+        )}
+
+        {assinarId && assinarState === "error" && (
+          <div style={styles.card}>
+            <h2 style={styles.h2}>Não foi possível abrir seu contrato</h2>
+            <p style={styles.p}>{assinarErrorMsg}</p>
+          </div>
+        )}
+
+        {assinarId && assinarState === "already_signed" && (
+          <div style={styles.card}>
+            <h2 style={styles.h2}>Contrato já assinado</h2>
+            <p style={styles.p}>Seu contrato já foi assinado anteriormente. Você pode abrir ou baixar o PDF abaixo.</p>
+            <a
+              href={assinarContractUrl!}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...styles.btnPrimary, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}
+            >
+              Ver meu contrato
+            </a>
+          </div>
+        )}
+
+        {(!assinarId || assinarState === "ready") && (
         <div style={styles.card}>
           {step === 1 && (
             <>
@@ -372,7 +456,7 @@ export default function EnrollmentFlow() {
               {error && <p style={styles.error}>{error}</p>}
 
               <div style={styles.btnRow}>
-                <button style={styles.btnGhost} onClick={() => setStep(1)}>Voltar</button>
+                {!assinarId && <button style={styles.btnGhost} onClick={() => setStep(1)}>Voltar</button>}
                 <button style={styles.btnPrimary} onClick={submitContract} disabled={loading}>
                   {loading ? "Registrando..." : "Assinar e continuar"}
                 </button>
@@ -410,6 +494,7 @@ export default function EnrollmentFlow() {
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );

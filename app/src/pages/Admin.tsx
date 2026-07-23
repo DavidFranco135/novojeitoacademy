@@ -320,6 +320,12 @@ function Alunos() {
     }
   }
 
+  function handleCopySignLink(aluno: any) {
+    const link = `https://novojeitoapp.pages.dev/matricula?assinar=${aluno.id}`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    window.prompt("Link para o aluno assinar o contrato (já copiado — cole no WhatsApp):", link);
+  }
+
   async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract" | "generateComprovante", enrollmentId: string, linkField: string) {
     setActingOn(enrollmentId);
     try {
@@ -382,7 +388,11 @@ function Alunos() {
             </div>
 
             <div style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-              {a.contractUrl && <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>}
+              {a.contractUrl ? (
+                <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>
+              ) : (
+                <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
+              )}
               {a.certificateUrl && <a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado</a>}
               <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendAccessEmail", a.id, "loginLink")}>
                 Copiar link de acesso
@@ -393,9 +403,13 @@ function Alunos() {
               <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("generateComprovante", a.id, "comprovanteUrl")}>
                 Copiar comprovante de adesão
               </button>
-              {a.contractUrl && (
+              {a.contractUrl ? (
                 <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
                   Copiar link do contrato
+                </button>
+              ) : (
+                <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
+                  Copiar link para assinar contrato
                 </button>
               )}
               <button
