@@ -9,9 +9,15 @@
  *    de encontros (cada um com tópico, data, horário e local).
  *  - O aluno se matricula na turma UMA VEZ e passa a ter acesso a todos os
  *    encontros dela.
- *  - No dia de cada encontro, o aluno mostra o MESMO QR Code pessoal — o
- *    sistema identifica sozinho qual encontro é "hoje" e marca a presença
- *    daquele dia específico.
+ *  - Check-in por encontro (não por aluno): o professor gera, pelo Admin, um
+ *    QR DIFERENTE PRA CADA ENCONTRO (getLessonCheckinLink) e exibe numa tela
+ *    no fim da aula. Cada aluno escaneia com o PRÓPRIO celular, já logado —
+ *    é a autenticação do aluno que identifica quem está confirmando presença,
+ *    não o QR (que só identifica QUAL encontro é). Isso evita repasse de QR
+ *    entre alunos (cada um só confirma a própria presença, e só estando
+ *    logado) e permite reposição: o QR de um encontro passado continua
+ *    válido, então um aluno que faltou pode escanear depois, no dia em que
+ *    repuser a aula com o professor.
  *
  * Dependência: nativo do Node (crypto), sem instalar nada extra.
  */
@@ -110,7 +116,7 @@ export const listTurmas = onRequest({ cors: true }, async (req, res) => {
 // ============================================================
 // 3) Aluno se matricula na turma (uma vez, vale pra todos os encontros)
 // ============================================================
-export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+export const joinTurma = onRequest({ cors: true }, async (req, res) => {
   try {
     const { enrollmentId, turmaId } = req.body;
     if (!enrollmentId || !turmaId) {
@@ -141,10 +147,7 @@ export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, as
       });
     });
 
-    const token = generateToken(enrollmentId, turmaId);
-    const checkinUrl = `https://us-central1-barbearia-do-ico.cloudfunctions.net/confirmCheckinTurma/${token}`;
-
-    res.status(200).json({ checkinUrl });
+    res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("joinTurma error:", err);
     res.status(400).json({ error: err.message || "Erro ao matricular na turma" });
@@ -153,10 +156,10 @@ export const joinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, as
 
 // ============================================================
 // Busca a turma em que o ALUNO LOGADO já está matriculado (se houver),
-// com a grade completa + o QR reconstruído — pra ele ver isso a qualquer
-// momento, sem precisar se matricular de novo.
+// com a grade completa e a presença de cada encontro — pra ele ver isso a
+// qualquer momento, sem precisar se matricular de novo.
 // ============================================================
-export const getMyTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+export const getMyTurma = onRequest({ cors: true }, async (req, res) => {
   try {
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -197,13 +200,10 @@ export const getMyTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, a
       return;
     }
 
-    const checkinUrl = `https://us-central1-barbearia-do-ico.cloudfunctions.net/confirmCheckinTurma/${generateToken(enrollmentId, booking.turmaId)}`;
-
     res.status(200).json({
       enrollmentId,
       turma: { id: turmaSnap.id, ...turmaSnap.data() },
       presencas: booking.presencas || {},
-      checkinUrl,
     });
   } catch (err) {
     console.error("getMyTurma error:", err);
@@ -212,59 +212,115 @@ export const getMyTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, a
 });
 
 // ============================================================
-// 4) Check-in via QR Code — identifica sozinho qual encontro é "hoje"
+// 4a) Admin/professor gera o QR de UM encontro específico (exibido numa tela
+// no fim da aula). O token só identifica o encontro (turma + data), não o
+// aluno — quem confirma presença é sempre o aluno logado que escaneou.
 // ============================================================
-export const confirmCheckinTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
-  const token = req.path.split("/").pop() || (req.query.token as string);
-
+export const getLessonCheckinLink = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
   try {
-    const decoded = verifyToken(token || "");
-    if (!decoded) {
-      res.status(400).send(renderCheckinPage(false, "QR Code inválido ou expirado."));
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
       return;
     }
 
-    const { enrollmentId, turmaId } = decoded;
+    const { turmaId, data } = req.body;
+    if (!turmaId || !data) {
+      res.status(400).json({ error: "turmaId e data são obrigatórios" });
+      return;
+    }
+
+    const turmaSnap = await db.collection("turmas").doc(turmaId).get();
+    if (!turmaSnap.exists) {
+      res.status(404).json({ error: "Turma não encontrada" });
+      return;
+    }
+    const encontro = ((turmaSnap.data()!.encontros as Encontro[]) || []).find((e) => e.data === data);
+    if (!encontro) {
+      res.status(404).json({ error: "Não existe encontro dessa turma nessa data" });
+      return;
+    }
+
+    const token = generateLessonToken(turmaId, data);
+    const checkinUrl = `https://portal.novojeitobarbearia.com.br/aluno/checkin/${token}`;
+
+    res.status(200).json({ checkinUrl, topico: encontro.topico });
+  } catch (err) {
+    console.error("getLessonCheckinLink error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// 4b) Aluno logado escaneia o QR do encontro pra confirmar a própria
+// presença. Não expira por data — um encontro passado continua com QR
+// válido, pra dar pra registrar reposição escaneando depois.
+// ============================================================
+export const confirmLessonCheckin = onRequest({ cors: true, secrets: [CHECKIN_SECRET] }, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!idToken) {
+      res.status(403).json({ error: "Você precisa estar logado pra confirmar presença." });
+      return;
+    }
+    const decodedUser = await admin.auth().verifyIdToken(idToken);
+    if (!decodedUser.email) {
+      res.status(403).json({ error: "Não autenticado" });
+      return;
+    }
+
+    const { token } = req.body;
+    const decoded = verifyLessonToken(token || "");
+    if (!decoded) {
+      res.status(400).json({ error: "QR Code inválido ou expirado." });
+      return;
+    }
+    const { turmaId, data } = decoded;
+
+    const enrollmentSnap = await db
+      .collection("enrollments")
+      .where("email", "==", decodedUser.email)
+      .where("status", "==", "acesso_liberado")
+      .limit(1)
+      .get();
+    if (enrollmentSnap.empty) {
+      res.status(404).json({ error: "Matrícula não encontrada pra esse login." });
+      return;
+    }
+    const enrollmentId = enrollmentSnap.docs[0].id;
+    const nome = enrollmentSnap.docs[0].data().nome || "Aluno";
+
     const bookingRef = db.collection("turmaBookings").doc(`${enrollmentId}_${turmaId}`);
     const [bookingDoc, turmaDoc] = await Promise.all([bookingRef.get(), db.collection("turmas").doc(turmaId).get()]);
 
     if (!bookingDoc.exists || !turmaDoc.exists) {
-      res.status(404).send(renderCheckinPage(false, "Matrícula na turma não encontrada."));
+      res.status(404).json({ error: "Você não está matriculado nessa turma." });
       return;
     }
 
     const turma = turmaDoc.data()!;
-    const hoje = new Date().toISOString().split("T")[0];
-    const encontroHoje = (turma.encontros as Encontro[]).find((e) => e.data === hoje);
-
-    if (!encontroHoje) {
-      res.status(200).send(renderCheckinPage(false, "Não há nenhum encontro dessa turma marcado para hoje."));
+    const encontro = (turma.encontros as Encontro[]).find((e) => e.data === data);
+    if (!encontro) {
+      res.status(404).json({ error: "Esse encontro não existe mais nessa turma." });
       return;
     }
 
     const booking = bookingDoc.data()!;
-    if (booking.presencas?.[hoje]) {
-      res.status(200).send(renderCheckinPage(true, `Presença de hoje (${encontroHoje.topico}) já estava confirmada.`));
+    if (booking.presencas?.[data]) {
+      res.status(200).json({ ok: true, topico: encontro.topico, jaConfirmado: true, nome });
       return;
     }
 
-    await bookingRef.update({ [`presencas.${hoje}`]: true });
-
-    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
-    const nome = enrollmentSnap.exists ? enrollmentSnap.data()!.nome : "Aluno";
+    await bookingRef.update({ [`presencas.${data}`]: true });
 
     // tenta gerar o certificado — só emite de verdade se os vídeos também já estiverem 100%
     const certResult = await generateCertificateForEnrollment(enrollmentId);
     const certificadoLiberado = !("error" in certResult);
 
-    const mensagemExtra = certificadoLiberado
-      ? " 🎓 Parabéns, seu certificado foi liberado!"
-      : "";
-
-    res.status(200).send(renderCheckinPage(true, `Presença confirmada em "${encontroHoje.topico}" — bem-vindo(a), ${nome}!${mensagemExtra}`));
+    res.status(200).json({ ok: true, topico: encontro.topico, jaConfirmado: false, certificadoLiberado, nome });
   } catch (err) {
-    console.error("confirmCheckinTurma error:", err);
-    res.status(500).send(renderCheckinPage(false, "Erro ao confirmar presença."));
+    console.error("confirmLessonCheckin error:", err);
+    res.status(500).json({ error: "Erro ao confirmar presença." });
   }
 });
 
@@ -372,19 +428,22 @@ export const adminAssignTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET
 });
 
 // ============================================================
-function generateToken(enrollmentId: string, turmaId: string): string {
-  const payload = `${enrollmentId}:${turmaId}`;
+// Token identifica só o ENCONTRO (turma + data) — não o aluno. É por isso
+// que continua válido pra sempre (não tem data de expiração): serve tanto
+// pro check-in no dia quanto pra reposição depois.
+function generateLessonToken(turmaId: string, data: string): string {
+  const payload = `${turmaId}:${data}`;
   const signature = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(payload).digest("hex").slice(0, 16);
   return Buffer.from(`${payload}:${signature}`).toString("base64url");
 }
 
-function verifyToken(token: string): { enrollmentId: string; turmaId: string } | null {
+function verifyLessonToken(token: string): { turmaId: string; data: string } | null {
   try {
     const decoded = Buffer.from(token, "base64url").toString("utf8");
-    const [enrollmentId, turmaId, signature] = decoded.split(":");
-    const expected = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(`${enrollmentId}:${turmaId}`).digest("hex").slice(0, 16);
+    const [turmaId, data, signature] = decoded.split(":");
+    const expected = crypto.createHmac("sha256", CHECKIN_SECRET.value()).update(`${turmaId}:${data}`).digest("hex").slice(0, 16);
     if (signature !== expected) return null;
-    return { enrollmentId, turmaId };
+    return { turmaId, data };
   } catch {
     return null;
   }
@@ -428,40 +487,3 @@ export const getTurmaAvulsa = onRequest({ cors: true }, async (req, res) => {
     res.status(500).json({ error: "Erro interno" });
   }
 });
-
-function renderCheckinPage(success: boolean, message: string): string {
-  const color = success ? "#C58A4A" : "#e8746a";
-  return `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Check-in — Novo Jeito Academy</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;background:#050505;color:#F5F0E8;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem;position:relative;overflow:hidden}
-  .grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(197,138,74,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 60% 55% at 50% 45%,black 10%,transparent 75%)}
-  .logo{position:absolute;top:2rem;left:0;right:0;text-align:center;font-family:'Playfair Display',serif;font-weight:900;font-size:1rem;color:#F5F0E8;letter-spacing:.01em}
-  .logo em{color:#C58A4A;font-style:italic}
-  .box{position:relative;border:1px solid ${color};border-radius:8px;padding:2.6rem 2.2rem;max-width:380px;width:100%;background:linear-gradient(160deg,#0d0d0d,#050505);box-shadow:0 0 40px -12px ${color}55}
-  .corner{position:absolute;width:16px;height:16px;border-color:${color}}
-  .c-tl{top:10px;left:10px;border-top:1px solid;border-left:1px solid}
-  .c-tr{top:10px;right:10px;border-top:1px solid;border-right:1px solid}
-  .c-bl{bottom:10px;left:10px;border-bottom:1px solid;border-left:1px solid}
-  .c-br{bottom:10px;right:10px;border-bottom:1px solid;border-right:1px solid}
-  .icon{width:60px;height:60px;line-height:60px;border:1px solid ${color};border-radius:50%;font-size:1.8rem;margin:0 auto 1.2rem;color:${color}}
-  h1{font-family:'Playfair Display',serif;font-weight:900;font-size:1.4rem;margin:0 0 .8rem;color:${color}}
-  p{color:#c9c2b4;font-size:.9rem;line-height:1.6;margin:0}
-  .eyebrow{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.18em;color:#5a5348;margin-top:1.6rem;display:block}
-</style></head>
-<body>
-  <div class="grid-bg"></div>
-  <div class="logo">Novo Jeito <em>Academy</em></div>
-  <div class="box">
-    <div class="corner c-tl"></div><div class="corner c-tr"></div>
-    <div class="corner c-bl"></div><div class="corner c-br"></div>
-    <div class="icon">${success ? "✓" : "✕"}</div>
-    <h1>${success ? "Check-in confirmado" : "Não foi possível confirmar"}</h1>
-    <p>${message}</p>
-    <span class="eyebrow">TURMA PRESENCIAL</span>
-  </div>
-</body></html>`;
-}

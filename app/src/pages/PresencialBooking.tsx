@@ -5,12 +5,13 @@ import { signOut } from "firebase/auth";
 /**
  * Matrícula em Turma Presencial — Novo Jeito Academy
  * O aluno escolhe UMA turma (que já tem uma grade inteira de encontros,
- * cada um com assunto/data próprios) e recebe UM QR pessoal, usado em
- * todos os encontros — o sistema identifica sozinho qual dia é "hoje".
+ * cada um com assunto/data próprios). No fim de cada aula, o professor
+ * exibe um QR diferente pra aquele encontro — o aluno escaneia com o
+ * próprio celular (já logado) e a presença é confirmada na hora.
  *
  * Se o aluno já estiver matriculado em alguma turma, mostra direto a
- * grade completa + o QR dele (sem deixar escolher outra e sem perder a
- * visão das datas depois que ele já entrou).
+ * grade completa com o status de presença de cada encontro (sem deixar
+ * escolher outra).
  */
 
 const GOLD = "#C58A4A";
@@ -35,7 +36,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
   const [checkingExisting, setCheckingExisting] = useState(true);
   const [minhaTurma, setMinhaTurma] = useState<Turma | null>(null);
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
-  const [checkinUrl, setCheckinUrl] = useState<string | null>(null);
 
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
         if (data.turma) {
           setMinhaTurma(data.turma);
           setMinhasPresencas(data.presencas || {});
-          setCheckinUrl(data.checkinUrl);
         }
       } catch (e) {
         console.error("Falha ao checar turma existente", e);
@@ -89,7 +88,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao se matricular");
-      setCheckinUrl(json.checkinUrl);
       const turmaEscolhida = turmas.find((t) => t.id === turmaId);
       if (turmaEscolhida) setMinhaTurma(turmaEscolhida);
     } catch (e: any) {
@@ -115,8 +113,7 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
 
   if (checkingExisting) {
     content = <p style={styles.p}>Carregando...</p>;
-  } else if (minhaTurma && checkinUrl) {
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&color=C58A4A&bgcolor=050505&data=${encodeURIComponent(checkinUrl)}`;
+  } else if (minhaTurma) {
     const hoje = new Date().toISOString().split("T")[0];
 
     content = (
@@ -124,7 +121,7 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
         <div style={{ marginBottom: "1.6rem" }}>
           <div style={styles.eyebrow}>SUA TURMA</div>
           <h2 style={styles.h2}>{minhaTurma.nome}</h2>
-          <p style={styles.p}>Guarde essas datas — você usa o mesmo QR Code em todos os encontros.</p>
+          <p style={styles.p}>No fim de cada aula, o professor mostra um QR Code na tela — escaneia com o celular (com você logado) pra confirmar sua presença.</p>
         </div>
 
         <div style={styles.gradeCard}>
@@ -142,16 +139,6 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
               </div>
             );
           })}
-        </div>
-
-        <div style={{ ...styles.card, marginTop: "1.6rem" }}>
-          <div style={styles.eyebrow}>SEU QR DE PRESENÇA</div>
-          <div style={styles.qrFrame}>
-            <div style={styles.corner_tl}></div><div style={styles.corner_tr}></div>
-            <div style={styles.corner_bl}></div><div style={styles.corner_br}></div>
-            <img src={qrImageUrl} alt="QR Code de presença" style={{ width: "100%", display: "block" }} />
-          </div>
-          <p style={styles.hint}>Mostre esse QR no dia de cada encontro — o sistema identifica sozinho qual aula é a de hoje.</p>
         </div>
       </>
     );
@@ -249,12 +236,4 @@ const styles: Record<string, React.CSSProperties> = {
   gradeData: { fontFamily: "'Space Mono',monospace", fontSize: "0.72rem", color: GOLD },
   gradeTopico: { fontSize: "0.9rem", fontWeight: 600, marginTop: "0.25rem" },
   gradeLocal: { fontSize: "0.78rem", color: "#9d9384", marginTop: "0.15rem" },
-
-  card: { border: "1px solid rgba(197,138,74,.22)", borderRadius: 8, padding: "2rem", textAlign: "center", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
-  qrFrame: { position: "relative", width: 240, margin: "1rem auto", border: "1px solid rgba(197,138,74,.3)", borderRadius: 6, padding: "10px", background: "#050505" },
-  corner_tl: { position: "absolute", top: 6, left: 6, width: 16, height: 16, borderTop: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },
-  corner_tr: { position: "absolute", top: 6, right: 6, width: 16, height: 16, borderTop: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}` },
-  corner_bl: { position: "absolute", bottom: 6, left: 6, width: 16, height: 16, borderBottom: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },
-  corner_br: { position: "absolute", bottom: 6, right: 6, width: 16, height: 16, borderBottom: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}` },
-  hint: { fontSize: "0.78rem", color: "#5a5348", marginTop: "1rem" },
 };

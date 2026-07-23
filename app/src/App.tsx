@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import PresencialBooking from "./pages/PresencialBooking";
 import MatriculaResultado from "./pages/MatriculaResultado";
+import LessonCheckin from "./pages/LessonCheckin";
 import AuthGuard from "./components/AuthGuard";
 
 /**
@@ -16,7 +17,8 @@ import AuthGuard from "./components/AuthGuard";
  * /login                     -> login do ALUNO, sem senha (link mágico por e-mail)
  * /admin-login                -> login da EQUIPE INTERNA, e-mail + senha tradicional
  * /aluno                     -> área do aluno (protegida por login)
- * /aluno/presencial          -> agendamento de turma presencial + QR de check-in (protegida por login)
+ * /aluno/presencial          -> escolha/grade da turma presencial (protegida por login)
+ * /aluno/checkin/:token      -> confirma presença no encontro escaneado (protegida por login)
  * /admin                     -> painel administrativo (protegida por login + estar na coleção "admins" do Firestore)
  */
 
@@ -43,6 +45,14 @@ export default function App() {
           element={
             <AuthGuard>
               <PresencialBookingPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/aluno/checkin/:token"
+          element={
+            <AuthGuard>
+              <LessonCheckin />
             </AuthGuard>
           }
         />

@@ -653,6 +653,8 @@ function Turmas() {
   const [assigningTurmaId, setAssigningTurmaId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [qrModal, setQrModal] = useState<{ url: string; topico: string } | null>(null);
+  const [generatingQrFor, setGeneratingQrFor] = useState<string | null>(null);
   const [onlineModules, setOnlineModules] = useState<{ id: string; title: string }[]>([
     { id: "", title: "Nenhum — não vincular a um módulo" },
   ]);
@@ -735,6 +737,29 @@ function Turmas() {
       setAttendanceAlunos(data.alunos || []);
     } catch {
       setAttendanceAlunos([]);
+    }
+  }
+
+  function formatDataBR(iso: string) {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  }
+
+  async function handleGerarQR(turmaId: string, data: string) {
+    setGeneratingQrFor(`${turmaId}_${data}`);
+    try {
+      const res = await authedFetch("getLessonCheckinLink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turmaId, data }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro");
+      setQrModal({ url: json.checkinUrl, topico: json.topico });
+    } catch (e: any) {
+      alert(e.message || "Não foi possível gerar o QR dessa aula.");
+    } finally {
+      setGeneratingQrFor(null);
     }
   }
 
@@ -855,6 +880,22 @@ function Turmas() {
       {attendanceFor && (
         <div style={{ marginTop: "1.6rem" }}>
           <SectionLabel>PRESENÇA POR ENCONTRO</SectionLabel>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.2rem" }}>
+            {attendanceEncontros.map((e, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", fontSize: "0.82rem", padding: "0.5rem 0", borderBottom: "1px solid rgba(197,138,74,.1)" }}>
+                <span style={{ color: "#c9c2b4" }}>{formatDataBR(e.data)} · {e.topico}</span>
+                <button
+                  style={styles.linkBtn}
+                  disabled={generatingQrFor === `${attendanceFor}_${e.data}`}
+                  onClick={() => handleGerarQR(attendanceFor, e.data)}
+                >
+                  {generatingQrFor === `${attendanceFor}_${e.data}` ? "Gerando..." : "📱 Gerar QR dessa aula"}
+                </button>
+              </div>
+            ))}
+          </div>
+
           {attendanceAlunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Ninguém matriculado nessa turma ainda.</p>}
           {attendanceAlunos.length > 0 && (
             <div style={styles.tableCard}>
@@ -882,7 +923,23 @@ function Turmas() {
           )}
         </div>
       )}
-      {/* API real: listTurmas?all=1 · createTurma · listTurmaAttendance */}
+      {qrModal && (
+        <div style={styles.qrOverlay} onClick={() => setQrModal(null)}>
+          <div style={styles.qrOverlayCard} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: "0.8rem", color: GOLD, marginBottom: "0.4rem" }}>{qrModal.topico}</div>
+            <p style={{ fontSize: "0.82rem", color: "#c9c2b4", marginBottom: "1.2rem" }}>Mostre essa tela pros alunos escanearem com o celular (já logados) pra confirmar presença.</p>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&color=C58A4A&bgcolor=050505&data=${encodeURIComponent(qrModal.url)}`}
+              alt="QR Code de check-in da aula"
+              style={{ width: "100%", maxWidth: 320, display: "block", margin: "0 auto" }}
+            />
+            <button style={{ ...styles.btnPrimary, maxWidth: 200, margin: "1.4rem auto 0" }} onClick={() => setQrModal(null)}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+      {/* API real: listTurmas?all=1 · createTurma · listTurmaAttendance · getLessonCheckinLink */}
     </div>
   );
 }
@@ -1830,6 +1887,9 @@ function StatusBadge({ status }: { status: string }) {
 
 const styles: Record<string, React.CSSProperties> = {
   page: { display: "flex", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
+
+  qrOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "2rem" },
+  qrOverlayCard: { background: "linear-gradient(160deg,#0d0d0d,#050505)", border: "1px solid rgba(197,138,74,.3)", borderRadius: 8, padding: "2rem", maxWidth: 400, width: "100%", textAlign: "center" },
 
   sidebar: { width: 260, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.2rem", height: "100vh", position: "sticky", top: 0 },
   logo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.05rem" },
