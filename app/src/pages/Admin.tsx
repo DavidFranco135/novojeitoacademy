@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth } from "../firebase";
 
 /**
@@ -13,7 +13,7 @@ const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
 const SITE_BASE = "https://novojeitoapp.pages.dev";
 
-type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo";
+type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura";
 
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();
@@ -113,6 +113,7 @@ export default function AdminDashboard() {
             ["bolsas", "🎓", "Bolsas"],
             ["conteudo", "🖼️", "Conteúdo do Site"],
             ["curriculo", "📚", "Currículo"],
+            ["assinatura", "✍️", "Assinatura"],
             ["financeiro", "💰", "Financeiro"],
           ] as [Tab, string, string][]).map(([id, icon, label]) => (
             <button
@@ -135,6 +136,7 @@ export default function AdminDashboard() {
         {tab === "bolsas" && <Bolsas />}
         {tab === "conteudo" && <ConteudoSite />}
         {tab === "curriculo" && <Curriculo />}
+        {tab === "assinatura" && <AssinaturaContratada />}
         {tab === "financeiro" && <Financeiro />}
       </main>
     </div>
@@ -1034,6 +1036,150 @@ function Bolsas() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Assinatura da CONTRATADA (dono/instrutor) — desenhada uma vez aqui e reaproveitada
+// automaticamente em todo contrato e certificado gerado dali pra frente.
+function AssinaturaContratada() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [current, setCurrent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  function loadCurrent() {
+    authedFetch("getOwnerSignature")
+      .then((r) => r.json())
+      .then((data) => setCurrent(data.signatureBase64 || null))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadCurrent();
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.strokeStyle = "#F5F0E8";
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+  }, []);
+
+  function getPos(e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ("touches" in e) {
+      const t = e.touches[0];
+      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
+    }
+    const me = e as React.MouseEvent;
+    return { x: (me.clientX - rect.left) * scaleX, y: (me.clientY - rect.top) * scaleY };
+  }
+
+  function startDraw(e: React.MouseEvent | React.TouchEvent) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    drawing.current = true;
+    const ctx = canvas.getContext("2d")!;
+    const { x, y } = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function draw(e: React.MouseEvent | React.TouchEvent) {
+    if (!drawing.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    const { x, y } = getPos(e, canvas);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setHasSignature(true);
+  }
+
+  function endDraw() {
+    drawing.current = false;
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+  }
+
+  async function handleSalvar() {
+    const canvas = canvasRef.current;
+    if (!canvas || !hasSignature) return;
+    setSaving(true);
+    try {
+      const signatureBase64 = canvas.toDataURL("image/png");
+      const res = await authedFetch("saveOwnerSignature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signatureBase64 }),
+      });
+      if (!res.ok) throw new Error();
+      setCurrent(signatureBase64);
+      clearSignature();
+    } catch {
+      alert("Não foi possível salvar a assinatura.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow="CONTRATADA"
+        title="Assinatura"
+        subtitle="Desenhe aqui a sua assinatura uma única vez — ela é carimbada automaticamente em todo contrato e certificado emitido a partir de agora (documentos já emitidos não mudam)."
+      />
+
+      {!loading && current && (
+        <div style={{ ...styles.bolsaCard, marginBottom: "1.2rem" }}>
+          <div style={fieldLabelStyle}>Assinatura atual</div>
+          <img src={current} alt="Assinatura atual da contratada" style={{ maxWidth: 300, background: "#111", borderRadius: 3 }} />
+        </div>
+      )}
+
+      <label style={fieldLabelStyle}>{current ? "Desenhe uma nova assinatura pra substituir a atual" : "Desenhe sua assinatura"}</label>
+      <div style={{ position: "relative", maxWidth: 500 }}>
+        <canvas
+          ref={canvasRef}
+          width={500}
+          height={160}
+          style={{ width: "100%", height: 160, background: "#111", border: "1px dashed rgba(197,138,74,.4)", borderRadius: 3, touchAction: "none", cursor: "crosshair" }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        <button
+          style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,.5)", border: "1px solid rgba(197,138,74,.3)", color: "#F5F0E8", fontSize: "0.72rem", padding: "0.3rem 0.6rem", borderRadius: 3, cursor: "pointer" }}
+          onClick={clearSignature}
+        >
+          Limpar
+        </button>
+      </div>
+
+      <button style={{ ...styles.btnPrimary, maxWidth: 260, marginTop: "1.2rem" }} disabled={!hasSignature || saving} onClick={handleSalvar}>
+        {saving ? "Salvando..." : "Salvar assinatura"}
+      </button>
     </div>
   );
 }

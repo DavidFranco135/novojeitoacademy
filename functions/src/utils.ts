@@ -2,10 +2,19 @@
  * Utilitário compartilhado — Novo Jeito Academy
  */
 
+import * as admin from "firebase-admin";
+
 // Bucket próprio (fora do bucket padrão "barbearia-do-ico...") pra que os links
 // assinados de contrato/comprovante/certificado mostrem "novojeitoacademy" em vez
 // de "barbearia-do-ico" na URL.
 export const DOCS_BUCKET = "novojeitoacademy-docs";
+
+// Assinatura da CONTRATADA, desenhada uma vez no Admin (settings.ts) e reaproveitada
+// em todo contrato/certificado gerado — ver saveOwnerSignature/getOwnerSignature.
+export async function getOwnerSignatureBase64(): Promise<string | null> {
+  const snap = await admin.firestore().collection("settings").doc("ownerSignature").get();
+  return snap.exists ? (snap.data()!.imageBase64 as string) || null : null;
+}
 
 /**
  * Reescreve o link de login gerado pelo Firebase (que aponta primeiro pro domínio

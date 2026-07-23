@@ -15,7 +15,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { DOCS_BUCKET } from "./utils";
+import { DOCS_BUCKET, getOwnerSignatureBase64 } from "./utils";
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -159,6 +159,21 @@ export async function generateCertificateForEnrollment(
   page.drawText(`Código de autenticidade: ${certCode}`, { x: 70, y: 74, size: 8, font: fontSans, color: rgb(0.6, 0.56, 0.5) });
 
   const sigX = width - 260;
+  const ownerSignatureBase64 = await getOwnerSignatureBase64();
+  if (ownerSignatureBase64) {
+    const ownerPngBytes = Buffer.from(ownerSignatureBase64.split(",")[1], "base64");
+    const ownerPngImage = await pdfDoc.embedPng(ownerPngBytes);
+    const maxW = 180;
+    const maxH = 46;
+    const scale = Math.min(maxW / ownerPngImage.width, maxH / ownerPngImage.height);
+    const ownerDims = ownerPngImage.scale(scale);
+    page.drawImage(ownerPngImage, {
+      x: sigX + 95 - ownerDims.width / 2,
+      y: 104,
+      width: ownerDims.width,
+      height: ownerDims.height,
+    });
+  }
   page.drawLine({ start: { x: sigX, y: 100 }, end: { x: sigX + 190, y: 100 }, thickness: 0.7, color: GOLD });
   page.drawText("Marcus Vinicius — Instrutor", {
     x: sigX + 95 - fontSans.widthOfTextAtSize("Marcus Vinicius — Instrutor", 9) / 2,

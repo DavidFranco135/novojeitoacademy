@@ -14,7 +14,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import { toBrandedLoginLink, DOCS_BUCKET } from "./utils";
+import { toBrandedLoginLink, DOCS_BUCKET, getOwnerSignatureBase64 } from "./utils";
 
 // admin.initializeApp() já é chamado centralmente em index.ts
 const db = admin.firestore();
@@ -164,14 +164,27 @@ export const signContract = onRequest(
       page.drawText(`IP registrado: ${ip}`, { x: 50, y, size: 9.5, font });
       y -= 30;
 
-      // embute a imagem da assinatura (canvas em base64 PNG)
+      // embute a imagem da assinatura do aluno (canvas em base64 PNG)
       const pngBytes = Buffer.from(signatureBase64.split(",")[1], "base64");
       const pngImage = await pdfDoc.embedPng(pngBytes);
       const sigDims = pngImage.scale(0.35);
       newPageIfNeeded(sigDims.height + 20);
-      page.drawText("Assinatura:", { x: 50, y, size: 9.5, font: fontBold });
+      page.drawText("Assinatura do CONTRATANTE (aluno):", { x: 50, y, size: 9.5, font: fontBold });
       y -= sigDims.height;
       page.drawImage(pngImage, { x: 50, y, width: sigDims.width, height: sigDims.height });
+
+      // assinatura da CONTRATADA — desenhada uma vez no Admin e reaproveitada em todo contrato
+      const ownerSignatureBase64 = await getOwnerSignatureBase64();
+      if (ownerSignatureBase64) {
+        const ownerPngBytes = Buffer.from(ownerSignatureBase64.split(",")[1], "base64");
+        const ownerPngImage = await pdfDoc.embedPng(ownerPngBytes);
+        const ownerDims = ownerPngImage.scale(0.35);
+        y -= 20;
+        newPageIfNeeded(ownerDims.height + 20);
+        page.drawText("Assinatura da CONTRATADA (Novo Jeito Academy):", { x: 50, y, size: 9.5, font: fontBold });
+        y -= ownerDims.height;
+        page.drawImage(ownerPngImage, { x: 50, y, width: ownerDims.width, height: ownerDims.height });
+      }
 
       const pdfBytes = await pdfDoc.save();
 

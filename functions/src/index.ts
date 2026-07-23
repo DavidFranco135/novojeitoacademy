@@ -26,3 +26,4 @@ export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, 
 export { getCourseContent, updateCourseContent } from "./courseContent";
 export { registerLead, listLeads } from "./leads";
 export { generateComprovante } from "./comprovante";
+export { getOwnerSignature, saveOwnerSignature } from "./settings";
