@@ -31,8 +31,7 @@ interface StudentData {
   cidade: string;
 }
 
-// CPF do responsável legal pela Novo Jeito Academy — preencha uma vez com o dado real
-const CONTRATADA_CPF = "___.___.___-__"; // TODO: trocar pelo CPF real de Marcus Vinícius da Silva Narciso
+const CONTRATADA_CNPJ = "57.695.361/0001-17";
 
 function buildContractText(data: StudentData) {
   return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
@@ -41,7 +40,7 @@ CURSO DE BARBEIRO PROFISSIONAL – NOVO JEITO ACADEMY
 1. DAS PARTES
 
 CONTRATADA:
-Novo Jeito Academy, representada por Marcus Vinícius da Silva Narciso, barbeiro profissional, CPF nº ${CONTRATADA_CPF}, com sede em São Gonçalo – RJ.
+Novo Jeito Academy, CNPJ nº ${CONTRATADA_CNPJ}, representada por Marcus Vinícius da Silva Narciso, barbeiro profissional, com sede em São Gonçalo – RJ.
 
 CONTRATANTE (ALUNO):
 Nome: ${data.nome || "-"}
@@ -242,11 +241,14 @@ export default function EnrollmentFlow() {
 
   function getPos(e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) {
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     if ("touches" in e) {
       const t = e.touches[0];
-      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
     }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+    const me = e as React.MouseEvent;
+    return { x: (me.clientX - rect.left) * scaleX, y: (me.clientY - rect.top) * scaleY };
   }
 
   function startDraw(e: React.MouseEvent | React.TouchEvent) {

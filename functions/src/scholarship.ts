@@ -105,3 +105,53 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
     res.status(500).json({ error: "Erro interno" });
   }
 });
+
+export const rejectScholarship = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { applicationId } = req.body;
+    if (!applicationId) {
+      res.status(400).json({ error: "applicationId obrigatório" });
+      return;
+    }
+
+    const appSnap = await db.collection("scholarshipApplications").doc(applicationId).get();
+    if (!appSnap.exists) {
+      res.status(404).json({ error: "Candidatura não encontrada" });
+      return;
+    }
+
+    await db.collection("scholarshipApplications").doc(applicationId).update({ status: "não selecionado" });
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("rejectScholarship error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+export const deleteScholarship = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { applicationId } = req.body;
+    if (!applicationId) {
+      res.status(400).json({ error: "applicationId obrigatório" });
+      return;
+    }
+
+    await db.collection("scholarshipApplications").doc(applicationId).delete();
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("deleteScholarship error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});

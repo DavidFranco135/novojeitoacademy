@@ -894,6 +894,7 @@ function Bolsas() {
   const [bolsas, setBolsas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [granting, setGranting] = useState<string | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
 
   function loadBolsas() {
     authedFetch("listScholarshipApplications")
@@ -937,6 +938,42 @@ function Bolsas() {
     }
   }
 
+  async function handleRejeitar(applicationId: string) {
+    if (!window.confirm("Confirma rejeitar essa candidatura? Ela continua na lista, marcada como não selecionada.")) return;
+    setActing(applicationId);
+    try {
+      const res = await authedFetch("rejectScholarship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+      if (!res.ok) throw new Error();
+      loadBolsas();
+    } catch {
+      alert("Não foi possível rejeitar a candidatura.");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function handleExcluirBolsa(applicationId: string) {
+    if (!window.confirm("Tem certeza que quer EXCLUIR essa candidatura por completo? Não tem como desfazer.")) return;
+    setActing(applicationId);
+    try {
+      const res = await authedFetch("deleteScholarship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+      if (!res.ok) throw new Error();
+      loadBolsas();
+    } catch {
+      alert("Não foi possível excluir a candidatura.");
+    } finally {
+      setActing(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader eyebrow="VAGA SOLIDÁRIA" title="Candidaturas à Bolsa" subtitle="Pessoas que se candidataram à bolsa de 100% através do site." />
@@ -960,6 +997,7 @@ function Bolsas() {
                 b.status === "contatado" ? "Contatado" :
                 b.status === "aprovado" ? "Aguardando aluno" :
                 b.status === "selecionado" ? "Matriculado" :
+                b.status === "não selecionado" ? "Rejeitada" :
                 b.status
               } />
             </div>
@@ -969,13 +1007,29 @@ function Bolsas() {
               {b.status !== "selecionado" && (
                 <button
                   style={{ ...styles.linkBtn, color: "#78c88c" }}
-                  disabled={granting === b.id}
+                  disabled={granting === b.id || acting === b.id}
                   onClick={() => handleConceder(b.id)}
                 >
                   {granting === b.id ? "Gerando link..." : b.status === "aprovado" ? "🔗 Copiar link novamente" : "🎓 Conceder bolsa →"}
                 </button>
               )}
               {b.status === "selecionado" && <span style={{ fontSize: "0.78rem", color: "#78c88c" }}>✓ Matrícula concluída — acesso liberado</span>}
+              {b.status !== "selecionado" && b.status !== "não selecionado" && (
+                <button
+                  style={{ ...styles.linkBtn, color: "#e8a04a" }}
+                  disabled={granting === b.id || acting === b.id}
+                  onClick={() => handleRejeitar(b.id)}
+                >
+                  {acting === b.id ? "..." : "✕ Rejeitar"}
+                </button>
+              )}
+              <button
+                style={{ ...styles.linkBtn, color: "#e8746a" }}
+                disabled={granting === b.id || acting === b.id}
+                onClick={() => handleExcluirBolsa(b.id)}
+              >
+                {acting === b.id ? "..." : "🗑 Excluir"}
+              </button>
             </div>
           </div>
         ))}

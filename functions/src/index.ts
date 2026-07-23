@@ -19,7 +19,7 @@ export {
   getTurmaAvulsa,
 } from "./turmas";
 export { uploadImage } from "./imgbb";
-export { applyScholarship, listScholarshipApplications, grantScholarship } from "./scholarship";
+export { applyScholarship, listScholarshipApplications, grantScholarship, rejectScholarship, deleteScholarship } from "./scholarship";
 export { getSiteContent, updateSiteContent } from "./siteContent";
 export { getStudentProgress, markLessonComplete } from "./progress";
 export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment, updateStudent, deleteStudent } from "./admin";
