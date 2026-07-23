@@ -280,7 +280,7 @@ export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
     const enrollment = enrollmentSnap.data()!;
 
     const rawLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
-      url: "https://novojeitoapp.pages.dev/login",
+      url: "https://portal.novojeitobarbearia.com.br/login",
       handleCodeInApp: true,
     });
     const loginLink = toBrandedLoginLink(rawLink);
@@ -319,7 +319,7 @@ export const registerCashPayment = onRequest({ cors: true }, async (req, res) =>
       telefone,
       valor: String(valor || COURSE_PRICE),
     });
-    const matriculaLink = `https://novojeitoapp.pages.dev/matricula?${params.toString()}`;
+    const matriculaLink = `https://portal.novojeitobarbearia.com.br/matricula?${params.toString()}`;
 
     res.status(200).json({ matriculaLink });
   } catch (err) {

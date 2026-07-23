@@ -28,7 +28,7 @@ export async function getOwnerSignatureBase64(): Promise<string | null> {
 export function toBrandedLoginLink(firebaseLink: string): string {
   try {
     const url = new URL(firebaseLink);
-    return `https://novojeitoapp.pages.dev/login${url.search}`;
+    return `https://portal.novojeitobarbearia.com.br/login${url.search}`;
   } catch {
     return firebaseLink; // se algo der errado, devolve o link original (nunca quebra o fluxo)
   }

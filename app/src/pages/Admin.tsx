@@ -11,7 +11,7 @@ import { auth } from "../firebase";
 
 const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
-const SITE_BASE = "https://novojeitoapp.pages.dev";
+const SITE_BASE = "https://portal.novojeitobarbearia.com.br";
 
 type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura";
 
@@ -1505,7 +1505,7 @@ function ConteudoSite() {
           </div>
         )}
         <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.8rem" }}>
-          Quando ativado, o site público inteiro (novojeitoacademy.pages.dev) mostra só essa tela — ninguém vê o resto do conteúdo até você desativar aqui de novo. Não precisa fazer deploy nenhum, é instantâneo depois de salvar.
+          Quando ativado, o site público inteiro (academy.novojeitobarbearia.com.br) mostra só essa tela — ninguém vê o resto do conteúdo até você desativar aqui de novo. Não precisa fazer deploy nenhum, é instantâneo depois de salvar.
         </p>
       </div>
 

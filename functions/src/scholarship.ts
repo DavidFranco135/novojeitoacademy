@@ -97,7 +97,7 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
       nome: application.nome || "",
       telefone: application.whatsapp || "",
     });
-    const matriculaLink = `https://novojeitoapp.pages.dev/matricula?${params.toString()}`;
+    const matriculaLink = `https://portal.novojeitobarbearia.com.br/matricula?${params.toString()}`;
 
     res.status(200).json({ matriculaLink });
   } catch (err) {

@@ -217,7 +217,7 @@ export const signContract = onRequest(
         let loginLink: string | null = null;
         try {
           const rawLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
-            url: "https://novojeitoapp.pages.dev/login",
+            url: "https://portal.novojeitobarbearia.com.br/login",
             handleCodeInApp: true,
           });
           loginLink = toBrandedLoginLink(rawLink);
@@ -355,9 +355,9 @@ export const createPaymentPreference = onRequest(
           },
           external_reference: enrollmentId, // usado no webhook pra identificar a matrícula
           back_urls: {
-            success: "https://novojeitoapp.pages.dev/matricula/sucesso",
-            failure: "https://novojeitoapp.pages.dev/matricula/erro",
-            pending: "https://novojeitoapp.pages.dev/matricula/pendente",
+            success: "https://portal.novojeitobarbearia.com.br/matricula/sucesso",
+            failure: "https://portal.novojeitobarbearia.com.br/matricula/erro",
+            pending: "https://portal.novojeitobarbearia.com.br/matricula/pendente",
           },
           auto_return: "approved",
           notification_url: "https://us-central1-barbearia-do-ico.cloudfunctions.net/mercadopagoWebhook",
