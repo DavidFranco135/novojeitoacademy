@@ -6,7 +6,6 @@
 
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-import { toBrandedLoginLink } from "./utils";
 
 const db = admin.firestore();
 
@@ -38,7 +37,7 @@ export const applyScholarship = onRequest({ cors: true }, async (req, res) => {
       idade: idade || null,
       profissao: profissao || null,
       motivo,
-      status: "novo", // novo -> contatado -> selecionado | não selecionado
+      status: "novo", // novo -> contatado -> aprovado -> selecionado | não selecionado
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -51,6 +50,11 @@ export const applyScholarship = onRequest({ cors: true }, async (req, res) => {
 
 export const listScholarshipApplications = onRequest({ cors: true }, async (req, res) => {
   try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
     const snap = await db.collection("scholarshipApplications").orderBy("createdAt", "desc").get();
     const applications = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     res.status(200).json({ applications });
@@ -61,9 +65,9 @@ export const listScholarshipApplications = onRequest({ cors: true }, async (req,
 });
 
 // ============================================================
-// Conceder a bolsa: cria a matrícula já com acesso liberado, sem pagamento.
-// Precisa de e-mail e CPF (a candidatura só coletou nome/whatsapp) — o admin
-// pede esses dois dados direto com a pessoa antes de conceder.
+// Aprovar a bolsa: NÃO cria mais a conta direto. Gera um link de /matricula em
+// modo bolsa pro aluno preencher os dados, assinar o contrato de verdade e ter
+// o acesso liberado automaticamente (signContract cuida disso quando isBolsa).
 // ============================================================
 export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
   try {
@@ -72,9 +76,9 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const { applicationId, email, cpf } = req.body;
-    if (!applicationId || !email || !cpf) {
-      res.status(400).json({ error: "applicationId, email e cpf são obrigatórios" });
+    const { applicationId } = req.body;
+    if (!applicationId) {
+      res.status(400).json({ error: "applicationId obrigatório" });
       return;
     }
 
@@ -85,35 +89,17 @@ export const grantScholarship = onRequest({ cors: true }, async (req, res) => {
     }
     const application = appSnap.data()!;
 
-    // cria a matrícula já com acesso liberado (sem cobrança — é a bolsa)
-    const enrollmentRef = await db.collection("enrollments").add({
-      nome: application.nome,
-      email,
-      telefone: application.whatsapp,
-      cpf,
-      status: "acesso_liberado",
-      isBolsa: true,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    await db.collection("scholarshipApplications").doc(applicationId).update({ status: "aprovado" });
+
+    const params = new URLSearchParams({
+      bolsa: "1",
+      scholarshipApplicationId: applicationId,
+      nome: application.nome || "",
+      telefone: application.whatsapp || "",
     });
+    const matriculaLink = `https://novojeitoapp.pages.dev/matricula?${params.toString()}`;
 
-    // cria o login do aluno (mesmo padrão usado após pagamento aprovado)
-    try {
-      await admin.auth().createUser({ email, displayName: application.nome });
-    } catch (e: any) {
-      if (e.code !== "auth/email-already-exists") throw e;
-    }
-    // Aviso ao aluno é feito manualmente pelo admin via WhatsApp
-
-    await db.collection("scholarshipApplications").doc(applicationId).update({ status: "selecionado" });
-
-    const rawLink = await admin.auth().generateSignInWithEmailLink(email, {
-      url: "https://novojeitoapp.pages.dev/login",
-      handleCodeInApp: true,
-    });
-    const loginLink = toBrandedLoginLink(rawLink);
-
-    res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
+    res.status(200).json({ matriculaLink });
   } catch (err) {
     console.error("grantScholarship error:", err);
     res.status(500).json({ error: "Erro interno" });

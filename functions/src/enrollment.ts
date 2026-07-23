@@ -14,6 +14,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import { toBrandedLoginLink } from "./utils";
 
 // admin.initializeApp() já é chamado centralmente em index.ts
 const db = admin.firestore();
@@ -31,7 +32,7 @@ export const createEnrollment = onRequest(
   { cors: true },
   async (req, res) => {
     try {
-      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId } = req.body;
+      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId, scholarshipApplicationId, paymentMethod, valorCombinado } = req.body;
 
       if (!nome || !email || !telefone || !cpf) {
         res.status(400).json({ error: "Dados incompletos" });
@@ -50,6 +51,26 @@ export const createEnrollment = onRequest(
         turmaAvulsaNome = turmaSnap.data()!.nome;
       }
 
+      // Se veio scholarshipApplicationId, é uma matrícula de bolsa (100% grátis) —
+      // valida que a candidatura existe e ainda não foi usada antes de marcar isBolsa.
+      let isBolsa = false;
+      if (scholarshipApplicationId) {
+        const appSnap = await db.collection("scholarshipApplications").doc(scholarshipApplicationId).get();
+        if (!appSnap.exists) {
+          res.status(400).json({ error: "Candidatura de bolsa inválida" });
+          return;
+        }
+        if (appSnap.data()!.status === "selecionado") {
+          res.status(400).json({ error: "Essa bolsa já foi utilizada" });
+          return;
+        }
+        isBolsa = true;
+      }
+
+      // Pagamento em dinheiro combinado com o admin — libera acesso ao assinar,
+      // sem precisar passar pelo Mercado Pago.
+      const isDinheiro = paymentMethod === "dinheiro";
+
       const enrollmentRef = await db.collection("enrollments").add({
         nome,
         email,
@@ -63,6 +84,10 @@ export const createEnrollment = onRequest(
         tipo: turmaAvulsaId ? "turma_avulsa" : "curso_completo",
         turmaAvulsaId: turmaAvulsaId || null,
         turmaAvulsaNome,
+        isBolsa,
+        scholarshipApplicationId: scholarshipApplicationId || null,
+        paymentMethod: isDinheiro ? "dinheiro" : null,
+        valorPago: isDinheiro ? (Number(valorCombinado) || COURSE_PRICE) : null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
@@ -156,6 +181,53 @@ export const signContract = onRequest(
       await file.save(Buffer.from(pdfBytes), { contentType: "application/pdf" });
       const [contractUrl] = await file.getSignedUrl({ action: "read", expires: "03-01-2035" });
 
+      // Bolsa e dinheiro combinado não passam pelo Mercado Pago — o acesso é liberado
+      // direto assim que o contrato é assinado (igual ao que o webhook do MP faz após
+      // um pagamento aprovado).
+      const liberaAcessoDireto = enrollment.isBolsa || enrollment.paymentMethod === "dinheiro";
+
+      if (liberaAcessoDireto) {
+        await db.collection("enrollments").doc(enrollmentId).update({
+          status: "acesso_liberado",
+          contractUrl,
+          signedAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          valorPago: enrollment.isBolsa ? 0 : (enrollment.valorPago || COURSE_PRICE),
+        });
+
+        try {
+          await admin.auth().createUser({ email: enrollment.email, displayName: enrollment.nome });
+        } catch (e: any) {
+          if (e.code !== "auth/email-already-exists") throw e;
+        }
+
+        let loginLink: string | null = null;
+        try {
+          const rawLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
+            url: "https://novojeitoapp.pages.dev/login",
+            handleCodeInApp: true,
+          });
+          loginLink = toBrandedLoginLink(rawLink);
+        } catch (e) {
+          console.error("signContract: falha ao gerar link de login", e);
+        }
+
+        if (enrollment.scholarshipApplicationId) {
+          await db.collection("scholarshipApplications").doc(enrollment.scholarshipApplicationId)
+            .update({ status: "selecionado" })
+            .catch(() => {});
+        }
+
+        res.status(200).json({
+          contractUrl,
+          loginLink,
+          isBolsa: !!enrollment.isBolsa,
+          isDinheiro: enrollment.paymentMethod === "dinheiro",
+        });
+        return;
+      }
+
+      // fluxo pago normal (Mercado Pago) — inalterado
       await db.collection("enrollments").doc(enrollmentId).update({
         status: "contrato_assinado",
         contractUrl,

@@ -92,7 +92,11 @@ export const generateComprovante = onRequest({ cors: true }, async (req, res) =>
       ? paymentMethodLabel.dinheiro
       : "Mercado Pago (online)";
 
-    const valor = enrollment.valorPago ? `R$ ${Number(enrollment.valorPago).toFixed(2).replace(".", ",")}` : "R$ 497,00";
+    const valor = enrollment.isBolsa
+      ? "R$ 0,00"
+      : enrollment.valorPago
+      ? `R$ ${Number(enrollment.valorPago).toFixed(2).replace(".", ",")}`
+      : "R$ 497,00";
     const dataMatricula = enrollment.paidAt ? enrollment.paidAt.toDate().toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR");
 
     const rows: [string, string][] = [

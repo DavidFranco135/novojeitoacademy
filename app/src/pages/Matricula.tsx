@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 
 /**
  * Fluxo de matrícula — Novo Jeito Academy
@@ -98,15 +99,22 @@ Ao marcar "Li e aceito os termos do contrato" e assinar abaixo, o(a) CONTRATANTE
 }
 
 export default function EnrollmentFlow() {
+  const [searchParams] = useSearchParams();
+  const isBolsaMode = searchParams.get("bolsa") === "1";
+  const isDinheiroMode = searchParams.get("dinheiro") === "1";
+  const modo: "pago" | "bolsa" | "dinheiro" = isBolsaMode ? "bolsa" : isDinheiroMode ? "dinheiro" : "pago";
+  const scholarshipApplicationId = searchParams.get("scholarshipApplicationId") || null;
+  const valorCombinado = searchParams.get("valor") || null;
+
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
 
   const [data, setData] = useState<StudentData>({
-    nome: "",
+    nome: searchParams.get("nome") || "",
     email: "",
-    telefone: "",
+    telefone: searchParams.get("telefone") || "",
     cpf: "",
     rg: "",
     dataNascimento: "",
@@ -143,7 +151,12 @@ export default function EnrollmentFlow() {
       const res = await fetch(`${FUNCTIONS_BASE}/createEnrollment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          scholarshipApplicationId: modo === "bolsa" ? scholarshipApplicationId : undefined,
+          paymentMethod: modo === "dinheiro" ? "dinheiro" : undefined,
+          valorCombinado: modo === "dinheiro" ? valorCombinado : undefined,
+        }),
       });
       if (!res.ok) throw new Error("Falha ao salvar cadastro");
       const json = await res.json();
@@ -273,7 +286,7 @@ export default function EnrollmentFlow() {
 
         {/* progresso */}
         <div style={styles.progressRow}>
-          {(["Dados", "Contrato", "Pagamento"] as const).map((label, i) => {
+          {(modo === "pago" ? (["Dados", "Contrato", "Pagamento"] as const) : (["Dados", "Contrato", "Acesso"] as const)).map((label, i) => {
             const n = (i + 1) as Step;
             const active = step === n;
             const done = step > n;
@@ -367,7 +380,7 @@ export default function EnrollmentFlow() {
             </>
           )}
 
-          {step === 3 && (
+          {step === 3 && modo === "pago" && (
             <>
               <h2 style={styles.h2}>Pagamento</h2>
               <p style={styles.p}>Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).</p>
@@ -377,6 +390,23 @@ export default function EnrollmentFlow() {
               <button style={styles.btnPrimary} onClick={goToPayment} disabled={loading}>
                 {loading ? "Redirecionando..." : "Ir para pagamento"}
               </button>
+            </>
+          )}
+
+          {step === 3 && modo !== "pago" && (
+            <>
+              <h2 style={styles.h2}>Matrícula concluída!</h2>
+              <p style={styles.p}>
+                {modo === "bolsa"
+                  ? "Seu contrato foi assinado e sua bolsa de 100% já está confirmada — seu acesso à área do aluno já está liberado, sem nenhuma cobrança."
+                  : "Seu contrato foi assinado e seu pagamento em dinheiro já está confirmado — seu acesso à área do aluno já está liberado."}
+              </p>
+
+              {error && <p style={styles.error}>{error}</p>}
+
+              <a href="/login" style={{ ...styles.btnPrimary, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
+                Acessar minha área do aluno →
+              </a>
             </>
           )}
         </div>

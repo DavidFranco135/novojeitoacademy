@@ -457,7 +457,7 @@
 <div class="sticky-cta">
   <div>
     <div style="font-size:.72rem;color:var(--gray)">Investimento</div>
-    <div class="price-mini">R$ 497 ou 12x</div>
+    <div class="price-mini" id="stickyPriceMini">R$ 497 ou 12x de R$ 49,70</div>
   </div>
   <a href="#pricing" class="btn-primary">Inscrever-se</a>
 </div>
@@ -658,6 +658,8 @@
       const installments = content.priceInstallments || 12;
       const installmentValue = (content.price / installments).toFixed(2).replace('.', ',');
       document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>ou ${installments}x de R$ ${installmentValue}</small>`;
+      const stickyEl = document.getElementById('stickyPriceMini');
+      if (stickyEl) stickyEl.textContent = `R$ ${Math.round(content.price)} ou ${installments}x de R$ ${installmentValue}`;
     }
 
     if (content.scholarshipTitle) document.getElementById('scholarshipTitle').innerHTML = content.scholarshipTitle;

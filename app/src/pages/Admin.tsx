@@ -681,7 +681,7 @@ function Bolsas() {
   const [granting, setGranting] = useState<string | null>(null);
 
   function loadBolsas() {
-    fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/listScholarshipApplications")
+    authedFetch("listScholarshipApplications")
       .then((r) => r.json())
       .then((data) => setBolsas(data.applications || []))
       .catch(() => {})
@@ -693,32 +693,30 @@ function Bolsas() {
   }, []);
 
   async function handleConceder(applicationId: string) {
-    const email = window.prompt("E-mail da pessoa (vai virar o login dela na área do aluno):");
-    if (!email) return;
-    const cpf = window.prompt("CPF da pessoa (necessário para o contrato):");
-    if (!cpf) return;
-
     setGranting(applicationId);
     try {
       const res = await authedFetch("grantScholarship", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId, email, cpf }),
+        body: JSON.stringify({ applicationId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(data.error || "Erro");
 
-      if (data.loginLink) {
+      if (data.matriculaLink) {
         try {
-          await navigator.clipboard.writeText(data.loginLink);
+          await navigator.clipboard.writeText(data.matriculaLink);
         } catch {
           // segue mesmo se falhar — o prompt abaixo garante a cópia manual
         }
-        window.prompt("Bolsa concedida! Link de acesso (já copiado — confirme e cole no WhatsApp):", data.loginLink);
+        window.prompt(
+          "Bolsa aprovada! Envie esse link pro aluno preencher os dados, assinar o contrato e liberar o acesso automaticamente (já copiado — confirme e cole no WhatsApp):",
+          data.matriculaLink
+        );
       }
       loadBolsas();
-    } catch {
-      alert("Não foi possível conceder a bolsa.");
+    } catch (e: any) {
+      alert(e.message || "Não foi possível conceder a bolsa.");
     } finally {
       setGranting(null);
     }
@@ -742,7 +740,13 @@ function Bolsas() {
                 <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{b.nome}</div>
                 <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{b.idade ? `${b.idade} anos · ` : ""}{b.profissao || "Não informado"} · {b.whatsapp}</div>
               </div>
-              <StatusBadge status={b.status === "novo" ? "Novo" : b.status === "selecionado" ? "Pago" : b.status === "contatado" ? "Contatado" : b.status} />
+              <StatusBadge status={
+                b.status === "novo" ? "Novo" :
+                b.status === "contatado" ? "Contatado" :
+                b.status === "aprovado" ? "Aguardando aluno" :
+                b.status === "selecionado" ? "Matriculado" :
+                b.status
+              } />
             </div>
             <p style={{ fontSize: "0.86rem", color: "#c9c2b4", marginTop: "0.9rem", lineHeight: 1.6, fontStyle: "italic" }}>"{b.motivo}"</p>
             <div style={{ marginTop: "1rem", display: "flex", gap: "1.2rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -753,10 +757,10 @@ function Bolsas() {
                   disabled={granting === b.id}
                   onClick={() => handleConceder(b.id)}
                 >
-                  {granting === b.id ? "Concedendo..." : "🎓 Conceder bolsa →"}
+                  {granting === b.id ? "Gerando link..." : b.status === "aprovado" ? "🔗 Copiar link novamente" : "🎓 Conceder bolsa →"}
                 </button>
               )}
-              {b.status === "selecionado" && <span style={{ fontSize: "0.78rem", color: "#78c88c" }}>✓ Bolsa concedida — acesso liberado</span>}
+              {b.status === "selecionado" && <span style={{ fontSize: "0.78rem", color: "#78c88c" }}>✓ Matrícula concluída — acesso liberado</span>}
             </div>
           </div>
         ))}
@@ -1271,13 +1275,9 @@ function Financeiro() {
   async function handleRegistrarDinheiro() {
     const nome = window.prompt("Nome completo do aluno:");
     if (!nome) return;
-    const email = window.prompt("E-mail (vai virar o login dele):");
-    if (!email) return;
     const telefone = window.prompt("WhatsApp:");
     if (!telefone) return;
-    const cpf = window.prompt("CPF (necessário para o contrato):");
-    if (!cpf) return;
-    const valorStr = window.prompt("Valor pago em dinheiro (R$):", "497");
+    const valorStr = window.prompt("Valor combinado em dinheiro (R$):", "497");
     if (!valorStr) return;
     const valor = parseFloat(valorStr.replace(",", "."));
 
@@ -1286,22 +1286,25 @@ function Financeiro() {
       const res = await authedFetch("registerCashPayment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, telefone, cpf, valor }),
+        body: JSON.stringify({ nome, telefone, valor }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro");
 
-      if (data.loginLink) {
+      if (data.matriculaLink) {
         try {
-          await navigator.clipboard.writeText(data.loginLink);
+          await navigator.clipboard.writeText(data.matriculaLink);
         } catch {
           // segue mesmo se falhar — o prompt abaixo garante a cópia manual
         }
-        window.prompt("Matrícula registrada! Link de acesso (já copiado — confirme e cole no WhatsApp):", data.loginLink);
+        window.prompt(
+          "Envie esse link pro aluno preencher os dados, assinar o contrato e liberar o acesso automaticamente (já copiado — confirme e cole no WhatsApp):",
+          data.matriculaLink
+        );
       }
       loadTransactions();
     } catch (e: any) {
-      alert(e.message || "Não foi possível registrar o pagamento.");
+      alert(e.message || "Não foi possível gerar o link de matrícula.");
     } finally {
       setRegistering(false);
     }
@@ -1312,7 +1315,7 @@ function Financeiro() {
       <PageHeader eyebrow="FINANCEIRO" title="Transações" subtitle="Pagamentos aprovados, pendentes e recusados via Mercado Pago." />
 
       <button style={styles.btnPrimary} disabled={registering} onClick={handleRegistrarDinheiro}>
-        {registering ? "Registrando..." : "+ Registrar pagamento em dinheiro"}
+        {registering ? "Gerando link..." : "+ Gerar link de matrícula (dinheiro)"}
       </button>
 
       <div style={{ ...styles.statGrid, marginTop: "1.2rem" }}>
@@ -1396,6 +1399,8 @@ function StatusBadge({ status }: { status: string }) {
     Aprovado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
     Pendente: { bg: "rgba(197,138,74,.12)", color: GOLD },
     Selecionado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
+    "Aguardando aluno": { bg: "rgba(197,138,74,.12)", color: GOLD },
+    Matriculado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
     Bloqueado: { bg: "rgba(232,116,106,.12)", color: "#e8746a" },
   };
   const s = map[status] || { bg: "rgba(150,150,150,.12)", color: "#999" };

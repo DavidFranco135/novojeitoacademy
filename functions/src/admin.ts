@@ -121,6 +121,7 @@ export const getOverviewStats = onRequest({ cors: true }, async (req, res) => {
     const now = new Date();
     const faturamentoMes = enrollmentsSnap.docs
       .filter((d) => {
+        if (d.data().isBolsa) return false; // bolsa é gratuita, não entra no faturamento
         const paidAt = d.data().paidAt?.toDate?.();
         return paidAt && paidAt.getMonth() === now.getMonth() && paidAt.getFullYear() === now.getFullYear();
       })
@@ -282,7 +283,10 @@ export const resendAccessEmail = onRequest({ cors: true }, async (req, res) => {
 });
 
 // ============================================================
-// Registrar matrícula paga em dinheiro (fora do Mercado Pago) — libera acesso na hora
+// Registrar matrícula paga em dinheiro (fora do Mercado Pago) — NÃO cria mais a
+// conta direto. Gera um link de /matricula em modo dinheiro pro aluno preencher
+// os dados e assinar o contrato de verdade; o acesso só é liberado depois disso
+// (signContract cuida disso quando paymentMethod === "dinheiro").
 // ============================================================
 export const registerCashPayment = onRequest({ cors: true }, async (req, res) => {
   try {
@@ -291,38 +295,21 @@ export const registerCashPayment = onRequest({ cors: true }, async (req, res) =>
       return;
     }
 
-    const { nome, email, telefone, cpf, valor } = req.body;
-    if (!nome || !email || !telefone || !cpf) {
-      res.status(400).json({ error: "nome, email, telefone e cpf são obrigatórios" });
+    const { nome, telefone, valor } = req.body;
+    if (!nome || !telefone) {
+      res.status(400).json({ error: "nome e telefone são obrigatórios" });
       return;
     }
 
-    const enrollmentRef = await db.collection("enrollments").add({
+    const params = new URLSearchParams({
+      dinheiro: "1",
       nome,
-      email,
       telefone,
-      cpf,
-      status: "acesso_liberado",
-      paymentMethod: "dinheiro",
-      valorPago: valor || COURSE_PRICE,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      valor: String(valor || COURSE_PRICE),
     });
+    const matriculaLink = `https://novojeitoapp.pages.dev/matricula?${params.toString()}`;
 
-    // cria o login do aluno (mesmo padrão do pagamento online e da bolsa)
-    try {
-      await admin.auth().createUser({ email, displayName: nome });
-    } catch (e: any) {
-      if (e.code !== "auth/email-already-exists") throw e;
-    }
-
-    const rawLink = await admin.auth().generateSignInWithEmailLink(email, {
-      url: "https://novojeitoapp.pages.dev/login",
-      handleCodeInApp: true,
-    });
-    const loginLink = toBrandedLoginLink(rawLink);
-
-    res.status(200).json({ enrollmentId: enrollmentRef.id, loginLink });
+    res.status(200).json({ matriculaLink });
   } catch (err) {
     console.error("registerCashPayment error:", err);
     res.status(500).json({ error: "Erro interno" });
