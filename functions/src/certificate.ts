@@ -27,14 +27,18 @@ const DARK = rgb(0.02, 0.02, 0.02);
 const CREAM = rgb(0.96, 0.94, 0.91);
 
 // ============================================================
-// Checagem de elegibilidade: vídeos 100% E presença completa
+// Checagem de elegibilidade: presença completa na turma presencial e,
+// SE o aluno tiver aulas em vídeo em andamento, elas também 100% concluídas.
+// Enquanto o curso for só presencial (sem módulo online ativo ainda), não
+// existe registro de progresso pra esse aluno — nesse caso a exigência de
+// vídeo é pulada e o certificado depende só da presença.
 // ============================================================
 export async function checkCertificateEligibility(
   enrollmentId: string
 ): Promise<{ eligible: boolean; reason?: string }> {
   const progressSnap = await db.collection("progress").doc(enrollmentId).get();
   const progress = progressSnap.data();
-  if (!progress || progress.percent !== 100) {
+  if (progress && progress.percent !== 100) {
     return { eligible: false, reason: "Aulas em vídeo ainda não concluídas" };
   }
 

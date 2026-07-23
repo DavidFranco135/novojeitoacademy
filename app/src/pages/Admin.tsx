@@ -13,7 +13,7 @@ const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
 const SITE_BASE = "https://portal.novojeitobarbearia.com.br";
 
-type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura";
+type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura" | "formados";
 
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();
@@ -109,6 +109,7 @@ export default function AdminDashboard() {
             ["overview", "📊", "Visão Geral"],
             ["leads", "🎯", "Leads"],
             ["alunos", "🎓", "Alunos"],
+            ["formados", "🏆", "Formados"],
             ["turmas", "📍", "Turmas Presenciais"],
             ["bolsas", "🎓", "Bolsas"],
             ["conteudo", "🖼️", "Conteúdo do Site"],
@@ -132,6 +133,7 @@ export default function AdminDashboard() {
         {tab === "overview" && <Overview />}
         {tab === "leads" && <Leads />}
         {tab === "alunos" && <Alunos />}
+        {tab === "formados" && <Formados />}
         {tab === "turmas" && <Turmas />}
         {tab === "bolsas" && <Bolsas />}
         {tab === "conteudo" && <ConteudoSite />}
@@ -633,6 +635,71 @@ function Alunos() {
       </div>
       <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
       {/* API real: listStudents · toggleStudentAccess · resendAccessEmail · resendCertificate · resendContract · createEnrollment · updateStudent */}
+    </div>
+  );
+}
+
+// ============================================================
+// Formados — alunos com certificado já emitido (reaproveita listStudents,
+// só filtra quem tem certificateUrl preenchido).
+function Formados() {
+  const [formados, setFormados] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { page, setPage, totalPages, pageItems } = usePagination(formados);
+
+  useEffect(() => {
+    authedFetch("listStudents")
+      .then((r) => r.json())
+      .then((data) => {
+        const alunos = (data.students || []).filter((a: any) => a.certificateUrl);
+        alunos.sort((a: any, b: any) => (a.certificateIssuedAt < b.certificateIssuedAt ? 1 : -1));
+        setFormados(alunos);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function handleExport() {
+    exportToCSV(
+      formados.map((a) => ({ Nome: a.nome, Email: a.email, "Certificado emitido em": a.certificateIssuedAt, Código: a.certificateCode })),
+      "alunos_formados_novo_jeito_academy.csv"
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader eyebrow="TROFÉU" title="Alunos Formados" subtitle="Quem já concluiu o curso e teve o certificado emitido." />
+
+      {!loading && formados.length > 0 && (
+        <button style={{ ...styles.linkBtn, marginBottom: "1rem" }} onClick={handleExport}>⬇ Exportar CSV ({formados.length})</button>
+      )}
+
+      {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+      {!loading && formados.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aluno formado ainda.</p>}
+
+      {!loading && formados.length > 0 && (
+        <div style={styles.tableCard}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <Th>Aluno</Th><Th>E-mail</Th><Th>Certificado em</Th><Th>Código</Th><Th></Th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((a) => (
+                <tr key={a.id} style={styles.tr}>
+                  <Td>{a.nome}</Td>
+                  <Td>{a.email}</Td>
+                  <Td mono>{a.certificateIssuedAt || "-"}</Td>
+                  <Td mono>{a.certificateCode || "-"}</Td>
+                  <Td><a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado →</a></Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

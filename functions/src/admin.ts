@@ -65,6 +65,8 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           matricula: dataMatricula ? dataMatricula.toDate().toLocaleDateString("pt-BR") : "-",
           contractUrl: data.contractUrl || null,
           certificateUrl: data.certificateUrl || null,
+          certificateCode: data.certificateCode || null,
+          certificateIssuedAt: data.certificateIssuedAt ? data.certificateIssuedAt.toDate().toLocaleDateString("pt-BR") : null,
         };
       })
     );
