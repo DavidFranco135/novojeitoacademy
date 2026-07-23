@@ -15,6 +15,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { DOCS_BUCKET } from "./utils";
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -167,7 +168,7 @@ export async function generateCertificateForEnrollment(
   const pdfBytes = await pdfDoc.save();
 
   const filePath = `certificates/${enrollmentId}.pdf`;
-  const file = storage.bucket().file(filePath);
+  const file = storage.bucket(DOCS_BUCKET).file(filePath);
   await file.save(Buffer.from(pdfBytes), { contentType: "application/pdf" });
   const [certificateUrl] = await file.getSignedUrl({ action: "read", expires: "03-01-2035" });
 

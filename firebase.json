@@ -13,7 +13,8 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "storage": {
-    "rules": "storage.rules"
-  }
+  "storage": [
+    { "bucket": "barbearia-do-ico.firebasestorage.app", "rules": "storage.rules" },
+    { "bucket": "novojeitoacademy-docs", "rules": "storage.docs.rules" }
+  ]
 }

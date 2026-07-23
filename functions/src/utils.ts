@@ -2,6 +2,11 @@
  * Utilitário compartilhado — Novo Jeito Academy
  */
 
+// Bucket próprio (fora do bucket padrão "barbearia-do-ico...") pra que os links
+// assinados de contrato/comprovante/certificado mostrem "novojeitoacademy" em vez
+// de "barbearia-do-ico" na URL.
+export const DOCS_BUCKET = "novojeitoacademy-docs";
+
 /**
  * Reescreve o link de login gerado pelo Firebase (que aponta primeiro pro domínio
  * genérico "SEU-PROJETO.firebaseapp.com/__/auth/action") pra apontar DIRETO pro

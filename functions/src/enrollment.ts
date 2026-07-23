@@ -14,7 +14,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import { toBrandedLoginLink } from "./utils";
+import { toBrandedLoginLink, DOCS_BUCKET } from "./utils";
 
 // admin.initializeApp() já é chamado centralmente em index.ts
 const db = admin.firestore();
@@ -177,7 +177,7 @@ export const signContract = onRequest(
 
       // salva no Storage
       const filePath = `contracts/${enrollmentId}.pdf`;
-      const file = storage.bucket().file(filePath);
+      const file = storage.bucket(DOCS_BUCKET).file(filePath);
       await file.save(Buffer.from(pdfBytes), { contentType: "application/pdf" });
       const [contractUrl] = await file.getSignedUrl({ action: "read", expires: "03-01-2035" });
 

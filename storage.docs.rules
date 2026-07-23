@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Contratos, comprovantes e certificados só devem ser acessados via link assinado gerado pelas Functions.
+    match /contracts/{fileName} {
+      allow read, write: if false;
+    }
+    match /comprovantes/{fileName} {
+      allow read, write: if false;
+    }
+    match /certificates/{fileName} {
+      allow read, write: if false;
+    }
+  }
+}
