@@ -325,28 +325,35 @@ export const adminAssignTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET
 
     // se o aluno já estava em outra turma, remove de lá primeiro (libera a vaga antiga)
     const existingBookingsSnap = await db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).get();
+    const oldBookingsToRemove = existingBookingsSnap.docs.filter((d) => d.id !== newBookingRef.id);
 
     await db.runTransaction(async (tx) => {
-      // remove de qualquer turma anterior
-      for (const oldBookingDoc of existingBookingsSnap.docs) {
-        if (oldBookingDoc.id === newBookingRef.id) continue; // já está nessa mesma turma
-        const oldBooking = oldBookingDoc.data();
-        const oldTurmaRef = db.collection("turmas").doc(oldBooking.turmaId);
-        const oldTurmaDoc = await tx.get(oldTurmaRef);
-        if (oldTurmaDoc.exists) {
-          tx.update(oldTurmaRef, { vagasOcupadas: Math.max(0, oldTurmaDoc.data()!.vagasOcupadas - 1) });
-        }
-        tx.delete(db.collection("turmaBookings").doc(oldBookingDoc.id));
-      }
+      // Firestore exige todas as leituras antes de qualquer escrita na transação —
+      // por isso lê tudo primeiro (turmas antigas + turma/booking novos) e só
+      // depois começa a escrever.
+      const oldTurmaRefs = oldBookingsToRemove.map((d) => db.collection("turmas").doc(d.data().turmaId));
+      const [oldTurmaDocs, newBookingDoc, newTurmaDoc] = await Promise.all([
+        Promise.all(oldTurmaRefs.map((ref) => tx.get(ref))),
+        tx.get(newBookingRef),
+        tx.get(newTurmaRef),
+      ]);
 
-      const newBookingDoc = await tx.get(newBookingRef);
       if (newBookingDoc.exists) return; // já está matriculado nessa turma exata, nada a fazer
 
-      const newTurmaDoc = await tx.get(newTurmaRef);
       if (!newTurmaDoc.exists) throw new Error("Turma não encontrada");
       const newTurma = newTurmaDoc.data()!;
       if (newTurma.vagasOcupadas >= newTurma.vagasTotal) throw new Error("Turma sem vagas disponíveis");
 
+      // agora só escritas: remove de qualquer turma anterior...
+      oldBookingsToRemove.forEach((oldBookingDoc, i) => {
+        const oldTurmaDoc = oldTurmaDocs[i];
+        if (oldTurmaDoc.exists) {
+          tx.update(oldTurmaRefs[i], { vagasOcupadas: Math.max(0, oldTurmaDoc.data()!.vagasOcupadas - 1) });
+        }
+        tx.delete(db.collection("turmaBookings").doc(oldBookingDoc.id));
+      });
+
+      // ...e matricula na nova
       tx.update(newTurmaRef, { vagasOcupadas: newTurma.vagasOcupadas + 1 });
       tx.set(newBookingRef, {
         enrollmentId,
