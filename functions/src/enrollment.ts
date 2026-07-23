@@ -22,7 +22,7 @@ const storage = admin.storage();
 
 const MERCADOPAGO_ACCESS_TOKEN = defineSecret("MERCADOPAGO_ACCESS_TOKEN");
 
-const COURSE_PRICE = 497.0;
+const COURSE_PRICE = 697.0;
 const COURSE_TITLE = "Formação Completa de Barbeiro Profissional";
 
 // ============================================================

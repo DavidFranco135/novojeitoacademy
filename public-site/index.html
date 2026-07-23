@@ -379,7 +379,7 @@
   <div class="pricing-card reveal">
     <span class="pricing-tag">TURMA ABERTA</span>
     <span class="eyebrow">Acesso vitalício</span>
-    <div class="price" id="priceDisplay">R$ 497<small>ou 12x de R$ 49,70</small></div>
+    <div class="price" id="priceDisplay">R$ 697<small>à vista ou 4x de R$ 197,00</small></div>
     <ul class="feat-list">
       <li>38 aulas em vídeo, acesso imediato</li>
       <li>Módulo presencial com data à sua escolha</li>
@@ -436,7 +436,7 @@
     </div>
     <div class="faq-item">
       <button class="faq-q">Quais formas de pagamento vocês aceitam? <span class="plus">+</span></button>
-      <div class="faq-a"><p>Cartão de crédito (em até 12x), PIX e boleto, via Mercado Pago.</p></div>
+      <div class="faq-a"><p>Cartão de crédito (à vista com desconto ou parcelado), PIX e boleto, via Mercado Pago.</p></div>
     </div>
   </div>
 </section>
@@ -457,7 +457,7 @@
 <div class="sticky-cta">
   <div>
     <div style="font-size:.72rem;color:var(--gray)">Investimento</div>
-    <div class="price-mini" id="stickyPriceMini">R$ 497 ou 12x de R$ 49,70</div>
+    <div class="price-mini" id="priceMini">R$ 697 à vista ou 4x de R$ 197,00</div>
   </div>
   <a href="#pricing" class="btn-primary">Inscrever-se</a>
 </div>
@@ -655,11 +655,11 @@
     if (content.instrutorPhotoUrl) setFrameImage('instrutorPhotoFrame', 'instrutorPlaceholder', content.instrutorPhotoUrl);
 
     if (content.price) {
-      const installments = content.priceInstallments || 12;
-      const installmentValue = (content.price / installments).toFixed(2).replace('.', ',');
-      document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>ou ${installments}x de R$ ${installmentValue}</small>`;
-      const stickyEl = document.getElementById('stickyPriceMini');
-      if (stickyEl) stickyEl.textContent = `R$ ${Math.round(content.price)} ou ${installments}x de R$ ${installmentValue}`;
+      const parcelaQtd = content.priceParcelaQtd || 4;
+      const parcelaValor = (content.priceParcelaValor || content.price).toFixed(2).replace('.', ',');
+      document.getElementById('priceDisplay').innerHTML = `R$ ${Math.round(content.price)}<small>à vista ou ${parcelaQtd}x de R$ ${parcelaValor}</small>`;
+      const priceMini = document.getElementById('priceMini');
+      if (priceMini) priceMini.textContent = `R$ ${Math.round(content.price)} à vista ou ${parcelaQtd}x de R$ ${parcelaValor}`;
     }
 
     if (content.scholarshipTitle) document.getElementById('scholarshipTitle').innerHTML = content.scholarshipTitle;
