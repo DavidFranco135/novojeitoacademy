@@ -17,7 +17,7 @@ const DEFAULT_CONTENT = {
   heroImageUrl: "",
   videoEmbedUrl: "",
   statAlunos: 412,
-  statAulas: 38,
+  statAulas: 24,
   statAvaliacao: 4.9,
   galleryImages: ["", "", "", "", "", ""],
   instrutorNome: "Marcus Vinícius",

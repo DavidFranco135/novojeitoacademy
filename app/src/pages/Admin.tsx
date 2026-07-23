@@ -1673,7 +1673,7 @@ function ConteudoSite() {
       <FieldGroup title="Estatísticas (abaixo do título)">
         <div style={{ display: "flex", gap: "1rem" }}>
           <NumberField label="Alunos formados" value={content.statAlunos} onChange={(v) => update("statAlunos", v)} />
-          <NumberField label="Aulas em vídeo" value={content.statAulas} onChange={(v) => update("statAulas", v)} />
+          <NumberField label="Aulas presenciais" value={content.statAulas} onChange={(v) => update("statAulas", v)} />
           <NumberField label="Avaliação média" value={content.statAvaliacao} step="0.1" onChange={(v) => update("statAvaliacao", v)} />
         </div>
       </FieldGroup>
