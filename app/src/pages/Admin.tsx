@@ -11,6 +11,7 @@ import { auth } from "../firebase";
 
 const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
+const SITE_BASE = "https://novojeitoapp.pages.dev";
 
 type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo";
 
@@ -229,11 +230,21 @@ function Leads() {
 }
 
 // ============================================================
+const emptyCadastroForm = { nome: "", email: "", telefone: "", cpf: "", rg: "", dataNascimento: "", endereco: "", cidade: "" };
+
 function Alunos() {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const { page, setPage, totalPages, pageItems } = usePagination(alunos);
+
+  const [showNovoForm, setShowNovoForm] = useState(false);
+  const [novoForm, setNovoForm] = useState({ ...emptyCadastroForm, formaPagamento: "dinheiro" as "dinheiro" | "pago", valor: "697" });
+  const [creatingNovo, setCreatingNovo] = useState(false);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState(emptyCadastroForm);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function loadAlunos() {
     setLoading(true);
@@ -274,29 +285,89 @@ function Alunos() {
     }
   }
 
-  async function handleEditar(aluno: any) {
-    const nome = window.prompt("Nome completo:", aluno.nome);
-    if (nome === null) return;
-    const email = window.prompt("E-mail (cuidado: isso muda o login dele):", aluno.email);
-    if (email === null) return;
-    const telefone = window.prompt("WhatsApp:", aluno.telefone || "");
-    if (telefone === null) return;
-    const cpf = window.prompt("CPF:", aluno.cpf || "");
-    if (cpf === null) return;
+  function handleEditar(aluno: any) {
+    setEditingId(aluno.id);
+    setEditForm({
+      nome: aluno.nome || "",
+      email: aluno.email || "",
+      telefone: aluno.telefone || "",
+      cpf: aluno.cpf || "",
+      rg: aluno.rg || "",
+      dataNascimento: aluno.dataNascimento || "",
+      endereco: aluno.endereco || "",
+      cidade: aluno.cidade || "",
+    });
+  }
 
-    setActingOn(aluno.id);
+  async function handleSalvarEdicao() {
+    if (!editingId) return;
+    setSavingEdit(true);
     try {
       const res = await authedFetch("updateStudent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enrollmentId: aluno.id, nome, email, telefone, cpf }),
+        body: JSON.stringify({ enrollmentId: editingId, ...editForm }),
       });
       if (!res.ok) throw new Error();
+      setEditingId(null);
       loadAlunos();
     } catch {
       alert("Não foi possível salvar as alterações.");
     } finally {
-      setActingOn(null);
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleCriarCadastro() {
+    const f = novoForm;
+    if (
+      f.nome.trim().length < 3 ||
+      !/\S+@\S+\.\S+/.test(f.email) ||
+      f.telefone.replace(/\D/g, "").length < 10 ||
+      f.cpf.replace(/\D/g, "").length !== 11
+    ) {
+      alert("Preencha nome, e-mail, WhatsApp e CPF corretamente antes de criar o cadastro.");
+      return;
+    }
+
+    setCreatingNovo(true);
+    try {
+      const res = await authedFetch("createEnrollment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: f.nome,
+          email: f.email,
+          telefone: f.telefone,
+          cpf: f.cpf,
+          rg: f.rg || undefined,
+          dataNascimento: f.dataNascimento || undefined,
+          endereco: f.endereco || undefined,
+          cidade: f.cidade || undefined,
+          paymentMethod: f.formaPagamento === "dinheiro" ? "dinheiro" : undefined,
+          valorCombinado: f.formaPagamento === "dinheiro" ? f.valor : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+
+      const link = `${SITE_BASE}/matricula?assinar=${data.enrollmentId}`;
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        // segue mesmo se falhar — o prompt abaixo garante a cópia manual
+      }
+      window.prompt(
+        "Cadastro criado! Envie esse link pro aluno assinar o contrato (bolsa/dinheiro libera o acesso automaticamente ao assinar; pago segue pro checkout) — já copiado:",
+        link
+      );
+      setShowNovoForm(false);
+      setNovoForm({ ...emptyCadastroForm, formaPagamento: "dinheiro", valor: "697" });
+      loadAlunos();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível criar o cadastro.");
+    } finally {
+      setCreatingNovo(false);
     }
   }
 
@@ -321,7 +392,7 @@ function Alunos() {
   }
 
   function handleCopySignLink(aluno: any) {
-    const link = `https://novojeitoapp.pages.dev/matricula?assinar=${aluno.id}`;
+    const link = `${SITE_BASE}/matricula?assinar=${aluno.id}`;
     navigator.clipboard.writeText(link).catch(() => {});
     window.prompt("Link para o aluno assinar o contrato (já copiado — cole no WhatsApp):", link);
   }
@@ -360,11 +431,82 @@ function Alunos() {
   return (
     <div>
       <PageHeader eyebrow="GESTÃO" title="Alunos" subtitle="Cadastro, pagamento, progresso e ações sobre cada aluno matriculado." />
-      {!loading && alunos.length > 0 && (
-        <button style={{ ...styles.linkBtn, marginBottom: "1rem" }} onClick={handleExport}>⬇ Exportar CSV ({alunos.length})</button>
+
+      <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+        <button style={styles.btnPrimary} onClick={() => setShowNovoForm(!showNovoForm)}>
+          {showNovoForm ? "Cancelar" : "+ Novo cadastro"}
+        </button>
+        {!loading && alunos.length > 0 && (
+          <button style={styles.linkBtn} onClick={handleExport}>⬇ Exportar CSV ({alunos.length})</button>
+        )}
+      </div>
+
+      {showNovoForm && (
+        <div style={{ ...styles.bolsaCard, marginBottom: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "0.7rem" }}>
+            <div>
+              <label style={fieldLabelStyle}>Nome completo</label>
+              <input style={inputStyle} value={novoForm.nome} onChange={(e) => setNovoForm({ ...novoForm, nome: e.target.value })} placeholder="Nome do aluno" />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>E-mail</label>
+              <input style={inputStyle} value={novoForm.email} onChange={(e) => setNovoForm({ ...novoForm, email: e.target.value })} placeholder="email@exemplo.com" />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>WhatsApp</label>
+              <input style={inputStyle} value={novoForm.telefone} onChange={(e) => setNovoForm({ ...novoForm, telefone: e.target.value })} placeholder="(21) 99999-9999" />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>CPF</label>
+              <input style={inputStyle} value={novoForm.cpf} onChange={(e) => setNovoForm({ ...novoForm, cpf: e.target.value })} placeholder="000.000.000-00" />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>RG</label>
+              <input style={inputStyle} value={novoForm.rg} onChange={(e) => setNovoForm({ ...novoForm, rg: e.target.value })} />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>Data de nascimento</label>
+              <input type="date" style={inputStyle} value={novoForm.dataNascimento} onChange={(e) => setNovoForm({ ...novoForm, dataNascimento: e.target.value })} />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>Endereço</label>
+              <input style={inputStyle} value={novoForm.endereco} onChange={(e) => setNovoForm({ ...novoForm, endereco: e.target.value })} placeholder="Rua, número, bairro" />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>Cidade</label>
+              <input style={inputStyle} value={novoForm.cidade} onChange={(e) => setNovoForm({ ...novoForm, cidade: e.target.value })} />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>Forma de pagamento</label>
+              <select
+                style={inputStyle}
+                value={novoForm.formaPagamento}
+                onChange={(e) => setNovoForm({ ...novoForm, formaPagamento: e.target.value as "dinheiro" | "pago" })}
+              >
+                <option value="dinheiro">Dinheiro (combinado)</option>
+                <option value="pago">Pagamento online (Mercado Pago)</option>
+              </select>
+            </div>
+            {novoForm.formaPagamento === "dinheiro" && (
+              <div>
+                <label style={fieldLabelStyle}>Valor combinado (R$)</label>
+                <input style={inputStyle} value={novoForm.valor} onChange={(e) => setNovoForm({ ...novoForm, valor: e.target.value })} placeholder="697" />
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: "0.76rem", color: "#9d9384", marginTop: "1rem", lineHeight: 1.6 }}>
+            O cadastro fica <b>pendente de assinatura</b> até o aluno assinar o contrato pelo link gerado — o acesso só é liberado depois disso.
+          </p>
+          <div style={{ marginTop: "1rem" }}>
+            <button style={styles.btnPrimary} disabled={creatingNovo} onClick={handleCriarCadastro}>
+              {creatingNovo ? "Criando..." : "Criar cadastro e gerar link"}
+            </button>
+          </div>
+        </div>
       )}
+
       {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
-      {!loading && alunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aluno com acesso liberado ainda.</p>}
+      {!loading && alunos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aluno cadastrado ainda.</p>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         {pageItems.map((a, i) => (
@@ -372,7 +514,7 @@ function Alunos() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{a.nome}</div>
-                <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{a.email} · matriculado em {a.matricula}</div>
+                <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.2rem" }}>{a.email} · {a.pendente ? "cadastrado em" : "matriculado em"} {a.matricula}</div>
               </div>
               <StatusBadge status={a.pagamento} />
             </div>
@@ -380,57 +522,115 @@ function Alunos() {
               <div style={{ fontSize: "0.76rem", color: "#e8746a", marginTop: "0.5rem" }}>⚠️ {a.bloqueioMotivo}</div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.9rem" }}>
-              <div style={styles.progressBarOuter}>
-                <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
+            {!a.pendente && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.9rem" }}>
+                <div style={styles.progressBarOuter}>
+                  <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
+                </div>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}% dos vídeos</span>
               </div>
-              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}% dos vídeos</span>
-            </div>
+            )}
 
             <div style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-              {a.contractUrl ? (
-                <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>
+              {a.pendente ? (
+                <>
+                  <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
+                  <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
+                    Copiar link para assinar contrato
+                  </button>
+                </>
               ) : (
-                <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
+                <>
+                  {a.contractUrl ? (
+                    <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>
+                  ) : (
+                    <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
+                  )}
+                  {a.certificateUrl && <a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado</a>}
+                  <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendAccessEmail", a.id, "loginLink")}>
+                    Copiar link de acesso
+                  </button>
+                  <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendCertificate", a.id, "certificateUrl")}>
+                    Copiar link do certificado
+                  </button>
+                  <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("generateComprovante", a.id, "comprovanteUrl")}>
+                    Copiar comprovante de adesão
+                  </button>
+                  {a.contractUrl ? (
+                    <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
+                      Copiar link do contrato
+                    </button>
+                  ) : (
+                    <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
+                      Copiar link para assinar contrato
+                    </button>
+                  )}
+                  <button
+                    style={{ ...styles.linkBtn, color: a.bloqueado ? "#78c88c" : "#e8746a" }}
+                    disabled={actingOn === a.id}
+                    onClick={() => handleToggleAccess(a)}
+                  >
+                    {a.bloqueado ? "Desbloquear acesso" : "Bloquear acesso"}
+                  </button>
+                </>
               )}
-              {a.certificateUrl && <a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado</a>}
-              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendAccessEmail", a.id, "loginLink")}>
-                Copiar link de acesso
-              </button>
-              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendCertificate", a.id, "certificateUrl")}>
-                Copiar link do certificado
-              </button>
-              <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("generateComprovante", a.id, "comprovanteUrl")}>
-                Copiar comprovante de adesão
-              </button>
-              {a.contractUrl ? (
-                <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
-                  Copiar link do contrato
-                </button>
-              ) : (
-                <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
-                  Copiar link para assinar contrato
-                </button>
-              )}
-              <button
-                style={{ ...styles.linkBtn, color: a.bloqueado ? "#78c88c" : "#e8746a" }}
-                disabled={actingOn === a.id}
-                onClick={() => handleToggleAccess(a)}
-              >
-                {a.bloqueado ? "Desbloquear acesso" : "Bloquear acesso"}
-              </button>
               <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleEditar(a)}>
                 Editar dados
               </button>
               <button style={{ ...styles.linkBtn, color: "#e8746a" }} disabled={actingOn === a.id} onClick={() => handleExcluir(a)}>
-                Excluir aluno
+                {a.pendente ? "Excluir cadastro" : "Excluir aluno"}
               </button>
             </div>
+
+            {editingId === a.id && (
+              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(197,138,74,.15)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "0.7rem" }}>
+                  <div>
+                    <label style={fieldLabelStyle}>Nome completo</label>
+                    <input style={inputStyle} value={editForm.nome} onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>E-mail (cuidado: isso muda o login dele)</label>
+                    <input style={inputStyle} value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>WhatsApp</label>
+                    <input style={inputStyle} value={editForm.telefone} onChange={(e) => setEditForm({ ...editForm, telefone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>CPF</label>
+                    <input style={inputStyle} value={editForm.cpf} onChange={(e) => setEditForm({ ...editForm, cpf: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>RG</label>
+                    <input style={inputStyle} value={editForm.rg} onChange={(e) => setEditForm({ ...editForm, rg: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>Data de nascimento</label>
+                    <input type="date" style={inputStyle} value={editForm.dataNascimento} onChange={(e) => setEditForm({ ...editForm, dataNascimento: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>Endereço</label>
+                    <input style={inputStyle} value={editForm.endereco} onChange={(e) => setEditForm({ ...editForm, endereco: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={fieldLabelStyle}>Cidade</label>
+                    <input style={inputStyle} value={editForm.cidade} onChange={(e) => setEditForm({ ...editForm, cidade: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.6rem", marginTop: "1rem" }}>
+                  <button style={styles.btnPrimary} disabled={savingEdit} onClick={handleSalvarEdicao}>
+                    {savingEdit ? "Salvando..." : "Salvar alterações"}
+                  </button>
+                  <button style={styles.linkBtn} onClick={() => setEditingId(null)}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
       <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
-      {/* API real: listStudents · toggleStudentAccess · resendAccessEmail · resendCertificate · resendContract */}
+      {/* API real: listStudents · toggleStudentAccess · resendAccessEmail · resendCertificate · resendContract · createEnrollment · updateStudent */}
     </div>
   );
 }
@@ -687,6 +887,7 @@ function Turmas() {
 
 const inputStyle: React.CSSProperties = { background: "#111", border: "1px solid rgba(197,138,74,.25)", borderRadius: 3, padding: "0.6rem 0.8rem", color: "#F5F0E8", fontSize: "0.82rem", fontFamily: "inherit" };
 const smallInputStyle: React.CSSProperties = { background: "#0a0a0a", border: "1px solid rgba(197,138,74,.2)", borderRadius: 3, padding: "0.5rem 0.7rem", color: "#F5F0E8", fontSize: "0.8rem", fontFamily: "inherit" };
+const fieldLabelStyle: React.CSSProperties = { display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" };
 
 // ============================================================
 function Bolsas() {

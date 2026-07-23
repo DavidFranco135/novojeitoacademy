@@ -32,25 +32,37 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    // mostra tanto os com acesso liberado quanto os bloqueados (pra poder desbloquear)
-    const snap = await db.collection("enrollments").where("status", "in", ["acesso_liberado", "bloqueado"]).get();
+    // mostra os com acesso liberado, os bloqueados (pra poder desbloquear) e também
+    // os cadastrados que ainda não assinaram o contrato (pra não "perder" o cadastro
+    // criado pelo admin ou pelo aluno até ele terminar de assinar)
+    const snap = await db
+      .collection("enrollments")
+      .where("status", "in", ["acesso_liberado", "bloqueado", "cadastrado", "contrato_assinado"])
+      .get();
 
     const students = await Promise.all(
       snap.docs.map(async (doc) => {
         const data = doc.data();
+        const pendente = data.status === "cadastrado" || data.status === "contrato_assinado";
         const progressDoc = await db.collection("progress").doc(doc.id).get();
         const percent = progressDoc.exists ? progressDoc.data()!.percent || 0 : 0;
+        const dataMatricula = data.paidAt || data.createdAt;
         return {
           id: doc.id,
           nome: data.nome,
           email: data.email,
           telefone: data.telefone || "",
           cpf: data.cpf || "",
-          pagamento: data.status === "bloqueado" ? "Bloqueado" : "Pago",
+          rg: data.rg || "",
+          dataNascimento: data.dataNascimento || "",
+          endereco: data.endereco || "",
+          cidade: data.cidade || "",
+          pagamento: data.status === "bloqueado" ? "Bloqueado" : pendente ? "Pendente" : "Pago",
           bloqueado: data.status === "bloqueado",
+          pendente,
           bloqueioMotivo: data.bloqueioMotivo || null,
           progresso: percent,
-          matricula: data.paidAt ? data.paidAt.toDate().toLocaleDateString("pt-BR") : "-",
+          matricula: dataMatricula ? dataMatricula.toDate().toLocaleDateString("pt-BR") : "-",
           contractUrl: data.contractUrl || null,
           certificateUrl: data.certificateUrl || null,
         };
@@ -326,7 +338,7 @@ export const updateStudent = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const { enrollmentId, nome, email, telefone, cpf } = req.body;
+    const { enrollmentId, nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade } = req.body;
     if (!enrollmentId) {
       res.status(400).json({ error: "enrollmentId obrigatório" });
       return;
@@ -343,6 +355,10 @@ export const updateStudent = onRequest({ cors: true }, async (req, res) => {
     if (nome) updates.nome = nome;
     if (telefone) updates.telefone = telefone;
     if (cpf) updates.cpf = cpf;
+    if (rg) updates.rg = rg;
+    if (dataNascimento) updates.dataNascimento = dataNascimento;
+    if (endereco) updates.endereco = endereco;
+    if (cidade) updates.cidade = cidade;
 
     // se o e-mail mudou, atualiza também no Firebase Auth (é ele quem faz o login)
     if (email && email !== enrollment.email) {
