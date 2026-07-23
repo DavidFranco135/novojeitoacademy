@@ -428,6 +428,43 @@ export const adminAssignTurma = onRequest({ cors: true, secrets: [CHECKIN_SECRET
 });
 
 // ============================================================
+// Admin exclui uma turma inteira — remove também as matrículas (turmaBookings)
+// dela, já que ficariam órfãs sem a turma.
+// ============================================================
+export const deleteTurma = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { turmaId } = req.body;
+    if (!turmaId) {
+      res.status(400).json({ error: "turmaId obrigatório" });
+      return;
+    }
+
+    const turmaRef = db.collection("turmas").doc(turmaId);
+    const turmaSnap = await turmaRef.get();
+    if (!turmaSnap.exists) {
+      res.status(404).json({ error: "Turma não encontrada" });
+      return;
+    }
+
+    const bookingsSnap = await db.collection("turmaBookings").where("turmaId", "==", turmaId).get();
+    const batch = db.batch();
+    bookingsSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(turmaRef);
+    await batch.commit();
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("deleteTurma error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
 // Token identifica só o ENCONTRO (turma + data) — não o aluno. É por isso
 // que continua válido pra sempre (não tem data de expiração): serve tanto
 // pro check-in no dia quanto pra reposição depois.

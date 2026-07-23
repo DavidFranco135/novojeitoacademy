@@ -655,6 +655,7 @@ function Turmas() {
   const [assigning, setAssigning] = useState(false);
   const [qrModal, setQrModal] = useState<{ url: string; topico: string } | null>(null);
   const [generatingQrFor, setGeneratingQrFor] = useState<string | null>(null);
+  const [deletingTurmaId, setDeletingTurmaId] = useState<string | null>(null);
   const [onlineModules, setOnlineModules] = useState<{ id: string; title: string }[]>([
     { id: "", title: "Nenhum — não vincular a um módulo" },
   ]);
@@ -737,6 +738,27 @@ function Turmas() {
       setAttendanceAlunos(data.alunos || []);
     } catch {
       setAttendanceAlunos([]);
+    }
+  }
+
+  async function handleExcluirTurma(turma: any) {
+    if (!window.confirm(`Tem certeza que quer EXCLUIR a turma "${turma.nome}" por completo? Isso apaga a turma e a matrícula de todos os alunos nela (incluindo o histórico de presença). Não tem como desfazer.`)) return;
+    if (!window.confirm(`Confirma de novo: excluir "${turma.nome}" definitivamente?`)) return;
+
+    setDeletingTurmaId(turma.id);
+    try {
+      const res = await authedFetch("deleteTurma", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turmaId: turma.id }),
+      });
+      if (!res.ok) throw new Error();
+      if (attendanceFor === turma.id) setAttendanceFor(null);
+      loadTurmas();
+    } catch {
+      alert("Não foi possível excluir a turma.");
+    } finally {
+      setDeletingTurmaId(null);
     }
   }
 
@@ -840,7 +862,7 @@ function Turmas() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th><Th></Th>
+                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th><Th></Th><Th></Th>
                 </tr>
               </thead>
               <tbody>
@@ -851,6 +873,15 @@ function Turmas() {
                     <Td mono>{t.vagasOcupadas}/{t.vagasTotal}</Td>
                     <Td><button style={styles.linkBtn} onClick={() => verPresenca(t)}>Ver presença →</button></Td>
                     <Td><button style={styles.linkBtn} onClick={() => setAssigningTurmaId(assigningTurmaId === t.id ? null : t.id)}>+ Adicionar aluno</button></Td>
+                    <Td>
+                      <button
+                        style={{ ...styles.linkBtn, color: "#e8746a" }}
+                        disabled={deletingTurmaId === t.id}
+                        onClick={() => handleExcluirTurma(t)}
+                      >
+                        {deletingTurmaId === t.id ? "Excluindo..." : "🗑 Excluir"}
+                      </button>
+                    </Td>
                   </tr>
                 ))}
               </tbody>

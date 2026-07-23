@@ -18,6 +18,7 @@ export {
   getMyTurma,
   adminAssignTurma,
   getTurmaAvulsa,
+  deleteTurma,
 } from "./turmas";
 export { uploadImage } from "./imgbb";
 export { applyScholarship, listScholarshipApplications, grantScholarship, rejectScholarship, deleteScholarship } from "./scholarship";
