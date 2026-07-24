@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+import { isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 
 /**
@@ -26,26 +26,42 @@ export default function Login() {
   const [checkingLink, setCheckingLink] = useState(true);
 
   useEffect(() => {
-    // se o aluno chegou aqui clicando no link (recebido por WhatsApp), completa o login
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let storedEmail = window.localStorage.getItem("emailParaLogin");
-      if (!storedEmail) {
-        storedEmail = window.prompt("Confirme seu e-mail para concluir o login:");
+    // Os links de login são de uso único — depois do primeiro clique, o mesmo
+    // link nunca mais funciona, MESMO no mesmo aparelho. Por isso, antes de
+    // tentar reprocessar o link, primeiro espera o Firebase confirmar se o
+    // aluno já está logado nesse navegador (sessão de uma vez anterior) — se
+    // já estiver, manda direto pra Área do Aluno, sem depender do link mais.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+
+      if (user) {
+        window.location.href = "/aluno";
+        return;
       }
-      if (storedEmail) {
-        signInWithEmailLink(auth, storedEmail, window.location.href)
-          .then(() => {
-            window.localStorage.removeItem("emailParaLogin");
-            window.location.href = "/aluno";
-          })
-          .catch(() => setError("Link inválido ou expirado. Se você abriu esse link direto de dentro do WhatsApp, tente copiar o link e abrir no Safari ou Chrome — às vezes o navegador embutido do WhatsApp não salva o login direito. Se continuar, peça um novo link pra barbearia."))
-          .finally(() => setCheckingLink(false));
+
+      // não está logado nesse navegador — só nesse caso o link precisa ser válido
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let storedEmail = window.localStorage.getItem("emailParaLogin");
+        if (!storedEmail) {
+          storedEmail = window.prompt("Confirme seu e-mail para concluir o login:");
+        }
+        if (storedEmail) {
+          signInWithEmailLink(auth, storedEmail, window.location.href)
+            .then(() => {
+              window.localStorage.removeItem("emailParaLogin");
+              window.location.href = "/aluno";
+            })
+            .catch(() => setError("Esse link já foi usado antes ou expirou. Se você já acessou por aqui alguma vez neste mesmo aparelho/navegador e ainda estava logado, isso não deveria acontecer — tente recarregar a página. Se abriu direto de dentro do WhatsApp, copie o link e abra no Safari ou Chrome. Se continuar, peça um link novo pra barbearia."))
+            .finally(() => setCheckingLink(false));
+        } else {
+          setCheckingLink(false);
+        }
       } else {
         setCheckingLink(false);
       }
-    } else {
-      setCheckingLink(false);
-    }
+    });
+
+    return unsubscribe;
   }, []);
 
   if (checkingLink) {
