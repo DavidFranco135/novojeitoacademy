@@ -931,6 +931,9 @@ function Turmas() {
   const [qrModal, setQrModal] = useState<{ url: string; topico: string } | null>(null);
   const [generatingQrFor, setGeneratingQrFor] = useState<string | null>(null);
   const [deletingTurmaId, setDeletingTurmaId] = useState<string | null>(null);
+  const [editingTurmaId, setEditingTurmaId] = useState<string | null>(null);
+  const [colarGradeText, setColarGradeText] = useState("");
+  const [colarGradeErro, setColarGradeErro] = useState("");
   const [onlineModules, setOnlineModules] = useState<{ id: string; title: string }[]>([
     { id: "", title: "Nenhum — não vincular a um módulo" },
   ]);
@@ -977,7 +980,71 @@ function Turmas() {
     setEncontrosForm((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  async function handleCriarTurma() {
+  function resetForm() {
+    setNomeTurma("");
+    setVagasTurma(10);
+    setEncontrosForm([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
+    setColarGradeText("");
+    setColarGradeErro("");
+    setEditingTurmaId(null);
+    setShowForm(false);
+  }
+
+  function openEditTurma(turma: any) {
+    setEditingTurmaId(turma.id);
+    setNomeTurma(turma.nome);
+    setVagasTurma(turma.vagasTotal);
+    setEncontrosForm(
+      (turma.encontros || []).map((e: any) => ({
+        topico: e.topico || "",
+        data: e.data || "",
+        horario: e.horario || "",
+        local: e.local || "",
+        moduloRelacionado: e.moduloRelacionado || "",
+      }))
+    );
+    setColarGradeText("");
+    setColarGradeErro("");
+    setShowForm(true);
+  }
+
+  // Cola um bloco de texto (uma linha por encontro) e preenche a grade inteira
+  // de uma vez, em vez de digitar campo por campo — cada linha:
+  // DD/MM/AAAA;HH:MM;Local;idDoMódulo;Tópico  (idDoMódulo pode ficar vazio)
+  function handleColarGrade() {
+    setColarGradeErro("");
+    const linhas = colarGradeText.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (linhas.length === 0) {
+      setColarGradeErro("Cole ao menos uma linha.");
+      return;
+    }
+
+    const novosEncontros: typeof encontrosForm = [];
+    for (const linha of linhas) {
+      const partes = linha.split(";").map((p) => p.trim());
+      if (partes.length < 5) {
+        setColarGradeErro(`Linha fora do formato esperado (5 campos separados por ";"): "${linha}"`);
+        return;
+      }
+      const [dataBR, horario, local, moduloRelacionado, ...topicoPartes] = partes;
+      const [dia, mes, ano] = dataBR.split("/");
+      if (!dia || !mes || !ano) {
+        setColarGradeErro(`Data inválida (use DD/MM/AAAA): "${dataBR}"`);
+        return;
+      }
+      novosEncontros.push({
+        data: `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`,
+        horario,
+        local,
+        moduloRelacionado,
+        topico: topicoPartes.join(";"),
+      });
+    }
+
+    setEncontrosForm(novosEncontros);
+  }
+
+  async function handleSalvarTurma() {
     if (!nomeTurma || !vagasTurma || encontrosForm.some((e) => !e.topico || !e.data || !e.horario || !e.local)) {
       alert("Preencha o nome, as vagas e todos os campos de cada encontro.");
       return;
@@ -985,19 +1052,22 @@ function Turmas() {
 
     setCreating(true);
     try {
-      const res = await authedFetch("createTurma", {
+      const path = editingTurmaId ? "updateTurma" : "createTurma";
+      const body = editingTurmaId
+        ? { turmaId: editingTurmaId, nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm }
+        : { nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm };
+
+      const res = await authedFetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
-      setNomeTurma("");
-      setVagasTurma(10);
-      setEncontrosForm([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
-      setShowForm(false);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      resetForm();
       loadTurmas();
-    } catch {
-      alert("Não foi possível criar a turma.");
+    } catch (e: any) {
+      alert(e.message || `Não foi possível ${editingTurmaId ? "salvar as alterações da" : "criar a"} turma.`);
     } finally {
       setCreating(false);
     }
@@ -1086,17 +1156,36 @@ function Turmas() {
     <div>
       <PageHeader eyebrow="PRESENCIAL" title="Turmas Presenciais" subtitle="Turmas com grade completa de encontros — cada um com seu próprio assunto e data." />
 
-      <button style={styles.btnPrimary} onClick={() => setShowForm(!showForm)}>
+      <button style={styles.btnPrimary} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
         {showForm ? "Cancelar" : "+ Criar nova turma"}
       </button>
 
       {showForm && (
         <div style={{ ...styles.bolsaCard, marginTop: "1rem" }}>
+          <div style={{ ...styles.eyebrow, marginBottom: "0.8rem" }}>
+            {editingTurmaId ? "EDITANDO TURMA" : "NOVA TURMA"}
+          </div>
+
           <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" }}>Nome da turma</label>
           <input value={nomeTurma} onChange={(e) => setNomeTurma(e.target.value)} placeholder="Ex: Turma Agosto/2026" style={inputStyle} />
 
           <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, margin: "0.9rem 0 0.35rem" }}>Número de vagas</label>
           <input type="number" value={vagasTurma} onChange={(e) => setVagasTurma(parseInt(e.target.value) || 0)} style={inputStyle} />
+
+          <div style={{ marginTop: "1.4rem", padding: "1rem", border: "1px dashed rgba(197,138,74,.3)", borderRadius: 4 }}>
+            <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.4rem" }}>Colar grade pronta (opcional)</div>
+            <p style={{ fontSize: "0.72rem", color: "#9d9384", marginBottom: "0.6rem" }}>
+              Uma linha por encontro, campos separados por ";": <code style={{ color: "#c9c2b4" }}>DD/MM/AAAA;HH:MM;Local;idDoMódulo;Tópico</code>. Substitui a grade abaixo inteira.
+            </p>
+            <textarea
+              value={colarGradeText}
+              onChange={(e) => setColarGradeText(e.target.value)}
+              placeholder={"31/08/2026;09:00;Barbearia Novo Jeito;m1;História da Barbearia + Ética Profissional\n02/09/2026;09:00;Barbearia Novo Jeito;m1;Biossegurança + Ferramentas"}
+              style={{ ...inputStyle, width: "100%", minHeight: 90, fontFamily: "'Space Mono',monospace", fontSize: "0.72rem" }}
+            />
+            {colarGradeErro && <p style={{ fontSize: "0.75rem", color: "#e8746a", marginTop: "0.5rem" }}>{colarGradeErro}</p>}
+            <button onClick={handleColarGrade} style={{ ...styles.linkBtn, marginTop: "0.6rem" }}>Preencher grade com esse texto</button>
+          </div>
 
           <div style={{ marginTop: "1.2rem", fontSize: "0.75rem", color: GOLD }}>Grade de encontros</div>
           {encontrosForm.map((enc, idx) => (
@@ -1122,8 +1211,8 @@ function Turmas() {
           <button onClick={addEncontroRow} style={{ ...styles.linkBtn, marginTop: "0.8rem" }}>+ Adicionar outro encontro</button>
 
           <div style={{ marginTop: "1.4rem" }}>
-            <button style={styles.btnPrimary} onClick={handleCriarTurma} disabled={creating}>
-              {creating ? "Criando..." : "Salvar turma"}
+            <button style={styles.btnPrimary} onClick={handleSalvarTurma} disabled={creating}>
+              {creating ? "Salvando..." : editingTurmaId ? "Salvar alterações" : "Salvar turma"}
             </button>
           </div>
         </div>
@@ -1137,7 +1226,7 @@ function Turmas() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th><Th></Th><Th></Th>
+                  <Th>Turma</Th><Th>Encontros</Th><Th>Vagas</Th><Th></Th><Th></Th><Th></Th><Th></Th>
                 </tr>
               </thead>
               <tbody>
@@ -1148,6 +1237,7 @@ function Turmas() {
                     <Td mono>{t.vagasOcupadas}/{t.vagasTotal}</Td>
                     <Td><button style={styles.linkBtn} onClick={() => verPresenca(t)}>Ver presença →</button></Td>
                     <Td><button style={styles.linkBtn} onClick={() => setAssigningTurmaId(assigningTurmaId === t.id ? null : t.id)}>+ Adicionar aluno</button></Td>
+                    <Td><button style={styles.linkBtn} onClick={() => openEditTurma(t)}>✎ Editar</button></Td>
                     <Td>
                       <button
                         style={{ ...styles.linkBtn, color: "#e8746a" }}

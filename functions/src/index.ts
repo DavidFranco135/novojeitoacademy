@@ -10,6 +10,7 @@ export { createEnrollment, signContract, createPaymentPreference, mercadopagoWeb
 export { generateCertificate, verifyCertificate } from "./certificate";
 export {
   createTurma,
+  updateTurma,
   listTurmas,
   joinTurma,
   getLessonCheckinLink,

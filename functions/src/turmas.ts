@@ -94,6 +94,60 @@ export const createTurma = onRequest({ cors: true }, async (req, res) => {
 });
 
 // ============================================================
+// 1b) Admin edita uma turma já existente — mesmos campos da criação, mas
+// preserva vagasOcupadas e createdAt (não fazem parte do payload de edição).
+// ============================================================
+export const updateTurma = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { turmaId, nome, vagasTotal, encontros, preco, somentePresencial, descricao } = req.body as {
+      turmaId: string;
+      nome: string;
+      vagasTotal: number;
+      encontros: Encontro[];
+      preco?: number;
+      somentePresencial?: boolean;
+      descricao?: string;
+    };
+    if (!turmaId || !nome || !vagasTotal || !Array.isArray(encontros) || encontros.length === 0) {
+      res.status(400).json({ error: "turmaId, nome, vagasTotal e ao menos 1 encontro são obrigatórios" });
+      return;
+    }
+
+    const turmaRef = db.collection("turmas").doc(turmaId);
+    const turmaSnap = await turmaRef.get();
+    if (!turmaSnap.exists) {
+      res.status(404).json({ error: "Turma não encontrada" });
+      return;
+    }
+
+    const vagasOcupadas = turmaSnap.data()!.vagasOcupadas || 0;
+    if (vagasTotal < vagasOcupadas) {
+      res.status(400).json({ error: `Já tem ${vagasOcupadas} aluno(s) matriculado(s) nessa turma — não dá pra reduzir as vagas abaixo disso.` });
+      return;
+    }
+
+    await turmaRef.update({
+      nome,
+      vagasTotal,
+      encontros: encontros.sort((a, b) => a.data.localeCompare(b.data)),
+      preco: preco || null,
+      somentePresencial: somentePresencial || false,
+      descricao: descricao || "",
+    });
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("updateTurma error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
 // 2) Lista turmas (aluno vê só as com vaga; admin vê todas com ?all=1)
 // ============================================================
 export const listTurmas = onRequest({ cors: true }, async (req, res) => {
