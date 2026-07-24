@@ -525,20 +525,40 @@
     return `${totalMin} MIN`;
   }
 
+  // O 6º módulo (índice 5) é "Atendimento Profissional" — o único que o admin
+  // pode desmarcar em "modulosAplicaveis" pra quem já tem barbearia própria.
+  const MODULO_OPCIONAL_INDEX = 5;
+
   function renderCurriculum(modules) {
     const list = document.getElementById('curriculumList');
     if (!list || !Array.isArray(modules) || modules.length === 0) return;
-    list.innerHTML = modules.map((m, i) => `
+    const modulosHtml = modules.map((m, i) => `
       <div class="mod">
         <div class="mod-num">${String(i + 1).padStart(2, "0")}</div>
         <div>
           <span class="mod-badge presencial">PRESENCIAL</span>
-          ${i === 4 ? '<span class="mod-badge opcional">OPCIONAL</span>' : ''}
+          ${i === MODULO_OPCIONAL_INDEX ? '<span class="mod-badge opcional">OPCIONAL</span>' : ''}
           <h3>${m.title}</h3>
           <p>${m.description || ""}</p>
         </div>
         <div class="mod-meta">${m.lessons.length} AULAS · ${sumDurations(m.lessons)}</div>
       </div>`).join('');
+
+    // Módulo 7 — Laboratório Novo Jeito: não é um bloco de aulas com carga
+    // horária fixa (é a fase prática de atendimento supervisionado de modelos),
+    // por isso é um card fixo aqui no site, à parte da grade vinda da API.
+    const laboratorioHtml = `
+      <div class="mod">
+        <div class="mod-num">${String(modules.length + 1).padStart(2, "0")}</div>
+        <div>
+          <span class="mod-badge opcional">DIFERENCIAL</span>
+          <h3>Laboratório Novo Jeito</h3>
+          <p>Depois de dominar a técnica, você atende modelos reais supervisionado pelo professor — do boneco de treino ao cliente voluntário, com foto de antes/depois e avaliação em cada atendimento.</p>
+        </div>
+        <div class="mod-meta">ATENDIMENTO SUPERVISIONADO</div>
+      </div>`;
+
+    list.innerHTML = modulosHtml + laboratorioHtml;
   }
 
   // mostra o currículo do cache instantaneamente, depois busca a versão mais atual
