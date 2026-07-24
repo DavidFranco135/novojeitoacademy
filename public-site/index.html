@@ -204,6 +204,15 @@
   .cookie-btn-accept{background:var(--gold);color:var(--dark);border:none;padding:.65rem 1.3rem;border-radius:3px;font-size:.8rem;font-weight:600;cursor:pointer}
   .cookie-btn-reject{background:transparent;color:var(--white);border:1px solid rgba(197,138,74,.3);padding:.65rem 1.1rem;border-radius:3px;font-size:.8rem;cursor:pointer}
 
+  .wa-float{
+    display:none;position:fixed;right:1.2rem;bottom:1.2rem;z-index:80;
+    width:56px;height:56px;border-radius:50%;background:#25D366;
+    align-items:center;justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.4);
+    text-decoration:none;transition:transform .2s;
+  }
+  .wa-float:hover{transform:scale(1.08)}
+
   @media(max-width:860px){
     .hero{padding-top:6.5rem}
     .hero-badge{margin-bottom:1.1rem}
@@ -237,14 +246,6 @@
     .sticky-cta .btn-primary{padding:.75rem 1.2rem;font-size:.82rem;white-space:nowrap;flex-shrink:0}
     .wa-float{bottom:calc(64px + var(--safe-bottom) + 1rem)}
   }
-  .wa-float{
-    display:none;position:fixed;right:1.2rem;bottom:1.2rem;z-index:80;
-    width:56px;height:56px;border-radius:50%;background:#25D366;
-    align-items:center;justify-content:center;
-    box-shadow:0 4px 16px rgba(0,0,0,.4);
-    text-decoration:none;transition:transform .2s;
-  }
-  .wa-float:hover{transform:scale(1.08)}
 </style>
 </head>
 <body>
