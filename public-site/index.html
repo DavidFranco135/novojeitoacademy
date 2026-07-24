@@ -269,7 +269,7 @@
       </div>
       <div class="stat-row">
         <div class="stat"><b id="statAlunos">412</b><span>ALUNOS FORMADOS</span></div>
-        <div class="stat"><b id="statAulas">24</b><span>AULAS PRESENCIAIS</span></div>
+        <div class="stat"><b id="statAulas">25</b><span>AULAS PRESENCIAIS</span></div>
         <div class="stat"><b id="statAvaliacao">4.9</b><span>AVALIAÇÃO MÉDIA</span></div>
       </div>
     </div>
@@ -392,7 +392,7 @@
     <span class="eyebrow">Vagas limitadas</span>
     <div class="price" id="priceDisplay">R$ 697<small>à vista ou 4x de R$ 197,00</small></div>
     <ul class="feat-list">
-      <li>24 encontros presenciais (72h), segundas e quartas</li>
+      <li>25 encontros presenciais (75h), segundas e quartas</li>
       <li>Turma com data e horário definidos</li>
       <li>Materiais de apoio em PDF</li>
       <li>Certificado digital ao concluir</li>
@@ -525,31 +525,36 @@
     return `${totalMin} MIN`;
   }
 
-  // O 6º módulo (índice 5) é "Atendimento Profissional" — o único que o admin
-  // pode desmarcar em "modulosAplicaveis" pra quem já tem barbearia própria.
-  const MODULO_OPCIONAL_INDEX = 5;
+  // "Gestão da Barbearia" (id "m6") é o único módulo que o admin pode
+  // desmarcar em "modulosAplicaveis" pra quem já tem barbearia própria.
+  const MODULO_OPCIONAL_ID = "m6";
+
+  // O Laboratório Novo Jeito não é um bloco de aulas com carga horária fixa
+  // (é a fase prática de atendimento supervisionado de modelos) — por isso é
+  // um card fixo aqui no site, à parte da grade vinda da API. Na numeração
+  // pedagógica ele é o "Módulo 6", entre "Atendimento e Marketing" e "Gestão
+  // da Barbearia" — por isso entra no meio da lista, não no fim.
+  const LABORATORIO_APOS_INDEX = 4; // depois do 5º módulo de aula (índice 4)
 
   function renderCurriculum(modules) {
     const list = document.getElementById('curriculumList');
     if (!list || !Array.isArray(modules) || modules.length === 0) return;
-    const modulosHtml = modules.map((m, i) => `
+
+    const cardModulo = (m) => `
       <div class="mod">
-        <div class="mod-num">${String(i + 1).padStart(2, "0")}</div>
+        <div class="mod-num">##NUM##</div>
         <div>
           <span class="mod-badge presencial">PRESENCIAL</span>
-          ${i === MODULO_OPCIONAL_INDEX ? '<span class="mod-badge opcional">OPCIONAL</span>' : ''}
+          ${m.id === MODULO_OPCIONAL_ID ? '<span class="mod-badge opcional">OPCIONAL</span>' : ''}
           <h3>${m.title}</h3>
           <p>${m.description || ""}</p>
         </div>
         <div class="mod-meta">${m.lessons.length} AULAS · ${sumDurations(m.lessons)}</div>
-      </div>`).join('');
+      </div>`;
 
-    // Módulo 7 — Laboratório Novo Jeito: não é um bloco de aulas com carga
-    // horária fixa (é a fase prática de atendimento supervisionado de modelos),
-    // por isso é um card fixo aqui no site, à parte da grade vinda da API.
-    const laboratorioHtml = `
+    const cardLaboratorio = `
       <div class="mod">
-        <div class="mod-num">${String(modules.length + 1).padStart(2, "0")}</div>
+        <div class="mod-num">##NUM##</div>
         <div>
           <span class="mod-badge opcional">DIFERENCIAL</span>
           <h3>Laboratório Novo Jeito</h3>
@@ -558,7 +563,10 @@
         <div class="mod-meta">ATENDIMENTO SUPERVISIONADO</div>
       </div>`;
 
-    list.innerHTML = modulosHtml + laboratorioHtml;
+    const cards = modules.map(cardModulo);
+    cards.splice(Math.min(LABORATORIO_APOS_INDEX + 1, cards.length), 0, cardLaboratorio);
+
+    list.innerHTML = cards.map((html, i) => html.replace("##NUM##", String(i + 1).padStart(2, "0"))).join('');
   }
 
   // mostra o currículo do cache instantaneamente, depois busca a versão mais atual

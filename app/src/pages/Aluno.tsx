@@ -408,48 +408,72 @@ export default function StudentDashboard() {
             <div style={styles.eyebrow}>SEQUÊNCIA COMPLETA</div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", marginBottom: "1.4rem" }}>Meu Cronograma</h2>
 
-            <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>AULAS ONLINE — assista quando quiser</div>
-            <div style={{ marginBottom: "1.6rem" }}>
-              {allLessons.map((lesson, i) => {
-                const mod = modules.find((m) => m.lessons.some((l) => l.id === lesson.id));
-                return (
-                  <div key={lesson.id} style={styles.cronoRow}>
-                    <div>
-                      <span style={styles.cronoBadgeOnline}>ONLINE</span>
-                      <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{lesson.title}</div>
-                      <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>{mod?.title} · {lesson.duration}</div>
-                    </div>
-                    <span style={{ color: lesson.completed ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{lesson.completed ? "✓" : "○"}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <p style={{ fontSize: "0.78rem", color: "#9d9384", marginBottom: "1.2rem" }}>Cada módulo junto com suas aulas e, quando você já tiver turma presencial marcada, os encontros e a presença de cada um.</p>
 
-            <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>ENCONTROS PRESENCIAIS — data e horário marcados</div>
             {loadingTurma && <p style={styles.p}>Carregando...</p>}
             {!loadingTurma && !minhaTurma && (
-              <p style={styles.p}>
-                Você ainda não se matriculou em nenhuma turma presencial.{" "}
+              <p style={{ ...styles.p, marginBottom: "1.4rem" }}>
+                Você ainda não se matriculou em nenhuma turma presencial — a presença de cada encontro vai aparecer aqui assim que escolher a sua.{" "}
                 <a href="/aluno/presencial" style={{ color: GOLD }}>Escolher turma →</a>
               </p>
             )}
-            {!loadingTurma && minhaTurma && (
-              <div>
-                {minhaTurma.encontros.map((e, i) => {
-                  const confirmado = minhasPresencas[e.data];
-                  return (
-                    <div key={i} style={styles.cronoRow}>
+
+            {modules.map((mod) => {
+              const encontrosDoModulo = minhaTurma ? minhaTurma.encontros.filter((e) => e.moduloRelacionado === mod.id) : [];
+              return (
+                <div key={mod.id} style={{ marginBottom: "1.6rem" }}>
+                  <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>{mod.title.toUpperCase()}</div>
+
+                  {mod.lessons.map((lesson) => (
+                    <div key={lesson.id} style={styles.cronoRow}>
                       <div>
-                        <span style={styles.cronoBadgePresencial}>PRESENCIAL</span>
-                        <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{e.topico}</div>
-                        <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>
-                          {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} · {e.horario} · {e.local}
-                        </div>
+                        <span style={styles.cronoBadgeOnline}>AULA</span>
+                        <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{lesson.title}</div>
+                        <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>{lesson.duration}</div>
                       </div>
-                      <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{confirmado ? "✓" : "○"}</span>
+                      <span style={{ color: lesson.completed ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{lesson.completed ? "✓" : "○"}</span>
                     </div>
-                  );
-                })}
+                  ))}
+
+                  {encontrosDoModulo.map((e, i) => {
+                    const confirmado = minhasPresencas[e.data];
+                    return (
+                      <div key={i} style={styles.cronoRow}>
+                        <div>
+                          <span style={styles.cronoBadgePresencial}>PRESENÇA</span>
+                          <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{e.topico}</div>
+                          <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>
+                            {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} · {e.horario} · {e.local}
+                          </div>
+                        </div>
+                        <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{confirmado ? "✓" : "○"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+            {minhaTurma && minhaTurma.encontros.some((e) => !e.moduloRelacionado || !modules.some((m) => m.id === e.moduloRelacionado)) && (
+              <div style={{ marginBottom: "1.6rem" }}>
+                <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>OUTROS ENCONTROS</div>
+                {minhaTurma.encontros
+                  .filter((e) => !e.moduloRelacionado || !modules.some((m) => m.id === e.moduloRelacionado))
+                  .map((e, i) => {
+                    const confirmado = minhasPresencas[e.data];
+                    return (
+                      <div key={i} style={styles.cronoRow}>
+                        <div>
+                          <span style={styles.cronoBadgePresencial}>PRESENÇA</span>
+                          <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{e.topico}</div>
+                          <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>
+                            {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} · {e.horario} · {e.local}
+                          </div>
+                        </div>
+                        <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{confirmado ? "✓" : "○"}</span>
+                      </div>
+                    );
+                  })}
               </div>
             )}
 
