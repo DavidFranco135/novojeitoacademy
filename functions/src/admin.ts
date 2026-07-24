@@ -60,6 +60,7 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           pagamento: data.status === "bloqueado" ? "Bloqueado" : pendente ? "Pendente" : "Pago",
           bloqueado: data.status === "bloqueado",
           pendente,
+          aguardandoPagamento: data.status === "contrato_assinado",
           bloqueioMotivo: data.bloqueioMotivo || null,
           progresso: percent,
           matricula: dataMatricula ? dataMatricula.toDate().toLocaleDateString("pt-BR") : "-",
@@ -328,6 +329,73 @@ export const registerCashPayment = onRequest({ cors: true }, async (req, res) =>
     res.status(200).json({ matriculaLink });
   } catch (err) {
     console.error("registerCashPayment error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Confirma manualmente o pagamento de um aluno que JÁ assinou o contrato pelo
+// fluxo normal (modo "pago") e estava esperando o Mercado Pago — usado quando
+// ele decide pagar em dinheiro depois de já ter chegado na tela de pagamento.
+// Faz o mesmo que o webhook do Mercado Pago faz num pagamento aprovado: libera
+// o acesso, cria o login e gera o link mágico — só que sem passar pelo MP.
+// ============================================================
+export const confirmPendingPayment = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const { enrollmentId, valorPago } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+    const enrollment = enrollmentSnap.data()!;
+
+    if (enrollment.status === "acesso_liberado") {
+      res.status(400).json({ error: "Esse aluno já está com o acesso liberado." });
+      return;
+    }
+    if (enrollment.status !== "contrato_assinado") {
+      res.status(400).json({ error: "Esse aluno ainda não assinou o contrato — envie o link de assinatura antes." });
+      return;
+    }
+
+    await db.collection("enrollments").doc(enrollmentId).update({
+      status: "acesso_liberado",
+      paymentMethod: "dinheiro",
+      valorPago: Number(valorPago) || COURSE_PRICE,
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    try {
+      await admin.auth().createUser({ email: enrollment.email, displayName: enrollment.nome });
+    } catch (e: any) {
+      if (e.code !== "auth/email-already-exists") throw e;
+    }
+
+    let loginLink: string | null = null;
+    try {
+      const rawLink = await admin.auth().generateSignInWithEmailLink(enrollment.email, {
+        url: "https://portal.novojeitobarbearia.com.br/login",
+        handleCodeInApp: true,
+      });
+      loginLink = toBrandedLoginLink(rawLink);
+    } catch (e) {
+      console.error("confirmPendingPayment: falha ao gerar link de login", e);
+    }
+
+    res.status(200).json({ ok: true, loginLink });
+  } catch (err) {
+    console.error("confirmPendingPayment error:", err);
     res.status(500).json({ error: "Erro interno" });
   }
 });

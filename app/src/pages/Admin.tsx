@@ -421,6 +421,42 @@ function Alunos() {
     window.prompt("Link para o aluno assinar o contrato (já copiado — cole no WhatsApp):", link);
   }
 
+  async function handleConfirmarPagamento(aluno: any) {
+    const valorStr = window.prompt(`Confirmar pagamento em dinheiro de ${aluno.nome}. Valor recebido (R$):`, "697");
+    if (valorStr === null) return; // cancelou
+    const valorPago = parseFloat(valorStr.replace(",", ".")) || 0;
+    if (!valorPago) {
+      alert("Informe um valor válido.");
+      return;
+    }
+    if (!window.confirm(`Confirma que recebeu R$ ${valorPago.toFixed(2)} de ${aluno.nome} e quer liberar o acesso dele agora?`)) return;
+
+    setActingOn(aluno.id);
+    try {
+      const res = await authedFetch("confirmPendingPayment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: aluno.id, valorPago }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+
+      if (data.loginLink) {
+        try {
+          await navigator.clipboard.writeText(data.loginLink);
+        } catch {
+          // segue mesmo se falhar — o prompt abaixo garante a cópia manual
+        }
+        window.prompt("Pagamento confirmado! Acesso liberado. Envie esse link de login pro aluno (já copiado — cole no WhatsApp):", data.loginLink);
+      }
+      loadAlunos();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível confirmar o pagamento.");
+    } finally {
+      setActingOn(null);
+    }
+  }
+
   async function handleEnviarWhatsApp(aluno: any) {
     setActingOn(aluno.id);
     try {
@@ -589,10 +625,22 @@ function Alunos() {
             <div style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
               {a.pendente ? (
                 <>
-                  <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
-                  <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
-                    Copiar link para assinar contrato
-                  </button>
+                  {a.aguardandoPagamento ? (
+                    <>
+                      <span style={{ fontSize: "0.76rem", color: "#e8a04a" }}>⏳ Contrato assinado, aguardando pagamento</span>
+                      {a.contractUrl && <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>}
+                      <button style={{ ...styles.linkBtn, color: "#78c88c" }} disabled={actingOn === a.id} onClick={() => handleConfirmarPagamento(a)}>
+                        {actingOn === a.id ? "Confirmando..." : "💵 Marcar como pago (dinheiro)"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
+                      <button style={styles.linkBtn} onClick={() => handleCopySignLink(a)}>
+                        Copiar link para assinar contrato
+                      </button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
