@@ -63,8 +63,25 @@ function PaginationControls({ page, totalPages, onChange }: { page: number; tota
   );
 }
 
+const NAV_ITEMS: [Tab, string, string][] = [
+  ["overview", "📊", "Visão Geral"],
+  ["leads", "🎯", "Leads"],
+  ["alunos", "🎓", "Alunos"],
+  ["formados", "🏆", "Formados"],
+  ["turmas", "📍", "Turmas Presenciais"],
+  ["laboratorio", "🧪", "Laboratório"],
+  ["bolsas", "🎓", "Bolsas"],
+  ["conteudo", "🖼️", "Conteúdo do Site"],
+  ["curriculo", "📚", "Currículo"],
+  ["assinatura", "✍️", "Assinatura"],
+  ["avisos", "📣", "Avisos"],
+  ["financeiro", "💰", "Financeiro"],
+];
+
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
+  const [navOpen, setNavOpen] = useState(false);
+  const tabAtual = NAV_ITEMS.find((n) => n[0] === tab);
 
   return (
     <div style={styles.page} className="admin-page">
@@ -81,37 +98,25 @@ export default function AdminDashboard() {
             border-bottom: 1px solid rgba(197,138,74,.18) !important;
             padding: 1.2rem !important;
           }
+          .admin-mobile-toggle {
+            display: flex !important;
+          }
           .admin-nav {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 0.4rem !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            -webkit-overflow-scrolling: touch !important;
-            scrollbar-width: none !important;
-            padding-bottom: 0.2rem !important;
-            margin: 0 -1.2rem !important;
-            padding-left: 1.2rem !important;
-            padding-right: 1.2rem !important;
+            flex-direction: column !important;
+            gap: 0.15rem !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            transition: max-height .3s ease !important;
           }
-          .admin-nav::-webkit-scrollbar { display: none !important; }
+          .admin-nav.admin-nav-open {
+            max-height: 700px !important;
+            margin-top: 0.6rem !important;
+          }
           .admin-nav button {
-            white-space: nowrap !important;
-            flex: 0 0 auto !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 0.4rem !important;
-            padding: 0.55rem 0.8rem !important;
-            font-size: 0.78rem !important;
-            line-height: 1 !important;
-          }
-          .admin-nav button span {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            font-size: 0.95em !important;
-            line-height: 1 !important;
+            width: 100% !important;
+            justify-content: flex-start !important;
+            padding: 0.65rem 0.8rem !important;
+            font-size: 0.85rem !important;
           }
           .admin-main {
             padding: 1.4rem 1.2rem !important;
@@ -131,24 +136,20 @@ export default function AdminDashboard() {
         <div style={styles.logo}>Novo Jeito <em style={{ color: GOLD, fontStyle: "italic" }}>Academy</em></div>
         <div style={styles.logoSub}>PAINEL ADMINISTRATIVO</div>
 
-        <nav style={styles.nav} className="admin-nav">
-          {([
-            ["overview", "📊", "Visão Geral"],
-            ["leads", "🎯", "Leads"],
-            ["alunos", "🎓", "Alunos"],
-            ["formados", "🏆", "Formados"],
-            ["turmas", "📍", "Turmas Presenciais"],
-            ["laboratorio", "🧪", "Laboratório"],
-            ["bolsas", "🎓", "Bolsas"],
-            ["conteudo", "🖼️", "Conteúdo do Site"],
-            ["curriculo", "📚", "Currículo"],
-            ["assinatura", "✍️", "Assinatura"],
-            ["avisos", "📣", "Avisos"],
-            ["financeiro", "💰", "Financeiro"],
-          ] as [Tab, string, string][]).map(([id, icon, label]) => (
+        <button
+          className="admin-mobile-toggle"
+          onClick={() => setNavOpen((v) => !v)}
+          style={{ display: "none", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "0.7rem 0.9rem", marginTop: "0.8rem", background: "rgba(197,138,74,.06)", border: "1px solid rgba(197,138,74,.25)", borderRadius: 4, color: "#F5F0E8", fontSize: "0.82rem", cursor: "pointer" }}
+        >
+          <span>{tabAtual?.[1]} {tabAtual?.[2]}</span>
+          <span style={{ color: GOLD }}>{navOpen ? "▲" : "▼"}</span>
+        </button>
+
+        <nav style={styles.nav} className={`admin-nav${navOpen ? " admin-nav-open" : ""}`}>
+          {NAV_ITEMS.map(([id, icon, label]) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => { setTab(id); setNavOpen(false); }}
               style={{ ...styles.navItem, background: tab === id ? "rgba(197,138,74,.1)" : "transparent", borderLeft: tab === id ? `2px solid ${GOLD}` : "2px solid transparent", color: tab === id ? "#F5F0E8" : "#9d9384" }}
             >
               <span>{icon}</span>{label}

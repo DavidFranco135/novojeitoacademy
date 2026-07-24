@@ -57,7 +57,7 @@ export default function StudentDashboard() {
   const [showMeusDados, setShowMeusDados] = useState(false);
   const [showCronograma, setShowCronograma] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
-  const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string; moduloRelacionado?: string }[] } | null>(null);
+  const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string; moduloRelacionado?: string; aulaRelacionada?: string }[] } | null>(null);
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
   const [loadingTurma, setLoadingTurma] = useState(false);
   const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string }[]>([]);
@@ -65,7 +65,20 @@ export default function StudentDashboard() {
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
-  const encontrosDoModuloAtivo = minhaTurma && activeModule ? minhaTurma.encontros.filter((e) => e.moduloRelacionado === activeModule.id) : [];
+
+  // O encontro presencial correspondente a ESSA aula específica — não a lista
+  // inteira de encontros do módulo (isso já aparece na sidebar e no Cronograma,
+  // repetir tudo de novo aqui só duplicava a mesma informação).
+  const encontroDaAulaAtiva = (() => {
+    if (!minhaTurma || !activeModule || !activeLesson) return null;
+    const porAula = minhaTurma.encontros.find((e) => e.aulaRelacionada === activeLesson.id);
+    if (porAula) return porAula;
+    const encontrosDoModulo = minhaTurma.encontros
+      .filter((e) => e.moduloRelacionado === activeModule.id)
+      .sort((a, b) => a.data.localeCompare(b.data));
+    const posicao = activeModule.lessons.findIndex((l) => l.id === activeLesson.id);
+    return posicao >= 0 && posicao < encontrosDoModulo.length ? encontrosDoModulo[posicao] : null;
+  })();
 
   const totalLessons = allLessons.length;
   const completedCount = allLessons.filter((l) => l.completed).length;
@@ -497,52 +510,33 @@ export default function StudentDashboard() {
         </div>
 
         <nav style={styles.moduleNav}>
-          {modules.map((mod, mi) => {
-            const encontroVinculado = minhaTurma?.encontros.find((e: any) => e.moduloRelacionado === mod.id);
-            const presencaConfirmada = encontroVinculado && minhasPresencas[encontroVinculado.data];
-            return (
-              <div key={mod.id} style={{ marginBottom: "1.4rem" }}>
-                <div style={styles.moduleTitle}>
-                  <span style={styles.moduleNum}>{String(mi + 1).padStart(2, "0")}</span>
-                  {mod.title}
-                </div>
-                {mod.lessons.map((lesson) => {
-                  const isActive = lesson.id === activeLessonId;
-                  return (
-                    <button
-                      key={lesson.id}
-                      onClick={() => setActiveLessonId(lesson.id)}
-                      style={{
-                        ...styles.lessonItem,
-                        background: isActive ? "rgba(197,138,74,.1)" : "transparent",
-                        borderLeft: isActive ? `2px solid ${GOLD}` : "2px solid transparent",
-                      }}
-                    >
-                      <span style={{ ...styles.lessonCheck, background: lesson.completed ? GOLD : "transparent", borderColor: lesson.completed ? GOLD : "rgba(197,138,74,.35)" }}>
-                        {lesson.completed ? "✓" : ""}
-                      </span>
-                      <span style={{ flex: 1, textAlign: "left", color: isActive ? "#F5F0E8" : "#9d9384", fontSize: "0.82rem" }}>{lesson.title}</span>
-                    </button>
-                  );
-                })}
-
-                {encontroVinculado && (
-                  <a href="/aluno/presencial" style={styles.presencialInline}>
-                    <span style={{ ...styles.lessonCheck, background: presencaConfirmada ? GOLD : "transparent", borderColor: presencaConfirmada ? GOLD : "rgba(197,138,74,.35)" }}>
-                      {presencaConfirmada ? "✓" : ""}
-                    </span>
-                    <span style={{ flex: 1, textAlign: "left" }}>
-                      <span style={styles.cronoBadgePresencial}>PRÁTICA</span>
-                      <div style={{ fontSize: "0.8rem", marginTop: "0.2rem" }}>{encontroVinculado.topico}</div>
-                      <div style={{ fontSize: "0.68rem", color: "#5a5348" }}>
-                        {new Date(encontroVinculado.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {encontroVinculado.horario}
-                      </div>
-                    </span>
-                  </a>
-                )}
+          {modules.map((mod, mi) => (
+            <div key={mod.id} style={{ marginBottom: "1.4rem" }}>
+              <div style={styles.moduleTitle}>
+                <span style={styles.moduleNum}>{String(mi + 1).padStart(2, "0")}</span>
+                {mod.title}
               </div>
-            );
-          })}
+              {mod.lessons.map((lesson) => {
+                const isActive = lesson.id === activeLessonId;
+                return (
+                  <button
+                    key={lesson.id}
+                    onClick={() => setActiveLessonId(lesson.id)}
+                    style={{
+                      ...styles.lessonItem,
+                      background: isActive ? "rgba(197,138,74,.1)" : "transparent",
+                      borderLeft: isActive ? `2px solid ${GOLD}` : "2px solid transparent",
+                    }}
+                  >
+                    <span style={{ ...styles.lessonCheck, background: lesson.completed ? GOLD : "transparent", borderColor: lesson.completed ? GOLD : "rgba(197,138,74,.35)" }}>
+                      {lesson.completed ? "✓" : ""}
+                    </span>
+                    <span style={{ flex: 1, textAlign: "left", color: isActive ? "#F5F0E8" : "#9d9384", fontSize: "0.82rem" }}>{lesson.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {isComplete && certificateUrl ? (
@@ -569,13 +563,8 @@ export default function StudentDashboard() {
         </div>
 
         <div style={styles.presencialCard}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-            <span style={styles.eyebrow}>AULAS PRESENCIAIS · {activeModule.title.toUpperCase()}</span>
-            {encontrosDoModuloAtivo.length > 0 && (
-              <span style={{ fontSize: "0.72rem", color: "#5a5348" }}>
-                {encontrosDoModuloAtivo.filter((e) => minhasPresencas[e.data]).length} de {encontrosDoModuloAtivo.length} confirmadas
-              </span>
-            )}
+          <div style={{ marginBottom: "0.9rem" }}>
+            <span style={styles.eyebrow}>AULA PRESENCIAL</span>
           </div>
 
           {!minhaTurma && (
@@ -585,26 +574,26 @@ export default function StudentDashboard() {
             </p>
           )}
 
-          {minhaTurma && encontrosDoModuloAtivo.length === 0 && (
-            <p style={{ fontSize: "0.82rem", color: "#9d9384" }}>As datas presenciais deste módulo ainda não foram cadastradas pela escola.</p>
+          {minhaTurma && !encontroDaAulaAtiva && (
+            <p style={{ fontSize: "0.82rem", color: "#9d9384" }}>A data presencial dessa aula ainda não foi cadastrada pela escola.</p>
           )}
 
-          {encontrosDoModuloAtivo.map((e, i) => {
-            const confirmado = minhasPresencas[e.data];
+          {encontroDaAulaAtiva && (() => {
+            const confirmado = minhasPresencas[encontroDaAulaAtiva.data];
             return (
-              <div key={i} style={styles.cronoRow}>
+              <div style={styles.cronoRow}>
                 <div>
-                  <div style={{ fontSize: "0.88rem" }}>{e.topico}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#9d9384", marginTop: "0.25rem" }}>
-                    {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} · {e.horario} · {e.local}
+                  <div style={{ fontSize: "0.9rem" }}>
+                    {new Date(encontroDaAulaAtiva.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} · {encontroDaAulaAtiva.horario}
                   </div>
+                  <div style={{ fontSize: "0.78rem", color: "#9d9384", marginTop: "0.25rem" }}>{encontroDaAulaAtiva.local}</div>
                 </div>
                 <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "0.78rem", whiteSpace: "nowrap" }}>
                   {confirmado ? "✓ Presença confirmada" : "○ Pendente"}
                 </span>
               </div>
             );
-          })}
+          })()}
         </div>
 
         <div style={styles.lessonHeader}>
@@ -676,7 +665,6 @@ const styles: Record<string, React.CSSProperties> = {
   moduleNum: { fontFamily: "'Space Mono',monospace", color: GOLD },
 
   lessonItem: { display: "flex", alignItems: "center", gap: "0.7rem", width: "100%", padding: "0.55rem 0.6rem", border: "none", borderRadius: 3, cursor: "pointer", marginBottom: "0.15rem" },
-  presencialInline: { display: "flex", alignItems: "flex-start", gap: "0.7rem", width: "100%", padding: "0.6rem", marginTop: "0.3rem", borderRadius: 3, textDecoration: "none", color: "#F5F0E8", background: "rgba(197,138,74,.06)", border: "1px dashed rgba(197,138,74,.3)" },
   lessonCheck: { width: 16, height: 16, borderRadius: "50%", border: "1px solid", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#050505" },
 
   certificateBtn: { marginTop: "1.4rem", border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, padding: "0.8rem", borderRadius: 4, fontSize: "0.8rem", fontWeight: 600 },
