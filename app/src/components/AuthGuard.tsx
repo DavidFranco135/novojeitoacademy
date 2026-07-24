@@ -67,7 +67,7 @@ export default function AuthGuard({ children, requireAdmin = false }: { children
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
+  page: { minHeight: "100dvh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" },
   card: { border: "1px solid rgba(197,138,74,.22)", borderRadius: 6, padding: "2.4rem", maxWidth: 420, textAlign: "center" },
   h2: { fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", marginBottom: "0.6rem", color: GOLD },
   p: { fontSize: "0.88rem", color: "#9d9384" },

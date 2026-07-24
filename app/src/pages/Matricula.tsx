@@ -540,7 +540,7 @@ export default function EnrollmentFlow() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", padding: "4rem 1.5rem" },
+  page: { minHeight: "100dvh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", padding: "4rem 1.5rem" },
   wrap: { maxWidth: 560, margin: "0 auto" },
   logo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.3rem", textAlign: "center", marginBottom: "2.4rem" },
   progressRow: { display: "flex", justifyContent: "space-between", marginBottom: "2rem" },

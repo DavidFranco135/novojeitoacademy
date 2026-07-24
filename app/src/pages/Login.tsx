@@ -75,7 +75,7 @@ export default function Login() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { position: "relative", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", overflow: "hidden" },
+  page: { position: "relative", minHeight: "100dvh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", overflow: "hidden" },
   card: { position: "relative", border: "1px solid rgba(197,138,74,.22)", borderRadius: 6, padding: "2.4rem", maxWidth: 400, width: "100%", background: "linear-gradient(160deg,#0d0d0d,#050505)", zIndex: 1 },
   gridBg: { position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(197,138,74,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.05) 1px,transparent 1px)", backgroundSize: "44px 44px", maskImage: "radial-gradient(ellipse 60% 50% at 50% 40%,black 10%,transparent 75%)", pointerEvents: "none" },
   corner_tl: { position: "absolute", top: 10, left: 10, width: 16, height: 16, borderTop: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },

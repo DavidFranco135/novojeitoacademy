@@ -207,7 +207,7 @@ export default function PresencialBooking({ enrollmentId }: { enrollmentId: stri
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  outerWrap: { minHeight: "100vh", background: "#050505" },
+  outerWrap: { minHeight: "100dvh", background: "#050505" },
   topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
   topbarLink: { background: "none", border: "none", color: "#c9c2b4", fontSize: "0.82rem", cursor: "pointer", textDecoration: "none", fontFamily: "'Inter',sans-serif" },
   pageBody: { display: "flex", justifyContent: "center", padding: "2.4rem 1.5rem" },

@@ -392,7 +392,7 @@
     <span class="eyebrow">Vagas limitadas</span>
     <div class="price" id="priceDisplay">R$ 697<small>à vista ou 4x de R$ 197,00</small></div>
     <ul class="feat-list">
-      <li>24 aulas presenciais, 2x por semana</li>
+      <li>24 encontros presenciais (72h), segundas e quartas</li>
       <li>Turma com data e horário definidos</li>
       <li>Materiais de apoio em PDF</li>
       <li>Certificado digital ao concluir</li>
@@ -560,7 +560,7 @@
     if (!overlay) {
       overlay = document.createElement('div');
       overlay.id = 'maintenanceOverlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#050505;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;overflow:hidden';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#050505;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.5rem;overflow:hidden';
       document.body.appendChild(overlay);
     }
     overlay.innerHTML = `

@@ -13,7 +13,7 @@ const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
 const SITE_BASE = "https://portal.novojeitobarbearia.com.br";
 
-type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura" | "formados";
+type Tab = "overview" | "leads" | "alunos" | "turmas" | "financeiro" | "bolsas" | "conteudo" | "curriculo" | "assinatura" | "formados" | "laboratorio" | "avisos";
 
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await auth.currentUser?.getIdToken();
@@ -111,10 +111,12 @@ export default function AdminDashboard() {
             ["alunos", "🎓", "Alunos"],
             ["formados", "🏆", "Formados"],
             ["turmas", "📍", "Turmas Presenciais"],
+            ["laboratorio", "🧪", "Laboratório"],
             ["bolsas", "🎓", "Bolsas"],
             ["conteudo", "🖼️", "Conteúdo do Site"],
             ["curriculo", "📚", "Currículo"],
             ["assinatura", "✍️", "Assinatura"],
+            ["avisos", "📣", "Avisos"],
             ["financeiro", "💰", "Financeiro"],
           ] as [Tab, string, string][]).map(([id, icon, label]) => (
             <button
@@ -135,10 +137,12 @@ export default function AdminDashboard() {
         {tab === "alunos" && <Alunos />}
         {tab === "formados" && <Formados />}
         {tab === "turmas" && <Turmas />}
+        {tab === "laboratorio" && <Laboratorio />}
         {tab === "bolsas" && <Bolsas />}
         {tab === "conteudo" && <ConteudoSite />}
         {tab === "curriculo" && <Curriculo />}
         {tab === "assinatura" && <AssinaturaContratada />}
+        {tab === "avisos" && <Avisos />}
         {tab === "financeiro" && <Financeiro />}
       </main>
     </div>
@@ -1740,6 +1744,460 @@ function Curriculo() {
   );
 }
 
+// ============================================================
+// Laboratório Novo Jeito — cadastro de modelos, agenda de horários e fila
+// de avaliação do professor (o "Módulo 7" da grade: atendimento supervisionado)
+// ============================================================
+const CATEGORIAS_AVALIACAO: { key: string; label: string }[] = [
+  { key: "tecnica", label: "Técnica" },
+  { key: "degrade", label: "Degradê" },
+  { key: "tesoura", label: "Tesoura" },
+  { key: "barba", label: "Barba" },
+  { key: "atendimento", label: "Atendimento" },
+  { key: "higiene", label: "Higiene" },
+];
+
+function StarRatingInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div style={{ display: "flex", gap: "0.15rem" }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, fontSize: "1.1rem", color: n <= value ? GOLD : "rgba(197,138,74,.25)" }}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Laboratorio() {
+  const [subview, setSubview] = useState<"fila" | "modelos" | "agenda">("fila");
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow="MÓDULO 7"
+        title="Laboratório Novo Jeito"
+        subtitle="Cadastro de modelos, agenda de horários e avaliação dos atendimentos supervisionados."
+      />
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.6rem", flexWrap: "wrap" }}>
+        <button onClick={() => setSubview("fila")} style={{ ...styles.btnGhostGold, ...(subview === "fila" ? { background: "rgba(197,138,74,.12)" } : {}) }}>
+          Fila de avaliação
+        </button>
+        <button onClick={() => setSubview("modelos")} style={{ ...styles.btnGhostGold, ...(subview === "modelos" ? { background: "rgba(197,138,74,.12)" } : {}) }}>
+          Modelos cadastrados
+        </button>
+        <button onClick={() => setSubview("agenda")} style={{ ...styles.btnGhostGold, ...(subview === "agenda" ? { background: "rgba(197,138,74,.12)" } : {}) }}>
+          Agendar atendimento
+        </button>
+      </div>
+
+      {subview === "fila" && <FilaAvaliacao />}
+      {subview === "modelos" && <ModelosCadastrados />}
+      {subview === "agenda" && <AgendarAtendimento />}
+    </div>
+  );
+}
+
+function FilaAvaliacao() {
+  const [atendimentos, setAtendimentos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [avaliando, setAvaliando] = useState<string | null>(null);
+  const [notas, setNotas] = useState<Record<string, number>>({});
+  const [comentario, setComentario] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  function load() {
+    setLoading(true);
+    authedFetch("listAtendimentosAdmin?status=realizado")
+      .then((r) => r.json())
+      .then((data) => setAtendimentos(data.atendimentos || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function abrirAvaliacao(id: string) {
+    setAvaliando(id);
+    setNotas({ tecnica: 5, degrade: 5, tesoura: 5, barba: 5, atendimento: 5, higiene: 5 });
+    setComentario("");
+  }
+
+  async function handleAvaliar(atendimentoId: string) {
+    setSalvando(true);
+    try {
+      const res = await authedFetch("avaliarAtendimento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ atendimentoId, avaliacao: notas, comentarioProfessor: comentario }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      setAvaliando(null);
+      load();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível salvar a avaliação.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (loading) return <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>;
+  if (atendimentos.length === 0) return <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum atendimento aguardando avaliação no momento.</p>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {atendimentos.map((a) => (
+        <div key={a.id} style={styles.bolsaCard}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.6rem" }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>{a.modeloNome}</div>
+              <div style={{ fontSize: "0.78rem", color: "#9d9384" }}>Atendido por {a.alunoNome} · {(a.servicos || []).join(", ")}</div>
+              <div style={{ fontSize: "0.72rem", color: "#5a5348", marginTop: "0.2rem" }}>{a.dataAgendada} às {a.horarioAgendado}</div>
+            </div>
+            {avaliando !== a.id && (
+              <button style={styles.btnPrimary} onClick={() => abrirAvaliacao(a.id)}>Avaliar</button>
+            )}
+          </div>
+
+          {(a.fotoAntes || a.fotoDepois) && (
+            <div style={{ display: "flex", gap: "0.8rem", marginTop: "0.9rem" }}>
+              {a.fotoAntes && (
+                <div>
+                  <div style={{ fontSize: "0.62rem", color: "#9d9384", marginBottom: "0.3rem" }}>ANTES</div>
+                  <img src={a.fotoAntes} alt="Antes" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 4, border: "1px solid rgba(197,138,74,.2)" }} />
+                </div>
+              )}
+              {a.fotoDepois && (
+                <div>
+                  <div style={{ fontSize: "0.62rem", color: "#9d9384", marginBottom: "0.3rem" }}>DEPOIS</div>
+                  <img src={a.fotoDepois} alt="Depois" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 4, border: "1px solid rgba(197,138,74,.2)" }} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {avaliando === a.id && (
+            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(197,138,74,.15)", paddingTop: "1rem" }}>
+              {CATEGORIAS_AVALIACAO.map((c) => (
+                <div key={c.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "0.82rem" }}>{c.label}</span>
+                  <StarRatingInput value={notas[c.key] || 0} onChange={(n) => setNotas((prev) => ({ ...prev, [c.key]: n }))} />
+                </div>
+              ))}
+              <textarea
+                placeholder="Comentário do professor (opcional)"
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                style={{ ...inputStyle, width: "100%", minHeight: 60, marginTop: "0.6rem" }}
+              />
+              <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.8rem" }}>
+                <button style={styles.btnPrimary} disabled={salvando} onClick={() => handleAvaliar(a.id)}>
+                  {salvando ? "Salvando..." : "Confirmar avaliação"}
+                </button>
+                <button style={styles.linkBtn} onClick={() => setAvaliando(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ModelosCadastrados() {
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ nome: "", telefone: "", idade: "", tipoCabelo: "", servico: "", observacoes: "" });
+
+  function load() {
+    authedFetch("listModelos")
+      .then((r) => r.json())
+      .then((data) => setModelos(data.modelos || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleSalvar() {
+    if (!form.nome.trim()) {
+      alert("Nome é obrigatório.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await authedFetch("createModelo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, idade: form.idade ? parseInt(form.idade) : null }),
+      });
+      if (!res.ok) throw new Error();
+      setForm({ nome: "", telefone: "", idade: "", tipoCabelo: "", servico: "", observacoes: "" });
+      setShowForm(false);
+      load();
+    } catch {
+      alert("Não foi possível cadastrar o modelo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <button style={styles.btnPrimary} onClick={() => setShowForm(!showForm)}>{showForm ? "Cancelar" : "+ Cadastrar modelo"}</button>
+
+      {showForm && (
+        <div style={{ ...styles.bolsaCard, marginTop: "1rem", marginBottom: "1.2rem" }}>
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+            <input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} style={{ ...inputStyle, flex: 2, minWidth: 160 }} />
+            <input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+            <input placeholder="Idade" type="number" value={form.idade} onChange={(e) => setForm({ ...form, idade: e.target.value })} style={{ ...inputStyle, width: 90 }} />
+          </div>
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+            <input placeholder="Tipo de cabelo" value={form.tipoCabelo} onChange={(e) => setForm({ ...form, tipoCabelo: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+            <input placeholder="Serviço" value={form.servico} onChange={(e) => setForm({ ...form, servico: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+          </div>
+          <textarea placeholder="Observações" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} style={{ ...inputStyle, width: "100%", minHeight: 50, marginTop: "0.6rem" }} />
+          <button style={{ ...styles.btnPrimary, marginTop: "0.8rem" }} disabled={saving} onClick={handleSalvar}>{saving ? "Salvando..." : "Salvar modelo"}</button>
+        </div>
+      )}
+
+      {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+      {!loading && modelos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum modelo cadastrado ainda.</p>}
+      {!loading && modelos.length > 0 && (
+        <div style={styles.tableCard}>
+          <table style={styles.table}>
+            <thead><tr><Th>Nome</Th><Th>Telefone</Th><Th>Idade</Th><Th>Tipo de cabelo</Th><Th>Serviço</Th></tr></thead>
+            <tbody>
+              {modelos.map((m) => (
+                <tr key={m.id} style={styles.tr}>
+                  <Td>{m.nome}</Td><Td muted>{m.telefone || "-"}</Td><Td muted>{m.idade || "-"}</Td><Td muted>{m.tipoCabelo || "-"}</Td><Td muted>{m.servico || "-"}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgendarAtendimento() {
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [modeloId, setModeloId] = useState("");
+  const [nomeModeloNovo, setNomeModeloNovo] = useState("");
+  const [enrollmentId, setEnrollmentId] = useState("");
+  const [dataAgendada, setDataAgendada] = useState("");
+  const [horarioAgendado, setHorarioAgendado] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [agendaDia, setAgendaDia] = useState<any[]>([]);
+
+  useEffect(() => {
+    authedFetch("listModelos").then((r) => r.json()).then((d) => setModelos(d.modelos || [])).catch(() => {});
+    authedFetch("listStudents").then((r) => r.json()).then((d) => setStudents(d.students || [])).catch(() => {});
+  }, []);
+
+  function loadAgendaDoDia(data: string) {
+    if (!data) return;
+    fetch(`${FUNCTIONS_BASE}/getAgendaDoDia?data=${data}`)
+      .then((r) => r.json())
+      .then((d) => setAgendaDia(d.agenda || []))
+      .catch(() => {});
+  }
+
+  async function handleAgendar() {
+    if (!enrollmentId || !dataAgendada || !horarioAgendado || (!modeloId && !nomeModeloNovo.trim())) {
+      alert("Preencha aluno, modelo, data e horário.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await authedFetch("agendarAtendimento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modeloId: modeloId || undefined,
+          modeloNovo: modeloId ? undefined : { nome: nomeModeloNovo },
+          enrollmentId,
+          dataAgendada,
+          horarioAgendado,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      setNomeModeloNovo("");
+      setHorarioAgendado("");
+      loadAgendaDoDia(dataAgendada);
+      alert("Atendimento agendado!");
+    } catch (e: any) {
+      alert(e.message || "Não foi possível agendar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div style={styles.bolsaCard}>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+          <select value={modeloId} onChange={(e) => setModeloId(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }}>
+            <option value="">— Modelo novo (digite ao lado) —</option>
+            {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+          </select>
+          {!modeloId && (
+            <input placeholder="Nome do novo modelo" value={nomeModeloNovo} onChange={(e) => setNomeModeloNovo(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+          <select value={enrollmentId} onChange={(e) => setEnrollmentId(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }}>
+            <option value="">Selecione o aluno responsável</option>
+            {students.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+          <input type="date" value={dataAgendada} onChange={(e) => { setDataAgendada(e.target.value); loadAgendaDoDia(e.target.value); }} style={{ ...inputStyle, width: 160 }} />
+          <input type="time" value={horarioAgendado} onChange={(e) => setHorarioAgendado(e.target.value)} style={{ ...inputStyle, width: 120 }} />
+        </div>
+        <button style={{ ...styles.btnPrimary, marginTop: "0.8rem" }} disabled={saving} onClick={handleAgendar}>{saving ? "Agendando..." : "Agendar atendimento"}</button>
+      </div>
+
+      {dataAgendada && (
+        <div style={{ marginTop: "1.4rem" }}>
+          <div style={{ ...styles.eyebrow, marginBottom: "0.6rem" }}>AGENDA DO DIA {dataAgendada.split("-").reverse().join("/")}</div>
+          {agendaDia.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Nada agendado ainda pra esse dia.</p>}
+          {agendaDia.map((item, i) => (
+            <div key={i} style={styles.activityRow}>
+              <span>{item.horario} — {item.modeloNome}</span>
+              <span style={{ color: "#9d9384", fontSize: "0.8rem" }}>{item.alunoNome}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Avisos — recado do admin pra Área do Aluno (todos ou um aluno específico)
+// ============================================================
+function Avisos() {
+  const [avisos, setAvisos] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [titulo, setTitulo] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [destino, setDestino] = useState<"todos" | string>("todos");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function load() {
+    setLoading(true);
+    authedFetch("listAvisosAdmin")
+      .then((r) => r.json())
+      .then((data) => setAvisos(data.avisos || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+    authedFetch("listStudents").then((r) => r.json()).then((d) => setStudents(d.students || [])).catch(() => {});
+  }, []);
+
+  async function handleEnviar() {
+    if (!titulo.trim() || !mensagem.trim()) {
+      alert("Preencha título e mensagem.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await authedFetch("createAviso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titulo, mensagem, destinatarios: destino === "todos" ? "todos" : [destino] }),
+      });
+      if (!res.ok) throw new Error();
+      setTitulo("");
+      setMensagem("");
+      setDestino("todos");
+      load();
+    } catch {
+      alert("Não foi possível enviar o aviso.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleExcluir(avisoId: string) {
+    if (!window.confirm("Remover esse aviso? Ele some da Área do Aluno pra todo mundo.")) return;
+    setDeletingId(avisoId);
+    try {
+      const res = await authedFetch("deleteAviso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avisoId }),
+      });
+      if (!res.ok) throw new Error();
+      load();
+    } catch {
+      alert("Não foi possível remover o aviso.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function destinoLabel(a: any) {
+    if (a.destinatarios === "todos") return "Todos os alunos";
+    const ids: string[] = a.destinatarios || [];
+    const nomes = ids.map((id) => students.find((s) => s.id === id)?.nome || "Aluno").join(", ");
+    return nomes || "Aluno específico";
+  }
+
+  return (
+    <div>
+      <PageHeader eyebrow="COMUNICAÇÃO" title="Avisos" subtitle="Manda um recado que aparece na Área do Aluno até quem recebeu dispensar." />
+
+      <div style={styles.bolsaCard}>
+        <input placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+        <textarea placeholder="Mensagem" value={mensagem} onChange={(e) => setMensagem(e.target.value)} style={{ ...inputStyle, width: "100%", minHeight: 70, marginTop: "0.6rem" }} />
+        <select value={destino} onChange={(e) => setDestino(e.target.value)} style={{ ...inputStyle, width: "100%", marginTop: "0.6rem" }}>
+          <option value="todos">Todos os alunos</option>
+          {students.map((s) => <option key={s.id} value={s.id}>Só: {s.nome}</option>)}
+        </select>
+        <button style={{ ...styles.btnPrimary, marginTop: "0.8rem" }} disabled={saving} onClick={handleEnviar}>{saving ? "Enviando..." : "Enviar aviso"}</button>
+      </div>
+
+      <div style={{ marginTop: "1.6rem" }}>
+        {loading && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+        {!loading && avisos.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhum aviso enviado ainda.</p>}
+        {!loading && avisos.map((a) => (
+          <div key={a.id} style={{ ...styles.activityRow, alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>{a.titulo}</div>
+              <div style={{ fontSize: "0.8rem", color: "#9d9384", marginTop: "0.2rem" }}>{a.mensagem}</div>
+              <div style={{ fontSize: "0.68rem", color: "#5a5348", marginTop: "0.3rem" }}>{destinoLabel(a)}</div>
+            </div>
+            <button style={{ ...styles.linkBtn, color: "#e8746a" }} disabled={deletingId === a.id} onClick={() => handleExcluir(a.id)}>
+              {deletingId === a.id ? "..." : "Remover"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ConteudoSite() {
   const [content, setContent] = useState<SiteContent>(EMPTY_CONTENT);
   const [loading, setLoading] = useState(true);
@@ -2201,12 +2659,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
+  page: { display: "flex", minHeight: "100dvh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
 
   qrOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "2rem" },
   qrOverlayCard: { background: "linear-gradient(160deg,#0d0d0d,#050505)", border: "1px solid rgba(197,138,74,.3)", borderRadius: 8, padding: "2rem", maxWidth: 400, width: "100%", textAlign: "center" },
 
-  sidebar: { width: 260, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.2rem", height: "100vh", position: "sticky", top: 0 },
+  sidebar: { width: 260, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.2rem", height: "100dvh", position: "sticky", top: 0 },
   logo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.05rem" },
   logoSub: { fontFamily: "'Space Mono',monospace", fontSize: "0.6rem", letterSpacing: "0.15em", color: "#5a5348", marginTop: "0.3rem", marginBottom: "2rem" },
   nav: { display: "flex", flexDirection: "column", gap: "0.2rem" },

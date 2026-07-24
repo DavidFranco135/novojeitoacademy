@@ -46,6 +46,7 @@ export default function StudentDashboard() {
   const [minhaTurma, setMinhaTurma] = useState<{ nome: string; encontros: { topico: string; data: string; horario: string; local: string; moduloRelacionado?: string }[] } | null>(null);
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
   const [loadingTurma, setLoadingTurma] = useState(false);
+  const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string }[]>([]);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
@@ -151,6 +152,39 @@ export default function StudentDashboard() {
     }
     loadTurma();
   }, []);
+
+  // busca os avisos ativos destinados a esse aluno (recados enviados pelo Admin)
+  useEffect(() => {
+    async function loadAvisos() {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/getMeusAvisos`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setAvisos(data.avisos || []);
+      } catch (e) {
+        console.error("Falha ao carregar avisos", e);
+      }
+    }
+    loadAvisos();
+  }, []);
+
+  async function dismissAviso(avisoId: string) {
+    setAvisos((prev) => prev.filter((a) => a.id !== avisoId));
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+    try {
+      await fetch(`${FUNCTIONS_BASE}/dispensarAviso`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avisoId }),
+      });
+    } catch (e) {
+      console.error("Falha ao dispensar aviso", e);
+    }
+  }
 
   // mostra o banner de "instalar app" só se ainda não estiver instalado e o aluno não tiver dispensado antes
   useEffect(() => {
@@ -280,6 +314,7 @@ export default function StudentDashboard() {
             border-right: none !important;
             border-bottom: 1px solid rgba(197,138,74,.18) !important;
             max-height: 60vh !important;
+            max-height: 60dvh !important;
           }
           .aluno-main { padding: 1.4rem 1.2rem !important; max-width: 100% !important; }
           .topbar-label { display: none !important; }
@@ -298,6 +333,9 @@ export default function StudentDashboard() {
           </button>
           <a href="/aluno/presencial" style={styles.topbarLink}>
             📍 <span className="topbar-label">Turma Presencial</span>
+          </a>
+          <a href="/aluno/laboratorio" style={styles.topbarLink}>
+            🧪 <span className="topbar-label">Laboratório</span>
           </a>
           <button style={{ ...styles.topbarLink, color: "#e8746a" }} onClick={handleLogout}>
             ⏻ <span className="topbar-label">Sair</span>
@@ -320,6 +358,17 @@ export default function StudentDashboard() {
           <button onClick={dismissInstallBanner} style={styles.installBannerClose}>✕</button>
         </div>
       )}
+
+      {/* ===== AVISOS DO ADMIN — some sozinho quando o aluno dispensa ===== */}
+      {avisos.map((aviso) => (
+        <div key={aviso.id} style={{ ...styles.installBanner, background: "rgba(197,138,74,.14)" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>📣 {aviso.titulo}</div>
+            <div style={{ fontSize: "0.78rem", color: "#c9c2b4", marginTop: "0.25rem" }}>{aviso.mensagem}</div>
+          </div>
+          <button onClick={() => dismissAviso(aviso.id)} style={styles.installBannerClose}>✕</button>
+        </div>
+      ))}
 
       {/* ===== MODAL MEUS DADOS ===== */}
       {showMeusDados && profile && (
@@ -559,9 +608,9 @@ const styles: Record<string, React.CSSProperties> = {
   cronoBadgeOnline: { fontFamily: "'Space Mono',monospace", fontSize: "0.58rem", letterSpacing: "0.06em", border: "1px solid rgba(197,138,74,.35)", color: GOLD, padding: "0.15rem 0.4rem", borderRadius: 2 },
   cronoBadgePresencial: { fontFamily: "'Space Mono',monospace", fontSize: "0.58rem", letterSpacing: "0.06em", background: GOLD, color: "#050505", padding: "0.15rem 0.4rem", borderRadius: 2 },
 
-  page: { display: "flex", minHeight: "calc(100vh - 53px)", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
+  page: { display: "flex", minHeight: "calc(100dvh - 53px)", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif" },
 
-  sidebar: { width: 320, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.4rem", display: "flex", flexDirection: "column", height: "calc(100vh - 53px)", position: "sticky", top: 53, overflowY: "auto" },
+  sidebar: { width: 320, flexShrink: 0, borderRight: "1px solid rgba(197,138,74,.18)", padding: "1.8rem 1.4rem", display: "flex", flexDirection: "column", height: "calc(100dvh - 53px)", position: "sticky", top: 53, overflowY: "auto" },
   sidebarLogo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.05rem", marginBottom: "1.6rem" },
 
   progressCard: { display: "flex", alignItems: "center", gap: "0.9rem", border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, padding: "0.9rem", marginBottom: "1.8rem", background: "linear-gradient(160deg,#0d0d0d,#050505)" },

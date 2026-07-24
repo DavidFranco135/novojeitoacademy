@@ -7,7 +7,7 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 
 export { createEnrollment, signContract, createPaymentPreference, mercadopagoWebhook, getEnrollmentForSigning, preferCashPayment } from "./enrollment";
-export { generateCertificate } from "./certificate";
+export { generateCertificate, verifyCertificate } from "./certificate";
 export {
   createTurma,
   listTurmas,
@@ -29,3 +29,16 @@ export { getCourseContent, updateCourseContent } from "./courseContent";
 export { registerLead, listLeads } from "./leads";
 export { generateComprovante } from "./comprovante";
 export { getOwnerSignature, saveOwnerSignature } from "./settings";
+export {
+  createModelo,
+  listModelos,
+  listMeusModelos,
+  agendarAtendimento,
+  getAgendaDoDia,
+  registrarAtendimento,
+  avaliarAtendimento,
+  listAtendimentosAdmin,
+  listMeusAtendimentos,
+  getMinhaCarteira,
+} from "./laboratorio";
+export { createAviso, listAvisosAdmin, deleteAviso, getMeusAvisos, dispensarAviso } from "./avisos";

@@ -86,7 +86,7 @@ export default function LessonCheckin() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { position: "relative", minHeight: "100vh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", overflow: "hidden", textAlign: "center" },
+  page: { position: "relative", minHeight: "100dvh", background: "#050505", color: "#F5F0E8", fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", overflow: "hidden", textAlign: "center" },
   gridBg: { position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(197,138,74,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(197,138,74,.06) 1px,transparent 1px)", backgroundSize: "40px 40px", maskImage: "radial-gradient(ellipse 60% 55% at 50% 45%,black 10%,transparent 75%)" },
   box: { position: "relative", border: "1px solid", borderRadius: 8, padding: "2.6rem 2.2rem", maxWidth: 380, width: "100%", background: "linear-gradient(160deg,#0d0d0d,#050505)" },
   corner: { position: "absolute", width: 16, height: 16 },

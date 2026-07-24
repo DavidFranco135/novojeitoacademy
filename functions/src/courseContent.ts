@@ -29,67 +29,104 @@ async function verificarAdmin(req: any): Promise<boolean> {
   }
 }
 
-// A grade abaixo reflete as 24 aulas PRESENCIAIS reais (2x por semana, 3 meses)
-// — não são vídeos, por isso "duration" aqui é a duração típica do encontro
-// presencial (2h), só pra manter a estimativa de carga horária no site público.
+// A grade abaixo reflete os 6 módulos / 48 aulas PRESENCIAIS reais
+// (24 encontros, 2x por semana — segunda e quarta —, 3h por encontro = 2 aulas
+// de 1h30 por encontro, ao longo de 3 meses = 72h de carga horária total).
+// Não são vídeos, por isso "duration" aqui é a duração típica de cada aula
+// dentro do encontro (90min), só pra manter a estimativa de carga horária
+// no site público e na Área do Aluno.
+// O Módulo 7 (Laboratório Novo Jeito — atendimento supervisionado de modelos)
+// é a fase prática que roda em paralelo/depois da grade e não entra aqui como
+// aula: será modelado à parte (cadastro de modelos, antes/depois, avaliação).
 const DEFAULT_MODULES = [
   {
     id: "m1",
-    title: "Fundamentos da Navalha",
-    description: "Afiação, ergonomia, posturas e segurança de trabalho.",
+    title: "Fundamentos da Barbearia",
+    description: "Base teórica e prática pra começar com segurança, ética e organização.",
     lessons: [
-      { id: "l1", title: "Ambientação, biossegurança, ergonomia e postura de trabalho", duration: "120:00", videoUid: "" },
-      { id: "l2", title: "Afiação e manutenção de lâminas/navalhas na prática", duration: "120:00", videoUid: "" },
-      { id: "l3", title: "Preparação do cliente e primeiro contato com a navalha", duration: "120:00", videoUid: "" },
+      { id: "l1", title: "História da Barbearia", duration: "90:00", videoUid: "" },
+      { id: "l2", title: "Ética Profissional", duration: "90:00", videoUid: "" },
+      { id: "l3", title: "Biossegurança", duration: "90:00", videoUid: "" },
+      { id: "l4", title: "Ferramentas", duration: "90:00", videoUid: "" },
+      { id: "l5", title: "Ergonomia", duration: "90:00", videoUid: "" },
+      { id: "l6", title: "Organização da Bancada", duration: "90:00", videoUid: "" },
+      { id: "l7", title: "Produtos", duration: "90:00", videoUid: "" },
+      { id: "l8", title: "Avaliação Prática", duration: "90:00", videoUid: "" },
     ],
   },
   {
     id: "m2",
-    title: "Cortes Clássicos e Degradês",
-    description: "Do social ao skin fade, técnica passo a passo.",
+    title: "Técnicas de Máquina",
+    description: "Numeração de pentes, alavanca e marcação até a prática guiada.",
     lessons: [
-      { id: "l4", title: "Corte social clássico — passo a passo completo", duration: "120:00", videoUid: "" },
-      { id: "l5", title: "Degradê baixo (low fade)", duration: "120:00", videoUid: "" },
-      { id: "l6", title: "Degradê médio (mid fade)", duration: "120:00", videoUid: "" },
-      { id: "l7", title: "Degradê alto (high fade) e skin fade", duration: "120:00", videoUid: "" },
-      { id: "l8", title: "Risco e desenhos (line up) na prática", duration: "120:00", videoUid: "" },
-      { id: "l9", title: "Corte navalhado", duration: "120:00", videoUid: "" },
-      { id: "l10", title: "Corte social moderno + textura com tesoura", duration: "120:00", videoUid: "" },
-      { id: "l11", title: "Corte infantil — adaptações técnicas", duration: "120:00", videoUid: "" },
-      { id: "l12", title: "Avaliação prática — atendimento supervisionado", duration: "120:00", videoUid: "" },
+      { id: "l9", title: "Numeração dos Pentes", duration: "90:00", videoUid: "" },
+      { id: "l10", title: "Uso da Alavanca", duration: "90:00", videoUid: "" },
+      { id: "l11", title: "Marcação", duration: "90:00", videoUid: "" },
+      { id: "l12", title: "Transições", duration: "90:00", videoUid: "" },
+      { id: "l13", title: "Limpeza do Corte", duration: "90:00", videoUid: "" },
+      { id: "l14", title: "Correção de Erros", duration: "90:00", videoUid: "" },
+      { id: "l15", title: "Exercícios", duration: "90:00", videoUid: "" },
+      { id: "l16", title: "Prática", duration: "90:00", videoUid: "" },
     ],
   },
   {
     id: "m3",
-    title: "Barba e Acabamento",
-    description: "Desenho, toalha quente, produtos e finalização.",
+    title: "Especialista em Degradê",
+    description: "Do fade baixo ao burst fade, cabelo crespo e atendimento supervisionado.",
     lessons: [
-      { id: "l13", title: "Desenho e contorno de barba", duration: "120:00", videoUid: "" },
-      { id: "l14", title: "Toalha quente e produtos (óleos, balms)", duration: "120:00", videoUid: "" },
-      { id: "l15", title: "Barba estilo degradê (fade de barba)", duration: "120:00", videoUid: "" },
-      { id: "l16", title: "Bigode — técnicas de aparo e finalização", duration: "120:00", videoUid: "" },
-      { id: "l17", title: "Atendimento completo (corte + barba) — avaliação prática", duration: "120:00", videoUid: "" },
-    ],
-  },
-  {
-    id: "m5",
-    title: "Tendências 2026: Nevou e Coloração Masculina",
-    description: "Fades modernos, textured crop, mullet e descoloração masculina — o que está bombando agora.",
-    lessons: [
-      { id: "l21", title: "Fades modernos avançados (taper fade, textured crop)", duration: "120:00", videoUid: "" },
-      { id: "l22", title: "Mullet moderno na prática", duration: "120:00", videoUid: "" },
-      { id: "l23", title: "Nevou — teste de mecha e preparação segura", duration: "120:00", videoUid: "" },
-      { id: "l24", title: "Descoloração masculina e matização — passo a passo", duration: "120:00", videoUid: "" },
+      { id: "l17", title: "Fade Baixo", duration: "90:00", videoUid: "" },
+      { id: "l18", title: "Fade Médio", duration: "90:00", videoUid: "" },
+      { id: "l19", title: "Fade Alto", duration: "90:00", videoUid: "" },
+      { id: "l20", title: "Skin Fade", duration: "90:00", videoUid: "" },
+      { id: "l21", title: "Burst Fade", duration: "90:00", videoUid: "" },
+      { id: "l22", title: "Taper Fade", duration: "90:00", videoUid: "" },
+      { id: "l23", title: "Crespos", duration: "90:00", videoUid: "" },
+      { id: "l24", title: "Correções", duration: "90:00", videoUid: "" },
+      { id: "l25", title: "Atendimento Supervisionado", duration: "90:00", videoUid: "" },
+      { id: "l26", title: "Avaliação", duration: "90:00", videoUid: "" },
     ],
   },
   {
     id: "m4",
-    title: "Gestão da Própria Barbearia",
-    description: "Precificação, atendimento e fidelização de clientes.",
+    title: "Tesoura e Cortes Clássicos",
+    description: "Tesoura sobre pente e os cortes clássicos que todo barbeiro precisa dominar.",
     lessons: [
-      { id: "l18", title: "Precificação, portfólio e redes sociais (oficina prática)", duration: "120:00", videoUid: "" },
-      { id: "l19", title: "Atendimento, experiência do cliente e fidelização (simulação)", duration: "120:00", videoUid: "" },
-      { id: "l20", title: "Encerramento — avaliação final, certificados, planejamento de carreira", duration: "120:00", videoUid: "" },
+      { id: "l27", title: "Tesoura sobre pente", duration: "90:00", videoUid: "" },
+      { id: "l28", title: "Corte Social", duration: "90:00", videoUid: "" },
+      { id: "l29", title: "Militar", duration: "90:00", videoUid: "" },
+      { id: "l30", title: "Pompadour", duration: "90:00", videoUid: "" },
+      { id: "l31", title: "Crop", duration: "90:00", videoUid: "" },
+      { id: "l32", title: "Texturização", duration: "90:00", videoUid: "" },
+      { id: "l33", title: "Finalização", duration: "90:00", videoUid: "" },
+      { id: "l34", title: "Prática", duration: "90:00", videoUid: "" },
+    ],
+  },
+  {
+    id: "m5",
+    title: "Barba e Visagismo",
+    description: "Anatomia, navalha, toalha quente e visagismo aplicado ao atendimento.",
+    lessons: [
+      { id: "l35", title: "Anatomia", duration: "90:00", videoUid: "" },
+      { id: "l36", title: "Navalha", duration: "90:00", videoUid: "" },
+      { id: "l37", title: "Toalha Quente", duration: "90:00", videoUid: "" },
+      { id: "l38", title: "Visagismo", duration: "90:00", videoUid: "" },
+      { id: "l39", title: "Produtos", duration: "90:00", videoUid: "" },
+      { id: "l40", title: "Atendimento", duration: "90:00", videoUid: "" },
+    ],
+  },
+  {
+    id: "m6",
+    title: "Atendimento Profissional",
+    description: "Atendimento, precificação, marketing e pós-venda pra viver da profissão.",
+    lessons: [
+      { id: "l41", title: "Atendimento ao Cliente", duration: "90:00", videoUid: "" },
+      { id: "l42", title: "Precificação", duration: "90:00", videoUid: "" },
+      { id: "l43", title: "Marketing", duration: "90:00", videoUid: "" },
+      { id: "l44", title: "Redes Sociais", duration: "90:00", videoUid: "" },
+      { id: "l45", title: "Fotografia", duration: "90:00", videoUid: "" },
+      { id: "l46", title: "Organização da Bancada", duration: "90:00", videoUid: "" },
+      { id: "l47", title: "Pós-venda", duration: "90:00", videoUid: "" },
+      { id: "l48", title: "Avaliação", duration: "90:00", videoUid: "" },
     ],
   },
 ];

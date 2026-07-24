@@ -16,6 +16,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { DOCS_BUCKET, getOwnerSignatureBase64 } from "./utils";
+import { computeCarteira } from "./laboratorio";
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -170,11 +171,53 @@ export async function generateCertificateForEnrollment(
     });
   });
 
+  // ============================================================
+  // Certificado Inteligente — checklist de conquistas do Laboratório Novo Jeito
+  // (modelos atendidos, serviços realizados, nota final), calculado a partir
+  // dos atendimentos avaliados do aluno. Itens com contagem zero não aparecem
+  // (evita "0 barbas realizadas" pra quem nunca fez o Laboratório).
+  // ============================================================
+  const carteira = await computeCarteira(enrollmentId);
+  const statLines = [
+    "72 horas de formação",
+    carteira.modelosAtendidos > 0 ? `${carteira.modelosAtendidos} modelo(s) atendido(s) no Laboratório` : null,
+    carteira.cortesRealizados > 0 ? `${carteira.cortesRealizados} corte(s) realizado(s)` : null,
+    carteira.degradesRealizados > 0 ? `${carteira.degradesRealizados} degradê(s) realizado(s)` : null,
+    carteira.barbasRealizadas > 0 ? `${carteira.barbasRealizadas} barba(s) realizada(s)` : null,
+    carteira.notaMedia > 0 ? `Nota final do Laboratório: ${carteira.notaMedia.toFixed(1)}/5` : null,
+  ].filter((l): l is string => Boolean(l));
+
+  statLines.forEach((line, i) => {
+    const text = `- ${line}`;
+    page.drawText(text, {
+      x: centerX - fontSans.widthOfTextAtSize(text, 9) / 2,
+      y: 245 - i * 14,
+      size: 9,
+      font: fontSans,
+      color: rgb(0.79, 0.76, 0.7),
+    });
+  });
+
   const issueDate = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   page.drawText(`Emitido em ${issueDate}`, { x: 70, y: 90, size: 9, font: fontSans, color: CREAM });
 
   const certCode = `NJ-${enrollmentId.slice(0, 8).toUpperCase()}`;
   page.drawText(`Código de autenticidade: ${certCode}`, { x: 70, y: 74, size: 8, font: fontSans, color: rgb(0.6, 0.56, 0.5) });
+
+  // QR Code de validação — aponta pra tela pública que confirma o certificado
+  // a partir do código, sem precisar reabrir o PDF (Certificado Inteligente).
+  try {
+    const verifyUrl = `https://portal.novojeitobarbearia.com.br/certificado/${certCode}`;
+    const qrResponse = await fetch(
+      `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&color=000000&bgcolor=ffffff&data=${encodeURIComponent(verifyUrl)}`
+    );
+    const qrBytes = Buffer.from(await qrResponse.arrayBuffer());
+    const qrImage = await pdfDoc.embedPng(qrBytes);
+    page.drawImage(qrImage, { x: 230, y: 58, width: 56, height: 56 });
+    page.drawText("Valide o certificado", { x: 230, y: 48, size: 6.5, font: fontSans, color: rgb(0.6, 0.56, 0.5) });
+  } catch (err) {
+    console.error("Falha ao gerar QR do certificado (segue sem QR):", err);
+  }
 
   const sigX = width - 260;
   const ownerSignatureBase64 = await getOwnerSignatureBase64();
@@ -235,6 +278,38 @@ export const generateCertificate = onRequest({ cors: true }, async (req, res) =>
   } catch (err) {
     console.error("generateCertificate error:", err);
     res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
+// Verificação pública do certificado (lida pela página /certificado/:code do
+// app, aberta ao escanear o QR do PDF) — só confirma autenticidade + nome,
+// não expõe nenhum dado sensível do aluno (e-mail, CPF, telefone).
+// ============================================================
+export const verifyCertificate = onRequest({ cors: true }, async (req, res) => {
+  try {
+    const code = ((req.query.code as string) || req.path.split("/").pop() || "").toUpperCase();
+    if (!code) {
+      res.status(400).json({ valido: false, error: "Código obrigatório" });
+      return;
+    }
+
+    const snap = await db.collection("enrollments").where("certificateCode", "==", code).limit(1).get();
+    if (snap.empty) {
+      res.status(200).json({ valido: false });
+      return;
+    }
+
+    const enrollment = snap.docs[0].data();
+    res.status(200).json({
+      valido: true,
+      nome: enrollment.nome,
+      curso: COURSE_TITLE,
+      emitidoEm: enrollment.certificateIssuedAt ? enrollment.certificateIssuedAt.toDate().toLocaleDateString("pt-BR") : null,
+    });
+  } catch (err) {
+    console.error("verifyCertificate error:", err);
+    res.status(500).json({ valido: false, error: "Erro interno" });
   }
 });
 
