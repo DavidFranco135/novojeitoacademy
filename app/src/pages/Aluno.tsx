@@ -100,12 +100,16 @@ export default function StudentDashboard() {
           setCertificateUrl(data.certificateUrl || null);
           const completedIds: string[] = data.completedLessons || [];
           const modulosAplicaveis: string[] | null = data.modulosAplicaveis || null;
+          const aulasExcluidas: string[] = data.aulasExcluidas || [];
           const filteredModules = loadedModules
             .filter((m) => !modulosAplicaveis || modulosAplicaveis.includes(m.id))
             .map((m) => ({
               ...m,
-              lessons: m.lessons.map((l) => ({ ...l, completed: completedIds.includes(l.id) })),
-            }));
+              lessons: m.lessons
+                .filter((l) => !aulasExcluidas.includes(l.id))
+                .map((l) => ({ ...l, completed: completedIds.includes(l.id) })),
+            }))
+            .filter((m) => m.lessons.length > 0); // some da trilha se todas as aulas dele foram puladas
           setModules(filteredModules);
           if (filteredModules.length && !filteredModules.some((m) => m.lessons.some((l) => l.id === activeLessonId))) {
             setActiveLessonId(filteredModules[0].lessons[0].id);

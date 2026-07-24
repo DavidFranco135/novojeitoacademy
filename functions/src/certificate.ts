@@ -47,6 +47,7 @@ export async function checkCertificateEligibility(
   const modulosAplicaveis: string[] | null = enrollmentSnap.exists
     ? enrollmentSnap.data()!.modulosAplicaveis || null
     : null;
+  const aulasExcluidas: string[] = enrollmentSnap.exists ? enrollmentSnap.data()!.aulasExcluidas || [] : [];
 
   const progressSnap = await db.collection("progress").doc(enrollmentId).get();
   const progress = progressSnap.data();
@@ -66,10 +67,10 @@ export async function checkCertificateEligibility(
     if (!turmaSnap.exists) continue;
 
     const turma = turmaSnap.data()!;
-    const todosEncontros: { data: string; moduloRelacionado?: string }[] = turma.encontros || [];
-    const encontros = modulosAplicaveis
-      ? todosEncontros.filter((e) => !e.moduloRelacionado || modulosAplicaveis.includes(e.moduloRelacionado))
-      : todosEncontros;
+    const todosEncontros: { data: string; moduloRelacionado?: string; aulaRelacionada?: string }[] = turma.encontros || [];
+    const encontros = todosEncontros
+      .filter((e) => !modulosAplicaveis || !e.moduloRelacionado || modulosAplicaveis.includes(e.moduloRelacionado))
+      .filter((e) => !e.aulaRelacionada || !aulasExcluidas.includes(e.aulaRelacionada));
     const presencas: Record<string, boolean> = booking.presencas || {};
 
     const todasConfirmadas = encontros.length > 0 && encontros.every((e) => presencas[e.data]);

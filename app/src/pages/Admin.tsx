@@ -251,7 +251,7 @@ function Alunos() {
   const [creatingNovo, setCreatingNovo] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ ...emptyCadastroForm, modulosAplicaveis: [] as string[] });
+  const [editForm, setEditForm] = useState({ ...emptyCadastroForm, modulosAplicaveis: [] as string[], aulasExcluidas: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
   const [courseModules, setCourseModules] = useState<{ id: string; title: string }[]>([]);
   const [courseModulesFull, setCourseModulesFull] = useState<any[]>([]);
@@ -305,6 +305,17 @@ function Alunos() {
     });
   }
 
+  // Aula específica dentro de um módulo aplicável — pra aluno que já sabe só
+  // uma parte do conteúdo daquele módulo, não o módulo inteiro.
+  function toggleEditAula(lessonId: string) {
+    setEditForm((prev) => ({
+      ...prev,
+      aulasExcluidas: prev.aulasExcluidas.includes(lessonId)
+        ? prev.aulasExcluidas.filter((id) => id !== lessonId)
+        : [...prev.aulasExcluidas, lessonId],
+    }));
+  }
+
   function loadAlunos() {
     setLoading(true);
     authedFetch("listStudents")
@@ -356,6 +367,7 @@ function Alunos() {
       endereco: aluno.endereco || "",
       cidade: aluno.cidade || "",
       modulosAplicaveis: aluno.modulosAplicaveis || [],
+      aulasExcluidas: aluno.aulasExcluidas || [],
     });
   }
 
@@ -817,17 +829,34 @@ function Alunos() {
                 </div>
 
                 <label style={{ ...fieldLabelStyle, marginTop: "1.2rem" }}>Módulos desse aluno (desmarque os que não se aplicam a ele)</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginTop: "0.4rem" }}>
-                  {courseModules.map((m) => (
-                    <label key={m.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#c9c2b4", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={editForm.modulosAplicaveis.length === 0 || editForm.modulosAplicaveis.includes(m.id)}
-                        onChange={() => toggleEditModulo(m.id)}
-                      />
-                      {m.title}
-                    </label>
-                  ))}
+                <p style={{ fontSize: "0.72rem", color: "#5a5348", margin: "0.2rem 0 0.4rem" }}>Se ele já sabe só ALGUMAS aulas de um módulo (não o módulo inteiro), deixe o módulo marcado e desmarque só as aulas específicas logo abaixo dele.</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: "0.4rem" }}>
+                  {courseModules.map((m) => {
+                    const moduloAplicavel = editForm.modulosAplicaveis.length === 0 || editForm.modulosAplicaveis.includes(m.id);
+                    const moduloCompleto = courseModulesFull.find((cm: any) => cm.id === m.id);
+                    return (
+                      <div key={m.id}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#c9c2b4", cursor: "pointer" }}>
+                          <input type="checkbox" checked={moduloAplicavel} onChange={() => toggleEditModulo(m.id)} />
+                          {m.title}
+                        </label>
+                        {moduloAplicavel && moduloCompleto && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", marginTop: "0.35rem", marginLeft: "1.5rem" }}>
+                            {moduloCompleto.lessons.map((l: any) => (
+                              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.78rem", color: "#9d9384", cursor: "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!editForm.aulasExcluidas.includes(l.id)}
+                                  onChange={() => toggleEditAula(l.id)}
+                                />
+                                {l.title}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div style={{ display: "flex", gap: "0.6rem", marginTop: "1rem" }}>
@@ -917,7 +946,7 @@ function Turmas() {
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [encontrosForm, setEncontrosForm] = useState([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
+  const [encontrosForm, setEncontrosForm] = useState([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "", aulaRelacionada: "" }]);
   const [nomeTurma, setNomeTurma] = useState("");
   const [vagasTurma, setVagasTurma] = useState(10);
   const [showForm, setShowForm] = useState(false);
@@ -937,6 +966,8 @@ function Turmas() {
   const [onlineModules, setOnlineModules] = useState<{ id: string; title: string }[]>([
     { id: "", title: "Nenhum — não vincular a um módulo" },
   ]);
+  const [onlineLessonsByModulo, setOnlineLessonsByModulo] = useState<Record<string, { id: string; title: string }[]>>({});
+  const [precoTurma, setPrecoTurma] = useState("");
 
   useEffect(() => {
     fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent")
@@ -947,6 +978,11 @@ function Turmas() {
           title: `${String(i + 1).padStart(2, "0")} · ${m.title}`,
         }));
         setOnlineModules([{ id: "", title: "Nenhum — não vincular a um módulo" }, ...mods]);
+        const lessonsByModulo: Record<string, { id: string; title: string }[]> = {};
+        (data.modules || []).forEach((m: any) => {
+          lessonsByModulo[m.id] = (m.lessons || []).map((l: any) => ({ id: l.id, title: l.title }));
+        });
+        setOnlineLessonsByModulo(lessonsByModulo);
       })
       .catch(() => {});
   }, []);
@@ -969,7 +1005,7 @@ function Turmas() {
   }, []);
 
   function addEncontroRow() {
-    setEncontrosForm((prev) => [...prev, { topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
+    setEncontrosForm((prev) => [...prev, { topico: "", data: "", horario: "", local: "", moduloRelacionado: "", aulaRelacionada: "" }]);
   }
 
   function updateEncontro(idx: number, field: string, value: string) {
@@ -983,7 +1019,8 @@ function Turmas() {
   function resetForm() {
     setNomeTurma("");
     setVagasTurma(10);
-    setEncontrosForm([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "" }]);
+    setPrecoTurma("");
+    setEncontrosForm([{ topico: "", data: "", horario: "", local: "", moduloRelacionado: "", aulaRelacionada: "" }]);
     setColarGradeText("");
     setColarGradeErro("");
     setEditingTurmaId(null);
@@ -994,6 +1031,7 @@ function Turmas() {
     setEditingTurmaId(turma.id);
     setNomeTurma(turma.nome);
     setVagasTurma(turma.vagasTotal);
+    setPrecoTurma(turma.preco ? String(turma.preco) : "");
     setEncontrosForm(
       (turma.encontros || []).map((e: any) => ({
         topico: e.topico || "",
@@ -1001,6 +1039,7 @@ function Turmas() {
         horario: e.horario || "",
         local: e.local || "",
         moduloRelacionado: e.moduloRelacionado || "",
+        aulaRelacionada: e.aulaRelacionada || "",
       }))
     );
     setColarGradeText("");
@@ -1010,7 +1049,9 @@ function Turmas() {
 
   // Cola um bloco de texto (uma linha por encontro) e preenche a grade inteira
   // de uma vez, em vez de digitar campo por campo — cada linha:
-  // DD/MM/AAAA;HH:MM;Local;idDoMódulo;Tópico  (idDoMódulo pode ficar vazio)
+  // DD/MM/AAAA;HH:MM;Local;idDoMódulo;idDaAula;Tópico
+  // (idDoMódulo e idDaAula podem ficar vazios; formato antigo de 5 campos,
+  // sem idDaAula, continua funcionando)
   function handleColarGrade() {
     setColarGradeErro("");
     const linhas = colarGradeText.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -1023,10 +1064,12 @@ function Turmas() {
     for (const linha of linhas) {
       const partes = linha.split(";").map((p) => p.trim());
       if (partes.length < 5) {
-        setColarGradeErro(`Linha fora do formato esperado (5 campos separados por ";"): "${linha}"`);
+        setColarGradeErro(`Linha fora do formato esperado (5 ou 6 campos separados por ";"): "${linha}"`);
         return;
       }
-      const [dataBR, horario, local, moduloRelacionado, ...topicoPartes] = partes;
+      const [dataBR, horario, local, moduloRelacionado] = partes;
+      const aulaRelacionada = partes.length >= 6 ? partes[4] : "";
+      const topicoPartes = partes.length >= 6 ? partes.slice(5) : partes.slice(4);
       const [dia, mes, ano] = dataBR.split("/");
       if (!dia || !mes || !ano) {
         setColarGradeErro(`Data inválida (use DD/MM/AAAA): "${dataBR}"`);
@@ -1037,6 +1080,7 @@ function Turmas() {
         horario,
         local,
         moduloRelacionado,
+        aulaRelacionada,
         topico: topicoPartes.join(";"),
       });
     }
@@ -1053,9 +1097,10 @@ function Turmas() {
     setCreating(true);
     try {
       const path = editingTurmaId ? "updateTurma" : "createTurma";
+      const preco = precoTurma ? parseFloat(precoTurma.replace(",", ".")) : undefined;
       const body = editingTurmaId
-        ? { turmaId: editingTurmaId, nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm }
-        : { nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm };
+        ? { turmaId: editingTurmaId, nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm, preco }
+        : { nome: nomeTurma, vagasTotal: vagasTurma, encontros: encontrosForm, preco };
 
       const res = await authedFetch(path, {
         method: "POST",
@@ -1169,18 +1214,34 @@ function Turmas() {
           <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" }}>Nome da turma</label>
           <input value={nomeTurma} onChange={(e) => setNomeTurma(e.target.value)} placeholder="Ex: Turma Agosto/2026" style={inputStyle} />
 
-          <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, margin: "0.9rem 0 0.35rem" }}>Número de vagas</label>
-          <input type="number" value={vagasTurma} onChange={(e) => setVagasTurma(parseInt(e.target.value) || 0)} style={inputStyle} />
+          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.9rem", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" }}>Número de vagas</label>
+              <input type="number" value={vagasTurma} onChange={(e) => setVagasTurma(parseInt(e.target.value) || 0)} style={{ ...inputStyle, width: "100%" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={{ display: "block", fontSize: "0.75rem", color: GOLD, marginBottom: "0.35rem" }}>Preço específico (opcional)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 350 (deixe em branco pra usar o preço padrão)"
+                value={precoTurma}
+                onChange={(e) => setPrecoTurma(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+          </div>
+          <p style={{ fontSize: "0.72rem", color: "#5a5348", marginTop: "0.3rem" }}>Útil pra turma de aluno que já sabe parte do conteúdo e vai pagar um valor diferente do curso completo.</p>
 
           <div style={{ marginTop: "1.4rem", padding: "1rem", border: "1px dashed rgba(197,138,74,.3)", borderRadius: 4 }}>
             <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.4rem" }}>Colar grade pronta (opcional)</div>
             <p style={{ fontSize: "0.72rem", color: "#9d9384", marginBottom: "0.6rem" }}>
-              Uma linha por encontro, campos separados por ";": <code style={{ color: "#c9c2b4" }}>DD/MM/AAAA;HH:MM;Local;idDoMódulo;Tópico</code>. Substitui a grade abaixo inteira.
+              Uma linha por encontro, campos separados por ";": <code style={{ color: "#c9c2b4" }}>DD/MM/AAAA;HH:MM;Local;idDoMódulo;idDaAula;Tópico</code> (idDoMódulo e idDaAula podem ficar vazios). Substitui a grade abaixo inteira.
             </p>
             <textarea
               value={colarGradeText}
               onChange={(e) => setColarGradeText(e.target.value)}
-              placeholder={"31/08/2026;09:00;Barbearia Novo Jeito;m1;História da Barbearia + Ética Profissional\n02/09/2026;09:00;Barbearia Novo Jeito;m1;Biossegurança + Ferramentas"}
+              placeholder={"31/08/2026;09:00;Barbearia Novo Jeito;m1;l1;Boas-vindas e Introdução\n02/09/2026;09:00;Barbearia Novo Jeito;m1;l2;Biossegurança"}
               style={{ ...inputStyle, width: "100%", minHeight: 90, fontFamily: "'Space Mono',monospace", fontSize: "0.72rem" }}
             />
             {colarGradeErro && <p style={{ fontSize: "0.75rem", color: "#e8746a", marginTop: "0.5rem" }}>{colarGradeErro}</p>}
@@ -1206,6 +1267,18 @@ function Turmas() {
                   <option key={m.id} value={m.id}>{m.title}</option>
                 ))}
               </select>
+              {enc.moduloRelacionado && (onlineLessonsByModulo[enc.moduloRelacionado] || []).length > 0 && (
+                <select
+                  value={enc.aulaRelacionada}
+                  onChange={(e) => updateEncontro(idx, "aulaRelacionada", e.target.value)}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  <option value="">Nenhuma aula específica vinculada</option>
+                  {onlineLessonsByModulo[enc.moduloRelacionado].map((l) => (
+                    <option key={l.id} value={l.id}>{l.title}</option>
+                  ))}
+                </select>
+              )}
             </div>
           ))}
           <button onClick={addEncontroRow} style={{ ...styles.linkBtn, marginTop: "0.8rem" }}>+ Adicionar outro encontro</button>

@@ -70,6 +70,7 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           certificateCode: data.certificateCode || null,
           certificateIssuedAt: data.certificateIssuedAt ? data.certificateIssuedAt.toDate().toLocaleDateString("pt-BR") : null,
           modulosAplicaveis: data.modulosAplicaveis || null,
+          aulasExcluidas: data.aulasExcluidas || null,
           comprovanteUrl: data.comprovanteUrl || null,
         };
       })
@@ -458,7 +459,7 @@ export const updateStudent = onRequest({ cors: true }, async (req, res) => {
       return;
     }
 
-    const { enrollmentId, nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, modulosAplicaveis } = req.body;
+    const { enrollmentId, nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, modulosAplicaveis, aulasExcluidas } = req.body;
     if (!enrollmentId) {
       res.status(400).json({ error: "enrollmentId obrigatório" });
       return;
@@ -482,6 +483,10 @@ export const updateStudent = onRequest({ cors: true }, async (req, res) => {
     // lista vazia/ausente = todos os módulos se aplicam (sem restrição)
     if (Array.isArray(modulosAplicaveis)) {
       updates.modulosAplicaveis = modulosAplicaveis.length > 0 ? modulosAplicaveis : admin.firestore.FieldValue.delete();
+    }
+    // aulas específicas puladas mesmo dentro de um módulo aplicável (aluno já sabe aquele conteúdo)
+    if (Array.isArray(aulasExcluidas)) {
+      updates.aulasExcluidas = aulasExcluidas.length > 0 ? aulasExcluidas : admin.firestore.FieldValue.delete();
     }
 
     // se o e-mail mudou, atualiza também no Firebase Auth (é ele quem faz o login)

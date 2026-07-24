@@ -37,6 +37,7 @@ interface Encontro {
   horario: string; // "09:00"
   local: string;
   moduloRelacionado?: string; // ex: "m2" — depois de qual módulo online esse encontro aparece na trilha do aluno
+  aulaRelacionada?: string; // ex: "l9" — qual aula específica esse encontro corresponde (pra pular junto com "aulasExcluidas" do aluno)
 }
 
 async function verificarAdmin(req: any): Promise<boolean> {
