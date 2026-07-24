@@ -83,6 +83,53 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
 });
 
 // ============================================================
+// Detalhe de UM aluno pro admin: quais aulas em vídeo já concluiu + a turma
+// presencial em que está matriculado (se houver) com a presença por encontro.
+// ============================================================
+export const getStudentDetail = onRequest({ cors: true }, async (req, res) => {
+  try {
+    if (!(await verificarAdmin(req))) {
+      res.status(403).json({ error: "Acesso negado" });
+      return;
+    }
+
+    const enrollmentId = (req.query.enrollmentId as string) || req.body?.enrollmentId;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const [progressSnap, bookingsSnap] = await Promise.all([
+      db.collection("progress").doc(enrollmentId).get(),
+      db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).get(),
+    ]);
+
+    const progress = progressSnap.exists ? progressSnap.data()! : { completedLessons: [], percent: 0 };
+
+    let turma: any = null;
+    let presencas: Record<string, boolean> = {};
+    if (!bookingsSnap.empty) {
+      const booking = bookingsSnap.docs[0].data();
+      presencas = booking.presencas || {};
+      const turmaSnap = await db.collection("turmas").doc(booking.turmaId).get();
+      if (turmaSnap.exists) {
+        turma = { id: turmaSnap.id, nome: turmaSnap.data()!.nome, encontros: turmaSnap.data()!.encontros || [] };
+      }
+    }
+
+    res.status(200).json({
+      completedLessons: progress.completedLessons || [],
+      percent: progress.percent || 0,
+      turma,
+      presencas,
+    });
+  } catch (err) {
+    console.error("getStudentDetail error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
 export const listTransactions = onRequest({ cors: true }, async (req, res) => {
   try {
     if (!(await verificarAdmin(req))) {

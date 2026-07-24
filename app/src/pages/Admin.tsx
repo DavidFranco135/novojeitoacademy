@@ -250,13 +250,45 @@ function Alunos() {
   const [editForm, setEditForm] = useState({ ...emptyCadastroForm, modulosAplicaveis: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
   const [courseModules, setCourseModules] = useState<{ id: string; title: string }[]>([]);
+  const [courseModulesFull, setCourseModulesFull] = useState<any[]>([]);
+  const [detailForId, setDetailForId] = useState<string | null>(null);
+  const [detailData, setDetailData] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent")
       .then((r) => r.json())
-      .then((data) => setCourseModules((data.modules || []).map((m: any) => ({ id: m.id, title: m.title }))))
+      .then((data) => {
+        setCourseModules((data.modules || []).map((m: any) => ({ id: m.id, title: m.title })));
+        setCourseModulesFull(data.modules || []);
+      })
       .catch(() => {});
   }, []);
+
+  async function handleVerDesempenho(aluno: any) {
+    if (detailForId === aluno.id) {
+      setDetailForId(null);
+      return;
+    }
+    setDetailForId(aluno.id);
+    setDetailData(null);
+    setLoadingDetail(true);
+    try {
+      const res = await authedFetch(`getStudentDetail?enrollmentId=${aluno.id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      setDetailData(data);
+    } catch {
+      setDetailData({ error: true });
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
+
+  function formatDataBRDesempenho(iso: string) {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  }
 
   // Lista vazia = "sem restrição" (todos os módulos valem, todos aparecem marcados).
   // Ao desmarcar o primeiro, vira uma lista explícita com todos MENOS esse. Se o
@@ -666,6 +698,9 @@ function Alunos() {
                   <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("generateComprovante", a.id, "comprovanteUrl")}>
                     Copiar comprovante de adesão
                   </button>
+                  <button style={styles.linkBtn} onClick={() => handleVerDesempenho(a)}>
+                    {detailForId === a.id ? "▲ Fechar desempenho" : "📊 Ver desempenho"}
+                  </button>
                   {a.contractUrl ? (
                     <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendContract", a.id, "contractUrl")}>
                       Copiar link do contrato
@@ -691,6 +726,54 @@ function Alunos() {
                 {a.pendente ? "Excluir cadastro" : "Excluir aluno"}
               </button>
             </div>
+
+            {detailForId === a.id && (
+              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(197,138,74,.15)" }}>
+                {loadingDetail && <p style={{ color: "#9d9384", fontSize: "0.85rem" }}>Carregando desempenho...</p>}
+                {!loadingDetail && detailData?.error && <p style={{ color: "#e8746a", fontSize: "0.85rem" }}>Não foi possível carregar o desempenho desse aluno.</p>}
+                {!loadingDetail && detailData && !detailData.error && (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "1.4rem" }}>
+                      <div>
+                        <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.5rem" }}>AULAS EM VÍDEO ({detailData.percent}%)</div>
+                        {courseModulesFull.length === 0 && <p style={{ fontSize: "0.8rem", color: "#9d9384" }}>Currículo não carregado.</p>}
+                        {courseModulesFull.map((m: any) => (
+                          <div key={m.id} style={{ marginBottom: "0.7rem" }}>
+                            <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.25rem" }}>{m.title}</div>
+                            {m.lessons.map((l: any) => {
+                              const feita = detailData.completedLessons.includes(l.id);
+                              return (
+                                <div key={l.id} style={{ fontSize: "0.76rem", color: feita ? "#78c88c" : "#5a5348", paddingLeft: "0.6rem" }}>
+                                  {feita ? "✓" : "○"} {l.title}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.5rem" }}>TURMA PRESENCIAL</div>
+                        {!detailData.turma && <p style={{ fontSize: "0.8rem", color: "#9d9384" }}>Não está matriculado em nenhuma turma presencial.</p>}
+                        {detailData.turma && (
+                          <>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>{detailData.turma.nome}</div>
+                            {detailData.turma.encontros.map((e: any, i: number) => {
+                              const confirmado = detailData.presencas?.[e.data];
+                              return (
+                                <div key={i} style={{ fontSize: "0.76rem", color: confirmado ? "#78c88c" : "#5a5348" }}>
+                                  {confirmado ? "✓" : "○"} {formatDataBRDesempenho(e.data)} · {e.topico}
+                                </div>
+                              );
+                            })}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {editingId === a.id && (
               <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(197,138,74,.15)" }}>

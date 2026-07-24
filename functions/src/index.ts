@@ -24,7 +24,7 @@ export { uploadImage } from "./imgbb";
 export { applyScholarship, listScholarshipApplications, grantScholarship, rejectScholarship, deleteScholarship } from "./scholarship";
 export { getSiteContent, updateSiteContent } from "./siteContent";
 export { getStudentProgress, markLessonComplete } from "./progress";
-export { listStudents, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment, confirmPendingPayment, updateStudent, deleteStudent } from "./admin";
+export { listStudents, getStudentDetail, listTransactions, getOverviewStats, toggleStudentAccess, resendCertificate, resendContract, resendAccessEmail, registerCashPayment, confirmPendingPayment, updateStudent, deleteStudent } from "./admin";
 export { getCourseContent, updateCourseContent } from "./courseContent";
 export { registerLead, listLeads } from "./leads";
 export { generateComprovante } from "./comprovante";
