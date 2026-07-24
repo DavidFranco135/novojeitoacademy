@@ -2694,4 +2694,5 @@ const styles: Record<string, React.CSSProperties> = {
 
   linkBtn: { background: "transparent", border: "none", color: GOLD, fontSize: "0.8rem", cursor: "pointer" },
   btnPrimary: { background: GOLD, color: "#050505", border: "none", padding: "0.7rem 1.3rem", borderRadius: 4, fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" },
+  btnGhostGold: { background: "transparent", border: `1px solid ${GOLD}`, color: GOLD, padding: "0.7rem 1.2rem", borderRadius: 4, fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" },
 };
