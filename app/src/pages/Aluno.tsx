@@ -543,7 +543,7 @@ export default function StudentDashboard() {
 
 const styles: Record<string, React.CSSProperties> = {
   outerWrap: { background: "#050505" },
-  topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
+  topbar: { position: "sticky", top: 0, zIndex: 50, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1.6rem", background: "rgba(5,5,5,.9)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(197,138,74,.18)" },
   topbarLogo: { fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#F5F0E8" },
   topbarLink: { background: "none", border: "none", color: "#c9c2b4", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem", textDecoration: "none", fontFamily: "'Inter',sans-serif" },
 
