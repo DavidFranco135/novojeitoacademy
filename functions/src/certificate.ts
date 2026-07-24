@@ -32,10 +32,21 @@ const CREAM = rgb(0.96, 0.94, 0.91);
 // Enquanto o curso for só presencial (sem módulo online ativo ainda), não
 // existe registro de progresso pra esse aluno — nesse caso a exigência de
 // vídeo é pulada e o certificado depende só da presença.
+//
+// Se o aluno tiver "modulosAplicaveis" definido na matrícula (Admin → Alunos),
+// só exige presença nos encontros ligados a esses módulos — encontros de um
+// módulo que não se aplica a ele (ex: Gestão da Própria Barbearia pra quem já
+// tem barbearia própria) não entram na conta. Sem modulosAplicaveis definido,
+// continua exigindo presença em TODOS os encontros, como sempre foi.
 // ============================================================
 export async function checkCertificateEligibility(
   enrollmentId: string
 ): Promise<{ eligible: boolean; reason?: string }> {
+  const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+  const modulosAplicaveis: string[] | null = enrollmentSnap.exists
+    ? enrollmentSnap.data()!.modulosAplicaveis || null
+    : null;
+
   const progressSnap = await db.collection("progress").doc(enrollmentId).get();
   const progress = progressSnap.data();
   if (progress && progress.percent !== 100) {
@@ -54,7 +65,10 @@ export async function checkCertificateEligibility(
     if (!turmaSnap.exists) continue;
 
     const turma = turmaSnap.data()!;
-    const encontros: { data: string }[] = turma.encontros || [];
+    const todosEncontros: { data: string; moduloRelacionado?: string }[] = turma.encontros || [];
+    const encontros = modulosAplicaveis
+      ? todosEncontros.filter((e) => !e.moduloRelacionado || modulosAplicaveis.includes(e.moduloRelacionado))
+      : todosEncontros;
     const presencas: Record<string, boolean> = booking.presencas || {};
 
     const todasConfirmadas = encontros.length > 0 && encontros.every((e) => presencas[e.data]);

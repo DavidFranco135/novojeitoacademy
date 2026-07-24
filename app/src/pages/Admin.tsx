@@ -247,8 +247,27 @@ function Alunos() {
   const [creatingNovo, setCreatingNovo] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState(emptyCadastroForm);
+  const [editForm, setEditForm] = useState({ ...emptyCadastroForm, modulosAplicaveis: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [courseModules, setCourseModules] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    fetch("https://us-central1-barbearia-do-ico.cloudfunctions.net/getCourseContent")
+      .then((r) => r.json())
+      .then((data) => setCourseModules((data.modules || []).map((m: any) => ({ id: m.id, title: m.title }))))
+      .catch(() => {});
+  }, []);
+
+  // Lista vazia = "sem restrição" (todos os módulos valem, todos aparecem marcados).
+  // Ao desmarcar o primeiro, vira uma lista explícita com todos MENOS esse. Se o
+  // admin remarcar tudo de novo, volta sozinho pro estado "sem restrição".
+  function toggleEditModulo(moduloId: string) {
+    setEditForm((prev) => {
+      const current = prev.modulosAplicaveis.length > 0 ? prev.modulosAplicaveis : courseModules.map((m) => m.id);
+      const next = current.includes(moduloId) ? current.filter((id) => id !== moduloId) : [...current, moduloId];
+      return { ...prev, modulosAplicaveis: next.length === courseModules.length ? [] : next };
+    });
+  }
 
   function loadAlunos() {
     setLoading(true);
@@ -300,6 +319,7 @@ function Alunos() {
       dataNascimento: aluno.dataNascimento || "",
       endereco: aluno.endereco || "",
       cidade: aluno.cidade || "",
+      modulosAplicaveis: aluno.modulosAplicaveis || [],
     });
   }
 
@@ -622,6 +642,21 @@ function Alunos() {
                     <input style={inputStyle} value={editForm.cidade} onChange={(e) => setEditForm({ ...editForm, cidade: e.target.value })} />
                   </div>
                 </div>
+
+                <label style={{ ...fieldLabelStyle, marginTop: "1.2rem" }}>Módulos desse aluno (desmarque os que não se aplicam a ele)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginTop: "0.4rem" }}>
+                  {courseModules.map((m) => (
+                    <label key={m.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#c9c2b4", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.modulosAplicaveis.length === 0 || editForm.modulosAplicaveis.includes(m.id)}
+                        onChange={() => toggleEditModulo(m.id)}
+                      />
+                      {m.title}
+                    </label>
+                  ))}
+                </div>
+
                 <div style={{ display: "flex", gap: "0.6rem", marginTop: "1rem" }}>
                   <button style={styles.btnPrimary} disabled={savingEdit} onClick={handleSalvarEdicao}>
                     {savingEdit ? "Salvando..." : "Salvar alterações"}

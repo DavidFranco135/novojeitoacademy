@@ -98,12 +98,17 @@ export default function StudentDashboard() {
           });
           setCertificateUrl(data.certificateUrl || null);
           const completedIds: string[] = data.completedLessons || [];
-          setModules((prev) =>
-            prev.map((m) => ({
+          const modulosAplicaveis: string[] | null = data.modulosAplicaveis || null;
+          const filteredModules = loadedModules
+            .filter((m) => !modulosAplicaveis || modulosAplicaveis.includes(m.id))
+            .map((m) => ({
               ...m,
               lessons: m.lessons.map((l) => ({ ...l, completed: completedIds.includes(l.id) })),
-            }))
-          );
+            }));
+          setModules(filteredModules);
+          if (filteredModules.length && !filteredModules.some((m) => m.lessons.some((l) => l.id === activeLessonId))) {
+            setActiveLessonId(filteredModules[0].lessons[0].id);
+          }
 
           // se os vídeos já estavam 100% mas o certificado ainda não saiu, descobre o motivo
           if (data.percent === 100 && !data.certificateUrl && data.enrollmentId) {

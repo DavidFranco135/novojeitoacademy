@@ -57,6 +57,7 @@ export const getStudentProgress = onRequest({ cors: true }, async (req, res) => 
       completedLessons: progress.completedLessons || [],
       percent: progress.percent || 0,
       certificateUrl: enrollment.data.certificateUrl || null,
+      modulosAplicaveis: enrollment.data.modulosAplicaveis || null,
     });
   } catch (err) {
     console.error("getStudentProgress error:", err);
