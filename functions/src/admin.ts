@@ -68,6 +68,7 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           certificateCode: data.certificateCode || null,
           certificateIssuedAt: data.certificateIssuedAt ? data.certificateIssuedAt.toDate().toLocaleDateString("pt-BR") : null,
           modulosAplicaveis: data.modulosAplicaveis || null,
+          comprovanteUrl: data.comprovanteUrl || null,
         };
       })
     );

@@ -234,7 +234,9 @@ export default function EnrollmentFlow() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.strokeStyle = "#F5F0E8";
+    // azul de caneta — o canvas em si fica transparente (só os traços têm cor),
+    // então essa é a cor que vai aparecer de verdade no PDF final (fundo branco)
+    ctx.strokeStyle = "#1e40af";
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
   }, [step]);

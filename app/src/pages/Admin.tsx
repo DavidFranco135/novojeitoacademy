@@ -421,6 +421,37 @@ function Alunos() {
     window.prompt("Link para o aluno assinar o contrato (já copiado — cole no WhatsApp):", link);
   }
 
+  async function handleEnviarWhatsApp(aluno: any) {
+    setActingOn(aluno.id);
+    try {
+      if (!aluno.contractUrl) throw new Error("Esse aluno ainda não assinou o contrato.");
+
+      let comprovanteUrl = aluno.comprovanteUrl;
+      if (!comprovanteUrl) {
+        const res = await authedFetch("generateComprovante", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enrollmentId: aluno.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Não foi possível gerar o comprovante");
+        comprovanteUrl = data.comprovanteUrl;
+      }
+
+      const numero = `55${(aluno.telefone || "").replace(/\D/g, "")}`;
+      const texto =
+        `Olá, ${aluno.nome}! Segue o seu contrato e o comprovante de matrícula da Novo Jeito Academy:\n\n` +
+        `📄 Contrato assinado: ${aluno.contractUrl}\n` +
+        `✅ Comprovante de adesão: ${comprovanteUrl}`;
+      window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank");
+      loadAlunos();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível preparar o envio.");
+    } finally {
+      setActingOn(null);
+    }
+  }
+
   async function handleAction(action: "resendAccessEmail" | "resendCertificate" | "resendContract" | "generateComprovante", enrollmentId: string, linkField: string) {
     setActingOn(enrollmentId);
     try {
@@ -571,6 +602,11 @@ function Alunos() {
                     <span style={{ fontSize: "0.76rem", color: "#e8746a" }}>⚠️ Contrato não assinado</span>
                   )}
                   {a.certificateUrl && <a href={a.certificateUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver certificado</a>}
+                  {a.contractUrl && (
+                    <button style={{ ...styles.linkBtn, color: "#78c88c" }} disabled={actingOn === a.id} onClick={() => handleEnviarWhatsApp(a)}>
+                      {actingOn === a.id ? "Preparando..." : "📲 Enviar contrato + comprovante no WhatsApp"}
+                    </button>
+                  )}
                   <button style={styles.linkBtn} disabled={actingOn === a.id} onClick={() => handleAction("resendAccessEmail", a.id, "loginLink")}>
                     Copiar link de acesso
                   </button>
@@ -1258,7 +1294,9 @@ function AssinaturaContratada() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.strokeStyle = "#F5F0E8";
+    // azul de caneta — o canvas fica transparente (só os traços têm cor), então
+    // essa é a cor que vai aparecer de verdade no PDF final (fundo branco)
+    ctx.strokeStyle = "#1e40af";
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
   }, []);
