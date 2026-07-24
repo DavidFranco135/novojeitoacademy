@@ -242,49 +242,6 @@ export default function StudentDashboard() {
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  async function markComplete(lessonId: string) {
-    // atualiza a tela na hora (otimista), e confirma com o backend em seguida
-    setModules((prev) =>
-      prev.map((m) => ({
-        ...m,
-        lessons: m.lessons.map((l) => (l.id === lessonId ? { ...l, completed: true } : l)),
-      }))
-    );
-
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) return;
-
-    try {
-      const res = await fetch(`${FUNCTIONS_BASE}/markLessonComplete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ lessonId, totalLessons }),
-      });
-      const data = await res.json();
-
-      // se acabou de bater 100%, já tenta liberar o certificado
-      // (só emite de verdade se a presença na turma presencial também estiver completa)
-      if (data.percent === 100 && enrollmentId && !certificateUrl) {
-        setGeneratingCert(true);
-        const certRes = await fetch(`${FUNCTIONS_BASE}/generateCertificate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enrollmentId }),
-        });
-        const certData = await certRes.json();
-        if (certRes.ok) {
-          setCertificateUrl(certData.certificateUrl);
-          setCertPendingReason(null);
-        } else {
-          setCertPendingReason(certData.reason || certData.error || "Requisito pendente");
-        }
-        setGeneratingCert(false);
-      }
-    } catch (e) {
-      console.error("Falha ao salvar conclusão da aula", e);
-    }
-  }
-
   function goToNext() {
     const idx = allLessons.findIndex((l) => l.id === activeLessonId);
     if (idx < allLessons.length - 1) setActiveLessonId(allLessons[idx + 1].id);
@@ -652,10 +609,10 @@ export default function StudentDashboard() {
 
         <div style={styles.lessonHeader}>
           <h1 style={styles.lessonTitle}>{activeLesson.title}</h1>
-          {!activeLesson.completed ? (
-            <button style={styles.btnPrimary} onClick={() => markComplete(activeLesson.id)}>Marcar como concluída</button>
-          ) : (
+          {activeLesson.completed ? (
             <button style={styles.btnGhostGold} onClick={goToNext}>Próxima aula →</button>
+          ) : (
+            <span style={{ fontSize: "0.78rem", color: "#9d9384" }}>○ Aguardando confirmação de presença (QR Code)</span>
           )}
         </div>
 

@@ -115,14 +115,22 @@ const DEFAULT_MODULES = [
   },
 ];
 
-export const getCourseContent = onRequest({ cors: true }, async (req, res) => {
+// Reaproveitado tanto pelo endpoint público (getCourseContent) quanto por
+// outras functions que precisam ler o currículo internamente (ex: marcar aula
+// concluída automaticamente quando a presença é confirmada via QR).
+export async function getCourseModules(): Promise<any[]> {
   try {
     const doc = await db.collection("courseContent").doc("main").get();
-    res.status(200).json({ modules: doc.exists ? doc.data()!.modules : DEFAULT_MODULES });
+    return doc.exists ? doc.data()!.modules : DEFAULT_MODULES;
   } catch (err) {
-    console.error("getCourseContent error:", err);
-    res.status(200).json({ modules: DEFAULT_MODULES }); // nunca quebra a página do aluno/site por erro aqui
+    console.error("getCourseModules error:", err);
+    return DEFAULT_MODULES;
   }
+}
+
+export const getCourseContent = onRequest({ cors: true }, async (req, res) => {
+  const modules = await getCourseModules();
+  res.status(200).json({ modules });
 });
 
 export const updateCourseContent = onRequest({ cors: true }, async (req, res) => {

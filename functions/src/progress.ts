@@ -66,35 +66,15 @@ export const getStudentProgress = onRequest({ cors: true }, async (req, res) => 
   }
 });
 
+// DESCONTINUADO: o aluno marcava a própria aula como concluída clicando um
+// botão, sem nenhuma confirmação real de presença — dava pra "concluir" tudo
+// sem nunca ter ido numa aula. A conclusão agora é automática: quando a
+// presença é confirmada via QR Code (confirmLessonCheckin, em turmas.ts), a
+// aula correspondente do currículo é marcada concluída no mesmo passo (ver
+// marcarAulaConcluidaPelaPresenca). Mantido só pra não quebrar o endpoint de
+// quem ainda tiver a versão antiga do app aberta — sempre recusa o pedido.
 export const markLessonComplete = onRequest({ cors: true }, async (req, res) => {
-  try {
-    const enrollment = await getEnrollmentFromRequest(req);
-    if (!enrollment) {
-      res.status(403).json({ error: "Matrícula não encontrada ou acesso não liberado" });
-      return;
-    }
-
-    const { lessonId, totalLessons } = req.body;
-    if (!lessonId || !totalLessons) {
-      res.status(400).json({ error: "lessonId e totalLessons são obrigatórios" });
-      return;
-    }
-
-    const progressRef = db.collection("progress").doc(enrollment.id);
-
-    const result = await db.runTransaction(async (tx) => {
-      const doc = await tx.get(progressRef);
-      const current: string[] = doc.exists ? doc.data()!.completedLessons || [] : [];
-      const updated = current.includes(lessonId) ? current : [...current, lessonId];
-      const percent = Math.round((updated.length / totalLessons) * 100);
-
-      tx.set(progressRef, { completedLessons: updated, percent }, { merge: true });
-      return { completedLessons: updated, percent };
-    });
-
-    res.status(200).json(result);
-  } catch (err) {
-    console.error("markLessonComplete error:", err);
-    res.status(500).json({ error: "Erro interno" });
-  }
+  res.status(410).json({
+    error: "A conclusão de aula agora acontece automaticamente ao confirmar presença pelo QR Code — não é mais possível marcar manualmente.",
+  });
 });

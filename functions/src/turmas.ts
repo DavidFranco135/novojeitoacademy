@@ -27,6 +27,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import { generateCertificateForEnrollment } from "./certificate";
+import { getCourseModules } from "./courseContent";
 
 const db = admin.firestore();
 const CHECKIN_SECRET = defineSecret("CHECKIN_SECRET");
@@ -306,6 +307,65 @@ export const getLessonCheckinLink = onRequest({ cors: true, secrets: [CHECKIN_SE
 });
 
 // ============================================================
+// Marca a aula do currículo correspondente a um encontro como concluída —
+// a conclusão da aula vem da presença confirmada via QR, não de o aluno
+// clicar em "marcar como concluída" sozinho (isso não existe mais).
+//
+// Descobre qual aula é: usa "aulaRelacionada" se o encontro tiver esse
+// vínculo explícito; senão, casa pela POSIÇÃO — a Nª data do módulo X na
+// grade da turma corresponde à Nª aula do módulo X no currículo (mesma
+// ordem cronológica). Se não der pra identificar (módulo sem vínculo
+// nenhum), não marca nada — não quebra a confirmação de presença em si.
+// ============================================================
+async function marcarAulaConcluidaPelaPresenca(
+  enrollmentId: string,
+  enrollmentData: any,
+  todosEncontrosDaTurma: Encontro[],
+  encontroConfirmado: Encontro
+) {
+  try {
+    const modules = await getCourseModules();
+    const modulosAplicaveis: string[] | null = enrollmentData.modulosAplicaveis || null;
+    const aulasExcluidas: string[] = enrollmentData.aulasExcluidas || [];
+
+    const modulosDoAluno = (modules as any[]).filter((m) => !modulosAplicaveis || modulosAplicaveis.includes(m.id));
+    const totalLessons = modulosDoAluno.reduce(
+      (sum: number, m: any) => sum + m.lessons.filter((l: any) => !aulasExcluidas.includes(l.id)).length,
+      0
+    );
+    if (totalLessons === 0) return;
+
+    let lessonId = encontroConfirmado.aulaRelacionada;
+    if (!lessonId && encontroConfirmado.moduloRelacionado) {
+      const modulo = modulosDoAluno.find((m: any) => m.id === encontroConfirmado.moduloRelacionado);
+      if (modulo) {
+        const encontrosDoModulo = todosEncontrosDaTurma
+          .filter((e) => e.moduloRelacionado === encontroConfirmado.moduloRelacionado)
+          .sort((a, b) => a.data.localeCompare(b.data));
+        const posicao = encontrosDoModulo.findIndex((e) => e.data === encontroConfirmado.data);
+        const aulasDoModulo = modulo.lessons.filter((l: any) => !aulasExcluidas.includes(l.id));
+        if (posicao >= 0 && posicao < aulasDoModulo.length) {
+          lessonId = aulasDoModulo[posicao].id;
+        }
+      }
+    }
+    if (!lessonId) return;
+
+    const progressRef = db.collection("progress").doc(enrollmentId);
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(progressRef);
+      const current: string[] = doc.exists ? doc.data()!.completedLessons || [] : [];
+      if (current.includes(lessonId!)) return;
+      const updated = [...current, lessonId!];
+      const percent = Math.round((updated.length / totalLessons) * 100);
+      tx.set(progressRef, { completedLessons: updated, percent }, { merge: true });
+    });
+  } catch (err) {
+    console.error("marcarAulaConcluidaPelaPresenca error:", err);
+  }
+}
+
+// ============================================================
 // 4b) Aluno logado escaneia o QR do encontro pra confirmar a própria
 // presença. Não expira por data — um encontro passado continua com QR
 // válido, pra dar pra registrar reposição escaneando depois.
@@ -367,6 +427,8 @@ export const confirmLessonCheckin = onRequest({ cors: true, secrets: [CHECKIN_SE
     }
 
     await bookingRef.update({ [`presencas.${data}`]: true });
+
+    await marcarAulaConcluidaPelaPresenca(enrollmentId, enrollmentSnap.docs[0].data(), turma.encontros, encontro);
 
     // tenta gerar o certificado — só emite de verdade se as aulas também já estiverem 100%
     const certResult = await generateCertificateForEnrollment(enrollmentId);
