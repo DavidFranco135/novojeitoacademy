@@ -627,7 +627,9 @@ function Alunos() {
                 <>
                   {a.aguardandoPagamento ? (
                     <>
-                      <span style={{ fontSize: "0.76rem", color: "#e8a04a" }}>⏳ Contrato assinado, aguardando pagamento</span>
+                      <span style={{ fontSize: "0.76rem", color: "#e8a04a" }}>
+                        ⏳ Contrato assinado, aguardando pagamento{a.preferePagamentoDinheiro ? " — 💵 pediu pra pagar em dinheiro" : ""}
+                      </span>
                       {a.contractUrl && <a href={a.contractUrl} target="_blank" rel="noreferrer" style={styles.linkBtn}>Ver contrato</a>}
                       <button style={{ ...styles.linkBtn, color: "#78c88c" }} disabled={actingOn === a.id} onClick={() => handleConfirmarPagamento(a)}>
                         {actingOn === a.id ? "Confirmando..." : "💵 Marcar como pago (dinheiro)"}

@@ -256,6 +256,34 @@ export const signContract = onRequest(
 );
 
 // ============================================================
+// 2c) Aluno avisa, na própria Etapa 3, que prefere pagar em dinheiro em vez
+// de ir pro Mercado Pago — só marca a preferência (não libera acesso; quem
+// libera é o admin, via "Marcar como pago" em Admin → Alunos, quando o
+// dinheiro for entregue de verdade).
+// ============================================================
+export const preferCashPayment = onRequest({ cors: true }, async (req, res) => {
+  try {
+    const { enrollmentId } = req.body;
+    if (!enrollmentId) {
+      res.status(400).json({ error: "enrollmentId obrigatório" });
+      return;
+    }
+
+    const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
+    if (!enrollmentSnap.exists) {
+      res.status(404).json({ error: "Matrícula não encontrada" });
+      return;
+    }
+
+    await db.collection("enrollments").doc(enrollmentId).update({ preferePagamentoDinheiro: true });
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("preferCashPayment error:", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ============================================================
 // 2b) Retorna os dados de uma matrícula já existente para permitir assinar (ou
 // reassinar) o contrato retroativamente — usado pela tela /matricula?assinar=<id>,
 // pro caso de bolsa/dinheiro cadastrados antes da assinatura ser obrigatória e que

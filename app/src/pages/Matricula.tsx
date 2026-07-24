@@ -316,6 +316,9 @@ export default function EnrollmentFlow() {
   }
 
   // ---------- Etapa 3: pagamento ----------
+  const [preferiuDinheiro, setPreferiuDinheiro] = useState(false);
+  const [enviandoPreferenciaDinheiro, setEnviandoPreferenciaDinheiro] = useState(false);
+
   async function goToPayment() {
     setError("");
     setLoading(true);
@@ -331,6 +334,22 @@ export default function EnrollmentFlow() {
     } catch (e) {
       setError("Não foi possível iniciar o pagamento. Tente novamente.");
       setLoading(false);
+    }
+  }
+
+  async function handlePreferirDinheiro() {
+    setEnviandoPreferenciaDinheiro(true);
+    try {
+      await fetch(`${FUNCTIONS_BASE}/preferCashPayment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId }),
+      });
+    } catch {
+      // não bloqueia o aluno se isso falhar — a equipe também confirma por WhatsApp
+    } finally {
+      setPreferiuDinheiro(true);
+      setEnviandoPreferenciaDinheiro(false);
     }
   }
 
@@ -468,7 +487,7 @@ export default function EnrollmentFlow() {
             </>
           )}
 
-          {step === 3 && modo === "pago" && (
+          {step === 3 && modo === "pago" && !preferiuDinheiro && (
             <>
               <h2 style={styles.h2}>Pagamento</h2>
               <p style={styles.p}>Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).</p>
@@ -478,6 +497,22 @@ export default function EnrollmentFlow() {
               <button style={styles.btnPrimary} onClick={goToPayment} disabled={loading}>
                 {loading ? "Redirecionando..." : "Ir para pagamento"}
               </button>
+              <button
+                style={{ ...styles.btnGhost, width: "100%", marginTop: "0.8rem", boxSizing: "border-box" }}
+                onClick={handlePreferirDinheiro}
+                disabled={enviandoPreferenciaDinheiro}
+              >
+                {enviandoPreferenciaDinheiro ? "Só um instante..." : "Prefiro pagar em dinheiro"}
+              </button>
+            </>
+          )}
+
+          {step === 3 && modo === "pago" && preferiuDinheiro && (
+            <>
+              <h2 style={styles.h2}>Combine o pagamento com a academia</h2>
+              <p style={styles.p}>
+                Anotado! Seu cadastro e contrato já estão salvos — agora é só combinar o pagamento em dinheiro direto com a equipe da Novo Jeito Academy (pelo WhatsApp ou pessoalmente). Assim que o pagamento for confirmado, seu acesso é liberado e você recebe o link de login.
+              </p>
             </>
           )}
 

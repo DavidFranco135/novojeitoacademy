@@ -6,7 +6,7 @@
 import * as admin from "firebase-admin";
 admin.initializeApp();
 
-export { createEnrollment, signContract, createPaymentPreference, mercadopagoWebhook, getEnrollmentForSigning } from "./enrollment";
+export { createEnrollment, signContract, createPaymentPreference, mercadopagoWebhook, getEnrollmentForSigning, preferCashPayment } from "./enrollment";
 export { generateCertificate } from "./certificate";
 export {
   createTurma,

@@ -61,6 +61,7 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           bloqueado: data.status === "bloqueado",
           pendente,
           aguardandoPagamento: data.status === "contrato_assinado",
+          preferePagamentoDinheiro: data.preferePagamentoDinheiro || false,
           bloqueioMotivo: data.bloqueioMotivo || null,
           progresso: percent,
           matricula: dataMatricula ? dataMatricula.toDate().toLocaleDateString("pt-BR") : "-",
