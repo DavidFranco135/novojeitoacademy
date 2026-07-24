@@ -84,7 +84,7 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
 });
 
 // ============================================================
-// Detalhe de UM aluno pro admin: quais aulas em vídeo já concluiu + a turma
+// Detalhe de UM aluno pro admin: quais aulas já concluiu + a turma
 // presencial em que está matriculado (se houver) com a presença por encontro.
 // ============================================================
 export const getStudentDetail = onRequest({ cors: true }, async (req, res) => {

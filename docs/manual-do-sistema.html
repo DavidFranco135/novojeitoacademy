@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Manual do Sistema — Novo Jeito Academy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<style>
+  :root {
+    --ink: #050505;
+    --panel-1: #0d0d0d;
+    --panel-2: #050505;
+    --gold: #C58A4A;
+    --gold-bright: #E8B97A;
+    --cream: #F5F0E8;
+    --muted: #9d9384;
+    --muted-2: #6b6459;
+    --line: rgba(197,138,74,.18);
+    --line-strong: rgba(197,138,74,.35);
+    --good: #78c88c;
+    --warn: #e8b97a;
+    --bad: #e8746a;
+    --sidebar-w: 280px;
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --font-body: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--cream);
+    font-family: var(--font-body);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(197,138,74,.35); color: var(--cream); }
+  a { color: var(--gold); }
+  a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible {
+    outline: 2px solid var(--gold-bright);
+    outline-offset: 2px;
+  }
+  img, svg { max-width: 100%; }
+
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; text-wrap: balance; margin: 0; }
+  p { margin: 0 0 1rem; max-width: 68ch; }
+  code, kbd { font-family: var(--font-mono); font-size: .85em; background: rgba(197,138,74,.1); border: 1px solid var(--line); padding: .1em .4em; border-radius: 3px; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: .68rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    display: block;
+    margin-bottom: .5rem;
+  }
+
+  /* ===== layout shell ===== */
+  .shell { display: flex; min-height: 100dvh; }
+
+  .topbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    align-items: center;
+    justify-content: space-between;
+    padding: .9rem 1.2rem;
+    background: rgba(5,5,5,.92);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .brand { font-family: var(--font-display); font-size: 1.05rem; }
+  .topbar .brand em { color: var(--gold); font-style: italic; }
+  .menu-btn {
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--cream);
+    padding: .5rem .8rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  #nav-toggle { display: none; }
+
+  nav.sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    padding: 2rem 1.4rem;
+    border-right: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+  }
+  .sidebar .brand { font-family: var(--font-display); font-size: 1.15rem; margin-bottom: .2rem; }
+  .sidebar .brand em { color: var(--gold); font-style: italic; }
+  .sidebar .brand-sub {
+    font-family: var(--font-mono); font-size: .6rem; letter-spacing: .16em;
+    color: var(--muted-2); margin-bottom: 2rem; display: block;
+  }
+  .navgroup { margin-bottom: 1.6rem; }
+  .navgroup-title {
+    font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted-2); margin-bottom: .5rem;
+  }
+  .navgroup a {
+    display: block;
+    font-size: .84rem;
+    color: var(--muted);
+    text-decoration: none;
+    padding: .32rem 0;
+    border-left: 2px solid transparent;
+    padding-left: .7rem;
+    margin-left: -.7rem;
+    transition: color .15s, border-color .15s;
+  }
+  .navgroup a:hover { color: var(--cream); }
+  .navgroup a.current { color: var(--gold); border-left-color: var(--gold); }
+
+  main.content {
+    flex: 1;
+    min-width: 0;
+    padding: 4rem clamp(1.4rem, 5vw, 5rem) 6rem;
+    max-width: 900px;
+  }
+
+  .lede {
+    font-size: 1.05rem;
+    color: var(--cream);
+    max-width: 62ch;
+  }
+
+  section.part { padding-top: 2.4rem; }
+  section.part:first-of-type { padding-top: 0; }
+  .part > h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin-bottom: .6rem; }
+  .part-intro { color: var(--muted); margin-bottom: 2rem; }
+
+  article.topic { padding: 2.2rem 0; border-top: 1px solid var(--line); }
+  article.topic:first-of-type { border-top: none; padding-top: 1rem; }
+  article.topic h2 { font-size: 1.3rem; margin-bottom: .3rem; }
+  article.topic h3 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; color: var(--gold-bright); margin: 1.4rem 0 .5rem; }
+  .topic-meta { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em; color: var(--muted-2); text-transform: uppercase; margin-bottom: 1rem; display: block; }
+
+  ol.steps { margin: 0 0 1.2rem; padding-left: 1.3rem; max-width: 62ch; }
+  ol.steps li { margin-bottom: .55rem; padding-left: .2rem; }
+  ul.plain { margin: 0 0 1.2rem; padding-left: 1.2rem; max-width: 62ch; }
+  ul.plain li { margin-bottom: .4rem; }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(160deg, var(--panel-1), var(--panel-2));
+    padding: 1.2rem 1.4rem;
+    margin: 1.2rem 0;
+  }
+  .card h4 { font-size: .82rem; color: var(--gold); margin-bottom: .5rem; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .callout { display: flex; gap: .8rem; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.2rem 0; max-width: 62ch; }
+  .callout .icon { flex-shrink: 0; font-size: 1.1rem; line-height: 1.5; }
+  .callout p { margin: 0; font-size: .9rem; }
+  .callout.tip { background: rgba(197,138,74,.08); border: 1px solid var(--line); }
+  .callout.warn { background: rgba(232,185,122,.08); border: 1px solid rgba(232,185,122,.3); }
+  .callout.who { background: rgba(120,200,140,.06); border: 1px solid rgba(120,200,140,.25); }
+
+  .path-tag {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
+    color: var(--muted); background: rgba(255,255,255,.03); border: 1px solid var(--line);
+    padding: .3rem .6rem; border-radius: 4px; margin: 0 0 1rem;
+  }
+
+  table.ref { width: 100%; border-collapse: collapse; margin: 1rem 0 1.6rem; font-size: .86rem; }
+  table.ref th, table.ref td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.ref th { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  .table-wrap { overflow-x: auto; }
+
+  .badge {
+    display: inline-block; font-family: var(--font-mono); font-size: .6rem; letter-spacing: .06em;
+    padding: .18rem .5rem; border-radius: 2px; margin-right: .3rem; text-transform: uppercase;
+  }
+  .badge.aluno { background: var(--gold); color: var(--ink); }
+  .badge.admin { border: 1px solid var(--line-strong); color: var(--gold); }
+  .badge.publico { border: 1px solid rgba(120,200,140,.4); color: var(--good); }
+
+  details.faq { border-bottom: 1px solid var(--line); padding: .9rem 0; }
+  details.faq summary {
+    cursor: pointer; font-weight: 700; font-size: .92rem; list-style: none;
+    display: flex; justify-content: space-between; gap: 1rem; align-items: center;
+  }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; color: var(--gold); font-size: 1.1rem; flex-shrink: 0; }
+  details.faq[open] summary::after { content: "–"; }
+  details.faq p { margin-top: .6rem; color: var(--muted); font-size: .88rem; }
+
+  dl.glossary { margin: 0; }
+  dl.glossary > div { padding: .9rem 0; border-bottom: 1px solid var(--line); }
+  dl.glossary dt { font-weight: 700; color: var(--gold-bright); font-size: .92rem; }
+  dl.glossary dd { margin: .3rem 0 0; color: var(--muted); font-size: .88rem; max-width: 60ch; }
+
+  footer.doc-footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.6rem; color: var(--muted-2); font-size: .78rem; }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  /* ===== mobile ===== */
+  @media (max-width: 880px) {
+    .topbar { display: flex; }
+    nav.sidebar {
+      position: fixed;
+      inset: 0 20% 0 0;
+      z-index: 50;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      width: auto;
+      box-shadow: 40px 0 60px rgba(0,0,0,.5);
+    }
+    #nav-toggle:checked ~ .shell nav.sidebar { transform: translateX(0); }
+    #nav-toggle:checked ~ .shell .scrim { opacity: 1; pointer-events: auto; }
+    .scrim {
+      position: fixed; inset: 0; z-index: 45; background: rgba(0,0,0,.6);
+      opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    }
+    main.content { padding: 1.6rem 1.2rem 4rem; }
+    table.ref { font-size: .8rem; }
+  }
+</style>
+</head>
+<body>
+
+<input type="checkbox" id="nav-toggle" />
+
+<div class="topbar">
+  <div class="brand">Novo Jeito <em>Academy</em></div>
+  <label class="menu-btn" for="nav-toggle">☰ Índice</label>
+</div>
+
+<div class="shell">
+  <label class="scrim" for="nav-toggle"></label>
+
+  <nav class="sidebar" aria-label="Índice do manual">
+    <div class="brand">Novo Jeito <em>Academy</em></div>
+    <span class="brand-sub">MANUAL DO SISTEMA</span>
+
+    <div class="navgroup">
+      <div class="navgroup-title">Início</div>
+      <a href="#visao-geral">Visão geral</a>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-title">Jornada do aluno</div>
+      <a href="#descoberta">1. Descobrindo o curso</a>
+      <a href="#matricula">2. Matrícula</a>
+      <a href="#login">3. Primeiro acesso</a>
+      <a href="#area-do-aluno">4. Área do Aluno</a>
+      <a href="#turma-presencial">5. Turma presencial e QR</a>
+      <a href="#laboratorio">6. Laboratório Novo Jeito</a>
+      <a href="#certificado">7. Certificado Inteligente</a>
+      <a href="#instalar-app">8. Instalando como app</a>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-title">Área dos modelos</div>
+      <a href="#area-modelos">Agenda pública</a>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-title">Painel administrativo</div>
+      <a href="#admin-visao-geral">Visão Geral</a>
+      <a href="#admin-leads">Leads</a>
+      <a href="#admin-alunos">Alunos</a>
+      <a href="#admin-formados">Formados</a>
+      <a href="#admin-turmas">Turmas Presenciais</a>
+      <a href="#admin-laboratorio">Laboratório</a>
+      <a href="#admin-bolsas">Bolsas</a>
+      <a href="#admin-conteudo">Conteúdo do Site</a>
+      <a href="#admin-curriculo">Currículo</a>
+      <a href="#admin-assinatura">Assinatura</a>
+      <a href="#admin-avisos">Avisos</a>
+      <a href="#admin-financeiro">Financeiro</a>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-title">Referência</div>
+      <a href="#glossario">Glossário</a>
+      <a href="#faq">Perguntas frequentes</a>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <section class="part" id="visao-geral">
+      <span class="eyebrow">Manual do sistema</span>
+      <h1>Como funciona a Novo Jeito Academy, de ponta a ponta.</h1>
+      <p class="lede">Este manual explica o sistema inteiro — desde a primeira visita de um interessado no site até a última configuração escondida no painel administrativo. A ideia é simples: qualquer pessoa da equipe consegue ler isso e sair sabendo operar 100% do sistema, sem precisar adivinhar nada.</p>
+
+      <div class="card">
+        <h4>O sistema tem três partes</h4>
+        <p><span class="badge publico">PÚBLICO</span> o <strong>site de vendas</strong> — onde um interessado conhece o curso e decide se matricular.</p>
+        <p><span class="badge aluno">ALUNO</span> a <strong>Área do Aluno</strong> — onde quem já se matriculou assiste às aulas, atende modelos no Laboratório e acompanha seu certificado.</p>
+        <p><span class="badge admin">ADMIN</span> o <strong>Painel Administrativo</strong> — onde a equipe cadastra turmas, avalia atendimentos, edita o currículo e acompanha tudo o que acontece.</p>
+      </div>
+
+      <p>As seções a seguir seguem a ordem natural de quem usa o sistema: primeiro a jornada de quem está aprendendo a profissão, depois a área pública de apoio (modelos), e por último o painel de quem administra a escola.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section class="part" id="jornada">
+      <span class="eyebrow">Parte 1</span>
+      <h1>A jornada do aluno</h1>
+      <p class="part-intro">Do primeiro clique no site até o certificado na mão — passo a passo, na ordem em que o aluno de fato vive isso.</p>
+
+      <article class="topic" id="descoberta">
+        <span class="topic-meta"><span class="badge publico">Público</span> Site de vendas</span>
+        <h2>1. Descobrindo o curso</h2>
+        <p>O site de vendas é a porta de entrada. Ele mostra a grade curricular completa (os 6 módulos de aula + o card do Laboratório Novo Jeito), depoimentos de ex-alunos, a explicação do certificado, o investimento e uma seção de perguntas frequentes.</p>
+        <ul class="plain">
+          <li>A grade curricular exibida ali <strong>não é texto fixo</strong> — ela vem direto do Currículo cadastrado no painel Admin. Editar lá atualiza o site na hora.</li>
+          <li>Tem um botão de WhatsApp flutuante e um formulário de "me chama" pra quem ainda tem dúvida antes de decidir — isso cai na aba <strong>Leads</strong> do Admin.</li>
+          <li>Existe também uma página separada de <strong>Bolsa de 100%</strong>, com um formulário próprio de candidatura.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="matricula">
+        <span class="topic-meta"><span class="badge publico">Público</span> Cadastro, contrato e pagamento</span>
+        <h2>2. Matrícula</h2>
+        <p>Ao clicar em "Quero me inscrever", o interessado entra num fluxo de matrícula guiado em etapas:</p>
+        <ol class="steps">
+          <li><strong>Dados pessoais</strong> — nome, e-mail, telefone, CPF (necessários pra emitir contrato e certificado depois).</li>
+          <li><strong>Escolha da turma</strong> — as turmas presenciais com vaga disponível aparecem aqui, cada uma com sua grade de encontros.</li>
+          <li><strong>Pagamento</strong> — cartão, PIX ou boleto via Mercado Pago, <em>ou</em> a opção "prefiro pagar em dinheiro" (nesse caso a matrícula fica pendente até a equipe confirmar o recebimento manualmente no Admin).</li>
+        </ol>
+        <p>Antes de liberar o acesso, o aluno assina o <strong>contrato digitalmente</strong> — desenha a assinatura na tela, e o sistema gera um PDF com data, hora e o texto completo do contrato, guardado na conta dele.</p>
+        <div class="callout tip">
+          <span class="icon">💡</span>
+          <p>Quem ganhou uma bolsa de 100% recebe um link de matrícula especial, sem cobrança — o restante do fluxo (dados, turma, contrato) é o mesmo.</p>
+        </div>
+      </article>
+
+      <article class="topic" id="login">
+        <span class="topic-meta"><span class="badge publico">Público</span> Acesso à conta</span>
+        <h2>3. Primeiro acesso</h2>
+        <p>O login do aluno não usa senha — é um <strong>link mágico por e-mail</strong>: ele digita o e-mail cadastrado, recebe um link, clica e já entra direto na Área do Aluno logado. Simplifica pra quem acessa o sistema poucas vezes por semana.</p>
+      </article>
+
+      <article class="topic" id="area-do-aluno">
+        <span class="topic-meta"><span class="badge aluno">Aluno</span> /aluno</span>
+        <h2>4. Área do Aluno</h2>
+        <p>É o painel principal do curso. Uma barra fixa no topo dá acesso a tudo; o corpo da página é a trilha de aulas.</p>
+
+        <h3>Barra superior</h3>
+        <ul class="plain">
+          <li><strong>👤 Meus Dados</strong> — nome, e-mail, telefone, CPF, número de matrícula e o link do contrato assinado.</li>
+          <li><strong>📅 Meu Cronograma</strong> — as aulas de cada módulo agrupadas com os encontros presenciais correspondentes, cada um com o status de presença (✓ conforme confirma via QR Code).</li>
+          <li><strong>📍 Turma Presencial</strong> — ver ou escolher a turma presencial (ver seção 5).</li>
+          <li><strong>🧪 Laboratório</strong> — o Módulo 6 (ver seção 6).</li>
+          <li><strong>⏻ Sair</strong> — encerra a sessão.</li>
+        </ul>
+
+        <h3>A trilha de aulas</h3>
+        <p>Do lado esquerdo, um anel de progresso mostra a % concluída do curso, seguido da lista de módulos e aulas. Ao clicar numa aula, o painel central mostra os encontros presenciais daquele módulo (data, horário, local) com o status de presença de cada um, além das avaliações que o professor já deu nos atendimentos do Laboratório; o botão <strong>"Marcar como concluída"</strong> avança o progresso da aula.</p>
+
+        <div class="callout tip">
+          <span class="icon">💡</span>
+          <p>Se algum aluno tiver um módulo que não se aplica a ele (por exemplo, alguém que já tem barbearia própria e não precisa do módulo "Gestão da Barbearia"), a equipe pode desmarcar esse módulo pra ele no Admin → Alunos — ou até só uma aula específica dentro de um módulo que continua valendo. A trilha dele passa a pular o que foi desmarcado, inclusive na exigência do certificado.</p>
+        </div>
+      </article>
+
+      <article class="topic" id="turma-presencial">
+        <span class="topic-meta"><span class="badge aluno">Aluno</span> /aluno/presencial · /aluno/checkin/:token</span>
+        <h2>5. Turma presencial e check-in por QR Code</h2>
+        <p>O curso tem uma parte 100% presencial — 24 encontros, cada um com um assunto diferente. O aluno escolhe (ou já está matriculado n)uma turma, que já vem com toda a grade de datas, horários e locais.</p>
+        <h3>Como a presença é confirmada</h3>
+        <ol class="steps">
+          <li>No fim de cada encontro, o professor gera um QR Code daquele encontro específico no painel Admin (aba Turmas Presenciais).</li>
+          <li>Cada aluno escaneia o QR com o <strong>próprio celular</strong>, já logado na Área do Aluno.</li>
+          <li>A presença é confirmada na hora — quem estava logado é quem recebe o crédito, não quem "possui" o QR. Isso evita que um aluno confirme presença por outro.</li>
+        </ol>
+        <div class="callout tip">
+          <span class="icon">💡</span>
+          <p>O QR de um encontro passado continua válido — serve pra registrar reposição depois, se o aluno faltou e repôs a aula com o professor em outro dia.</p>
+        </div>
+      </article>
+
+      <article class="topic" id="laboratorio">
+        <span class="topic-meta"><span class="badge aluno">Aluno</span> /aluno/laboratorio · Módulo 6</span>
+        <h2>6. Laboratório Novo Jeito</h2>
+        <p>É o maior diferencial da escola: depois de aprender a teoria e treinar em bonecos e colegas, o aluno passa a atender <strong>modelos reais</strong>, sempre supervisionado pelo professor. A jornada dentro do Laboratório tem três fases:</p>
+        <ol class="steps">
+          <li><strong>Bonecos e colegas</strong> — treino técnico inicial, sem registro formal ainda.</li>
+          <li><strong>Modelos convidados</strong> — família, amigos, clientes voluntários de projetos sociais.</li>
+          <li><strong>Atendimento real</strong> — recepção, diagnóstico, corte, acabamento, finalização e entrega, tudo registrado e avaliado.</li>
+        </ol>
+
+        <h3>Registrando um atendimento</h3>
+        <p>Na aba <strong>Registrar atendimento</strong>, o aluno:</p>
+        <ol class="steps">
+          <li>Escolhe um modelo já atendido antes, ou cadastra um novo (nome e telefone).</li>
+          <li>Marca os serviços realizados (corte, degradê, barba, tesoura, sobrancelha...).</li>
+          <li>Tira a <strong>foto de antes</strong> e a <strong>foto de depois</strong> direto pela câmera do celular.</li>
+          <li>Envia — o atendimento entra na fila de avaliação do professor.</li>
+        </ol>
+
+        <h3>A avaliação do professor</h3>
+        <p>Cada atendimento é avaliado em 6 categorias, de 1 a 5 estrelas: <strong>Técnica, Degradê, Tesoura, Barba, Atendimento e Higiene</strong>, mais um comentário livre do professor. O aluno vê a nota assim que sai, na aba <strong>Meu histórico</strong>.</p>
+
+        <h3>Carteira Profissional</h3>
+        <p>É o "extrato" de tudo que o aluno já fez: horas de estudo, horas de prática, modelos atendidos, cortes/barbas/degradês realizados, nota média por categoria, os melhores trabalhos (com foto) e o link do certificado quando sair. A ideia é que o aluno consiga abrir isso no celular e mostrar pra qualquer barbearia — um histórico real do que ele já executou, não só "eu fiz um curso".</p>
+      </article>
+
+      <article class="topic" id="certificado">
+        <span class="topic-meta"><span class="badge aluno">Aluno</span> Automático, PDF</span>
+        <h2>7. Certificado Inteligente</h2>
+        <p>O certificado é gerado automaticamente, sem ninguém precisar clicar em nada, assim que o aluno cumpre <strong>os dois requisitos</strong>:</p>
+        <ul class="plain">
+          <li>100% das aulas do currículo marcadas como concluídas;</li>
+          <li>Presença confirmada em <strong>todos</strong> os encontros da turma presencial (respeitando os módulos que se aplicam a ele).</li>
+        </ul>
+        <p>Além do texto tradicional de conclusão, o PDF mostra as conquistas do Laboratório — horas de formação, modelos atendidos, degradês e barbas realizados, nota final — e um <strong>QR Code de validação</strong>: qualquer pessoa pode escanear e conferir, numa página pública, se aquele certificado é autêntico.</p>
+      </article>
+
+      <article class="topic" id="instalar-app">
+        <span class="topic-meta"><span class="badge aluno">Aluno</span> PWA</span>
+        <h2>8. Instalando como app no celular</h2>
+        <p>A Área do Aluno pode ser instalada na tela inicial do celular, como um app de verdade — sem precisar da loja de aplicativos.</p>
+        <ul class="plain">
+          <li><strong>iPhone (Safari):</strong> toque no ícone de compartilhar e depois em "Adicionar à Tela de Início".</li>
+          <li><strong>Android (Chrome):</strong> toque no menu (⋮) e depois em "Instalar app" ou "Adicionar à tela inicial".</li>
+        </ul>
+        <p>Um banner com essas instruções aparece sozinho pra quem ainda não instalou.</p>
+      </article>
+    </section>
+
+    <!-- ============================================================ -->
+    <section class="part" id="area-modelos">
+      <span class="eyebrow">Parte 2</span>
+      <h1>Área dos modelos</h1>
+      <p class="part-intro"><span class="badge publico">Público</span> — página aberta, sem login. Pensada pra ficar num tablet na recepção.</p>
+      <p>Mostra a agenda do dia: quem chega, a que horas, e com qual aluno. Pode ter mais de um modelo marcado no mesmo horário, cada um com um aluno diferente responsável. É a versão "de balcão" da agenda que a equipe monta no Admin (ver Laboratório → Agendar atendimento).</p>
+      <div class="card">
+        <h4>Exemplo</h4>
+        <p><code>09:00</code> — João, com o aluno Pedro<br/><code>09:00</code> — Lucas, com o aluno Carlos<br/><code>09:40</code> — Gabriel, com o aluno Rafael</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section class="part" id="admin">
+      <span class="eyebrow">Parte 3</span>
+      <h1>Painel administrativo</h1>
+      <p class="part-intro"><span class="badge admin">Admin</span> — acesso restrito a e-mails cadastrados como administrador. Cada aba abaixo é uma seção do menu lateral do painel.</p>
+
+      <article class="topic" id="admin-visao-geral">
+        <h2>Visão Geral</h2>
+        <p>O painel de entrada: número de interessados, alunos cadastrados, pagos, taxa de conversão e faturamento do período. É o resumo rápido de "como está a escola agora".</p>
+      </article>
+
+      <article class="topic" id="admin-leads">
+        <h2>Leads</h2>
+        <p>Lista de quem demonstrou interesse mas ainda não se matriculou (formulário "me chama" do site). Cada lead tem um status — <strong>Novo → Contatado → Convertido → Perdido</strong> — pra equipe acompanhar o follow-up manual pelo WhatsApp.</p>
+      </article>
+
+      <article class="topic" id="admin-alunos">
+        <h2>Alunos</h2>
+        <p>Lista completa de matriculados: status de pagamento, progresso no curso, dados de contato. De dentro do detalhe de um aluno dá pra:</p>
+        <ul class="plain">
+          <li>Editar os dados cadastrais;</li>
+          <li>Marcar/desmarcar quais <strong>módulos se aplicam</strong> a esse aluno específico, e dentro de um módulo que continua aplicável, desmarcar <strong>aulas individuais</strong> que ele já sabe (afeta a trilha dele e o requisito do certificado nos dois casos);</li>
+          <li>Confirmar manualmente um pagamento em dinheiro;</li>
+          <li>Bloquear/liberar acesso, reenviar certificado, reenviar contrato;</li>
+          <li>Ver o painel de desempenho detalhado — aulas concluídas, presença, atendimentos do Laboratório.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="admin-formados">
+        <h2>Formados</h2>
+        <p>Quem já concluiu o curso e teve o certificado emitido. Mostra o código de autenticidade e a data de emissão de cada um, com exportação em CSV.</p>
+      </article>
+
+      <article class="topic" id="admin-turmas">
+        <h2>Turmas Presenciais</h2>
+        <p>Aqui a equipe:</p>
+        <ol class="steps">
+          <li>Cria uma turma nova (nome, número de vagas, e opcionalmente um <strong>preço específico</strong> — útil pra turma de aluno que só vai fazer parte do curso) com a grade inteira de encontros (tópico, data, horário, local, módulo e aula relacionados);</li>
+          <li>Cola uma grade pronta de uma vez (uma linha de texto por encontro) em vez de digitar campo por campo, e edita uma turma já criada com o botão "✎ Editar";</li>
+          <li>Atribui manualmente um aluno a uma turma, se precisar trocar;</li>
+          <li>No dia de cada encontro, clica em <strong>"Gerar QR dessa aula"</strong> e exibe o código numa tela pros alunos escanearem;</li>
+          <li>Acompanha a tabela de presença de cada turma, aluno por aluno, encontro por encontro.</li>
+        </ol>
+      </article>
+
+      <article class="topic" id="admin-laboratorio">
+        <h2>Laboratório</h2>
+        <p>Espelha o Módulo 6 do lado do professor, em três abas:</p>
+        <ul class="plain">
+          <li><strong>Fila de avaliação</strong> — todo atendimento que um aluno registrou (com fotos) e ainda não recebeu nota aparece aqui. O professor vê as fotos de antes/depois e dá as 6 notas + comentário.</li>
+          <li><strong>Modelos cadastrados</strong> — o roster completo de modelos já atendidos por qualquer aluno, reaproveitável.</li>
+          <li><strong>Agendar atendimento</strong> — marca um horário futuro (modelo + aluno responsável + data/horário), que aparece na Área dos Modelos.</li>
+        </ul>
+      </article>
+
+      <article class="topic" id="admin-bolsas">
+        <h2>Bolsas</h2>
+        <p>Lista das candidaturas à bolsa de 100% (vinda do formulário público). A equipe lê a história de cada candidato e decide: <strong>conceder</strong> (gera um link de matrícula gratuita) ou <strong>rejeitar</strong> (a pessoa some da fila ativa, mas o registro fica salvo).</p>
+      </article>
+
+      <article class="topic" id="admin-conteudo">
+        <h2>Conteúdo do Site</h2>
+        <p>Editor do que aparece no site público, sem precisar mexer em código: foto de capa, título e texto de topo, estatísticas (alunos formados, aulas, avaliação), vídeo de apresentação, as 6 fotos da galeria, foto/nome/biografia do instrutor e o preço/parcelamento. Cada foto tem upload direto — escolhe o arquivo e já sobe.</p>
+      </article>
+
+      <article class="topic" id="admin-curriculo">
+        <h2>Currículo</h2>
+        <p>O editor da grade de módulos e aulas — o mesmo conteúdo que aparece na trilha da Área do Aluno e nos cards de currículo do site público. Dá pra adicionar/remover módulos, adicionar/remover aulas dentro de cada um, e editar título, duração e o vídeo (Cloudflare Stream) de cada aula.</p>
+        <div class="callout warn">
+          <span class="icon">⚠️</span>
+          <p>Editar o título/duração de uma aula existente não afeta o progresso de quem já assistiu. Só <em>excluir</em> uma aula é que "perde" essa marcação específica pra quem já tinha concluído ela.</p>
+        </div>
+      </article>
+
+      <article class="topic" id="admin-assinatura">
+        <h2>Assinatura</h2>
+        <p>Onde o instrutor desenha a própria assinatura uma única vez. Ela fica salva e é usada automaticamente em todo contrato e certificado gerado dali em diante — ninguém precisa assinar nada manualmente aula a aula.</p>
+      </article>
+
+      <article class="topic" id="admin-avisos">
+        <h2>Avisos</h2>
+        <p>Manda um recado que aparece como banner na Área do Aluno. Pode ser <strong>pra todos os alunos</strong> ou só pra um em específico. Cada aluno dispensa o aviso individualmente — some só pra quem já leu, os outros continuam vendo até dispensar também.</p>
+      </article>
+
+      <article class="topic" id="admin-financeiro">
+        <h2>Financeiro</h2>
+        <p>Todos os pagamentos — aprovados, pendentes, recusados — com relatório de faturamento por período e controle de parcelamentos em aberto.</p>
+      </article>
+    </section>
+
+    <!-- ============================================================ -->
+    <section class="part" id="referencia">
+      <span class="eyebrow">Parte 4</span>
+      <h1>Referência rápida</h1>
+
+      <article class="topic" id="glossario">
+        <h2>Glossário</h2>
+        <dl class="glossary">
+          <div>
+            <dt>Matrícula / Enrollment</dt>
+            <dd>O registro de um aluno no sistema — dados pessoais, contrato, status de pagamento e progresso. É o "cadastro mestre" ao qual tudo mais (aulas concluídas, presença, atendimentos) se conecta.</dd>
+          </div>
+          <div>
+            <dt>Turma</dt>
+            <dd>Uma coorte de alunos com uma grade própria de encontros presenciais (datas, horários, tópicos). O aluno se matricula na turma uma vez e passa a acompanhar todos os encontros dela.</dd>
+          </div>
+          <div>
+            <dt>Encontro</dt>
+            <dd>Uma aula presencial específica dentro da grade de uma turma — tem tópico, data, horário e local próprios.</dd>
+          </div>
+          <div>
+            <dt>Módulo / Aula</dt>
+            <dd>A unidade do currículo. Os 6 módulos de aula (24 aulas, 72h) formam a trilha teórico-prática; o Laboratório (Módulo 6) é a fase de atendimento supervisionado, com aulas próprias de introdução.</dd>
+          </div>
+          <div>
+            <dt>Modelo</dt>
+            <dd>A pessoa (voluntária, familiar, amigo ou cliente) que recebe o atendimento de um aluno no Laboratório — não é aluno do curso, não faz login no sistema.</dd>
+          </div>
+          <div>
+            <dt>Atendimento</dt>
+            <dd>O registro de um corte/serviço feito por um aluno num modelo: serviços realizados, foto antes/depois e a avaliação do professor quando sair.</dd>
+          </div>
+          <div>
+            <dt>Módulos aplicáveis</dt>
+            <dd>Uma configuração por aluno (Admin → Alunos) que permite pular um módulo específico da trilha dele — por exemplo, quem já tem barbearia própria pode não precisar do módulo de negócios.</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="topic" id="faq">
+        <h2>Perguntas frequentes</h2>
+
+        <details class="faq">
+          <summary>O aluno perde o progresso se eu editar o currículo?</summary>
+          <p>Não, editar título/duração/vídeo de uma aula mantém o progresso de quem já assistiu, porque cada aula tem um identificador fixo por trás. Só excluir a aula é que remove essa marcação específica.</p>
+        </details>
+        <details class="faq">
+          <summary>Como faço um aluno pular um módulo inteiro?</summary>
+          <p>Admin → Alunos → abra o aluno → desmarque o módulo em "Módulos aplicáveis". Isso afeta tanto a trilha dele na Área do Aluno quanto a exigência de presença pro certificado.</p>
+        </details>
+        <details class="faq">
+          <summary>O certificado sai automaticamente ou alguém precisa gerar?</summary>
+          <p>É automático — o sistema confere a cada aula concluída e a cada presença confirmada se os dois requisitos (100% das aulas + presença completa) já foram cumpridos, e emite sozinho na hora que isso acontece.</p>
+        </details>
+        <details class="faq">
+          <summary>Um modelo do Laboratório precisa de conta no sistema?</summary>
+          <p>Não. O modelo nunca faz login — ele só aparece na Agenda pública (Área dos Modelos) e nos registros de atendimento feitos pelo aluno ou pela equipe.</p>
+        </details>
+        <details class="faq">
+          <summary>Dá pra reavaliar um atendimento depois de avaliado?</summary>
+          <p>O aluno não pode mais editar fotos/serviços de um atendimento já avaliado (evita perder a nota por engano). O professor pode reabrir e ajustar a avaliação se precisar corrigir uma nota.</p>
+        </details>
+        <details class="faq">
+          <summary>Quem pode acessar o painel administrativo?</summary>
+          <p>Só e-mails cadastrados manualmente na coleção de administradores do sistema — criar login em /admin-login não dá acesso sozinho, alguém da equipe com acesso já liberado precisa cadastrar o UID da nova pessoa.</p>
+        </details>
+      </article>
+    </section>
+
+    <footer class="doc-footer">
+      Manual do Sistema — Novo Jeito Academy. 
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // fecha o menu mobile automaticamente ao clicar num link do índice
+  document.querySelectorAll('.sidebar a').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var toggle = document.getElementById('nav-toggle');
+      if (toggle) toggle.checked = false;
+    });
+  });
+
+  // destaca no índice a seção que está sendo lida
+  var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar a'));
+  var targets = links.map(function (l) { return document.querySelector(l.getAttribute('href')); }).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var id = '#' + entry.target.id;
+        links.forEach(function (l) { l.classList.toggle('current', l.getAttribute('href') === id); });
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    targets.forEach(function (t) { observer.observe(t); });
+  }
+</script>
+</body>
+</html>

@@ -368,7 +368,7 @@ export const confirmLessonCheckin = onRequest({ cors: true, secrets: [CHECKIN_SE
 
     await bookingRef.update({ [`presencas.${data}`]: true });
 
-    // tenta gerar o certificado — só emite de verdade se os vídeos também já estiverem 100%
+    // tenta gerar o certificado — só emite de verdade se as aulas também já estiverem 100%
     const certResult = await generateCertificateForEnrollment(enrollmentId);
     const certificadoLiberado = !("error" in certResult);
 

@@ -234,11 +234,11 @@ function RegistrarAtendimento() {
       <div style={{ display: "flex", gap: "1rem", marginTop: "1.4rem", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 140 }}>
           <div style={{ ...styles.eyebrow, marginBottom: "0.5rem" }}>FOTO ANTES</div>
-          <input type="file" accept="image/*" capture="environment" onChange={(e) => setFotoAntesFile(e.target.files?.[0] || null)} style={styles.fileInput} />
+          <input type="file" accept="image/*" onChange={(e) => setFotoAntesFile(e.target.files?.[0] || null)} style={styles.fileInput} />
         </div>
         <div style={{ flex: 1, minWidth: 140 }}>
           <div style={{ ...styles.eyebrow, marginBottom: "0.5rem" }}>FOTO DEPOIS</div>
-          <input type="file" accept="image/*" capture="environment" onChange={(e) => setFotoDepoisFile(e.target.files?.[0] || null)} style={styles.fileInput} />
+          <input type="file" accept="image/*" onChange={(e) => setFotoDepoisFile(e.target.files?.[0] || null)} style={styles.fileInput} />
         </div>
       </div>
 

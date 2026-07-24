@@ -2,7 +2,7 @@
  * Geração de Certificado — Novo Jeito Academy
  *
  * O certificado só é gerado quando o aluno atende os DOIS requisitos:
- *  1) 100% das aulas em vídeo concluídas
+ *  1) 100% das aulas concluídas
  *  2) Presença confirmada em TODOS os encontros da turma presencial em que está matriculado
  *
  * generateCertificateForEnrollment() é a função reutilizável, chamada automaticamente:
@@ -29,10 +29,9 @@ const CREAM = rgb(0.96, 0.94, 0.91);
 
 // ============================================================
 // Checagem de elegibilidade: presença completa na turma presencial e,
-// SE o aluno tiver aulas em vídeo em andamento, elas também 100% concluídas.
-// Enquanto o curso for só presencial (sem módulo online ativo ainda), não
-// existe registro de progresso pra esse aluno — nesse caso a exigência de
-// vídeo é pulada e o certificado depende só da presença.
+// SE o aluno tiver registro de progresso nas aulas, elas também 100% concluídas.
+// Enquanto não existir registro de progresso pra esse aluno, essa exigência é
+// pulada e o certificado depende só da presença.
 //
 // Se o aluno tiver "modulosAplicaveis" definido na matrícula (Admin → Alunos),
 // só exige presença nos encontros ligados a esses módulos — encontros de um
@@ -52,7 +51,7 @@ export async function checkCertificateEligibility(
   const progressSnap = await db.collection("progress").doc(enrollmentId).get();
   const progress = progressSnap.data();
   if (progress && progress.percent !== 100) {
-    return { eligible: false, reason: "Aulas em vídeo ainda não concluídas" };
+    return { eligible: false, reason: "Aulas ainda não concluídas" };
   }
 
   const bookingsSnap = await db.collection("turmaBookings").where("enrollmentId", "==", enrollmentId).get();

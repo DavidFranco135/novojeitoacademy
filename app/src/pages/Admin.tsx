@@ -83,19 +83,46 @@ export default function AdminDashboard() {
           }
           .admin-nav {
             flex-direction: row !important;
-            flex-wrap: wrap !important;
-            gap: 0.5rem !important;
+            flex-wrap: nowrap !important;
+            gap: 0.4rem !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            padding-bottom: 0.2rem !important;
+            margin: 0 -1.2rem !important;
+            padding-left: 1.2rem !important;
+            padding-right: 1.2rem !important;
           }
+          .admin-nav::-webkit-scrollbar { display: none !important; }
           .admin-nav button {
             white-space: nowrap !important;
             flex: 0 0 auto !important;
-            padding: 0.55rem 0.7rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.4rem !important;
+            padding: 0.55rem 0.8rem !important;
             font-size: 0.78rem !important;
+            line-height: 1 !important;
+          }
+          .admin-nav button span {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.95em !important;
+            line-height: 1 !important;
           }
           .admin-main {
             padding: 1.4rem 1.2rem !important;
             max-width: 100% !important;
           }
+          .aluno-actions {
+            gap: 0.6rem 1rem !important;
+          }
+        }
+        .aluno-actions a:hover, .aluno-actions button:hover {
+          text-decoration: underline;
         }
       `}</style>
 
@@ -666,11 +693,11 @@ function Alunos() {
                 <div style={styles.progressBarOuter}>
                   <div style={{ ...styles.progressBarInner, width: `${a.progresso}%` }} />
                 </div>
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}% dos vídeos</span>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: GOLD }}>{a.progresso}% das aulas</span>
               </div>
             )}
 
-            <div style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+            <div className="aluno-actions" style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
               {a.pendente ? (
                 <>
                   {a.aguardandoPagamento ? (
@@ -751,7 +778,7 @@ function Alunos() {
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "1.4rem" }}>
                       <div>
-                        <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.5rem" }}>AULAS EM VÍDEO ({detailData.percent}%)</div>
+                        <div style={{ fontSize: "0.75rem", color: GOLD, marginBottom: "0.5rem" }}>AULAS ({detailData.percent}%)</div>
                         {courseModulesFull.length === 0 && <p style={{ fontSize: "0.8rem", color: "#9d9384" }}>Currículo não carregado.</p>}
                         {courseModulesFull.map((m: any) => (
                           <div key={m.id} style={{ marginBottom: "0.7rem" }}>
@@ -2855,7 +2882,7 @@ const styles: Record<string, React.CSSProperties> = {
   progressBarOuter: { width: 90, height: 5, background: "rgba(197,138,74,.15)", borderRadius: 3, display: "inline-block", marginRight: "0.5rem", overflow: "hidden", verticalAlign: "middle" },
   progressBarInner: { height: "100%", background: GOLD },
 
-  linkBtn: { background: "transparent", border: "none", color: GOLD, fontSize: "0.8rem", cursor: "pointer" },
+  linkBtn: { background: "transparent", border: "none", color: GOLD, fontSize: "0.8rem", cursor: "pointer", textDecoration: "none", font: "inherit" },
   btnPrimary: { background: GOLD, color: "#050505", border: "none", padding: "0.7rem 1.3rem", borderRadius: 4, fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" },
   btnGhostGold: { background: "transparent", border: `1px solid ${GOLD}`, color: GOLD, padding: "0.7rem 1.2rem", borderRadius: 4, fontWeight: 600, fontSize: "0.82rem", cursor: "pointer" },
 };

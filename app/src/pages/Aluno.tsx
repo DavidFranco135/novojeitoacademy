@@ -14,13 +14,19 @@ import { signOut } from "firebase/auth";
 
 const GOLD = "#C58A4A";
 const FUNCTIONS_BASE = "https://us-central1-barbearia-do-ico.cloudfunctions.net";
-const CLOUDFLARE_STREAM_CUSTOMER = "customer-XXXX"; // troque pelo subdomínio real do Cloudflare Stream
+
+const CATEGORIAS_AVALIACAO: { key: string; label: string }[] = [
+  { key: "tecnica", label: "Técnica" },
+  { key: "degrade", label: "Degradê" },
+  { key: "tesoura", label: "Tesoura" },
+  { key: "barba", label: "Barba" },
+  { key: "atendimento", label: "Atendimento" },
+  { key: "higiene", label: "Higiene" },
+];
 
 interface Lesson {
   id: string;
   title: string;
-  duration: string;
-  videoUid: string;
   completed: boolean;
 }
 
@@ -28,6 +34,14 @@ interface Module {
   id: string;
   title: string;
   lessons: Lesson[];
+}
+
+interface AvaliacaoRecebida {
+  id: string;
+  modeloNome: string;
+  dataAgendada: string;
+  avaliacao: Record<string, number>;
+  comentarioProfessor?: string;
 }
 
 export default function StudentDashboard() {
@@ -47,9 +61,11 @@ export default function StudentDashboard() {
   const [minhasPresencas, setMinhasPresencas] = useState<Record<string, boolean>>({});
   const [loadingTurma, setLoadingTurma] = useState(false);
   const [avisos, setAvisos] = useState<{ id: string; titulo: string; mensagem: string }[]>([]);
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoRecebida[]>([]);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId)!;
   const activeModule = modules.find((m) => m.lessons.some((l) => l.id === activeLessonId))!;
+  const encontrosDoModuloAtivo = minhaTurma && activeModule ? minhaTurma.encontros.filter((e) => e.moduloRelacionado === activeModule.id) : [];
 
   const totalLessons = allLessons.length;
   const completedCount = allLessons.filter((l) => l.completed).length;
@@ -173,6 +189,25 @@ export default function StudentDashboard() {
       }
     }
     loadAvisos();
+  }, []);
+
+  // busca as avaliações que o professor já deu nos atendimentos do Laboratório
+  useEffect(() => {
+    async function loadAvaliacoes() {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${FUNCTIONS_BASE}/listMeusAtendimentos`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const avaliados = (data.atendimentos || []).filter((a: any) => a.status === "avaliado" && a.avaliacao);
+        setAvaliacoes(avaliados.slice(0, 3));
+      } catch (e) {
+        console.error("Falha ao carregar avaliações", e);
+      }
+    }
+    loadAvaliacoes();
   }, []);
 
   async function dismissAviso(avisoId: string) {
@@ -433,7 +468,6 @@ export default function StudentDashboard() {
                       <div>
                         <span style={styles.cronoBadgeOnline}>AULA</span>
                         <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{lesson.title}</div>
-                        <div style={{ fontSize: "0.7rem", color: "#5a5348" }}>{lesson.duration}</div>
                       </div>
                       <span style={{ color: lesson.completed ? "#78c88c" : "#5a5348", fontSize: "1rem" }}>{lesson.completed ? "✓" : "○"}</span>
                     </div>
@@ -531,7 +565,6 @@ export default function StudentDashboard() {
                         {lesson.completed ? "✓" : ""}
                       </span>
                       <span style={{ flex: 1, textAlign: "left", color: isActive ? "#F5F0E8" : "#9d9384", fontSize: "0.82rem" }}>{lesson.title}</span>
-                      <span style={styles.lessonDuration}>{lesson.duration}</span>
                     </button>
                   );
                 })}
@@ -578,24 +611,43 @@ export default function StudentDashboard() {
           <span>{activeLesson.title}</span>
         </div>
 
-        <div style={styles.videoFrame}>
-          {activeLesson.videoUid ? (
-            <iframe
-              src={`https://${CLOUDFLARE_STREAM_CUSTOMER}.cloudflarestream.com/${activeLesson.videoUid}/iframe`}
-              style={{ width: "100%", height: "100%", border: "none", position: "absolute", inset: 0 }}
-              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-              allowFullScreen
-            />
-          ) : (
-            <>
-              <div style={styles.corner_tl}></div><div style={styles.corner_tr}></div>
-              <div style={styles.corner_bl}></div><div style={styles.corner_br}></div>
-              <div style={styles.videoPlaceholder}>
-                <div style={styles.playRing}>▸</div>
-                <span style={styles.eyebrow}>{activeLesson.duration} · VÍDEO AINDA NÃO CADASTRADO</span>
-              </div>
-            </>
+        <div style={styles.presencialCard}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+            <span style={styles.eyebrow}>AULAS PRESENCIAIS · {activeModule.title.toUpperCase()}</span>
+            {encontrosDoModuloAtivo.length > 0 && (
+              <span style={{ fontSize: "0.72rem", color: "#5a5348" }}>
+                {encontrosDoModuloAtivo.filter((e) => minhasPresencas[e.data]).length} de {encontrosDoModuloAtivo.length} confirmadas
+              </span>
+            )}
+          </div>
+
+          {!minhaTurma && (
+            <p style={{ fontSize: "0.82rem", color: "#9d9384" }}>
+              Você ainda não está matriculado em nenhuma turma presencial.{" "}
+              <a href="/aluno/presencial" style={{ color: GOLD }}>Escolher turma →</a>
+            </p>
           )}
+
+          {minhaTurma && encontrosDoModuloAtivo.length === 0 && (
+            <p style={{ fontSize: "0.82rem", color: "#9d9384" }}>As datas presenciais deste módulo ainda não foram cadastradas pela escola.</p>
+          )}
+
+          {encontrosDoModuloAtivo.map((e, i) => {
+            const confirmado = minhasPresencas[e.data];
+            return (
+              <div key={i} style={styles.cronoRow}>
+                <div>
+                  <div style={{ fontSize: "0.88rem" }}>{e.topico}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#9d9384", marginTop: "0.25rem" }}>
+                    {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} · {e.horario} · {e.local}
+                  </div>
+                </div>
+                <span style={{ color: confirmado ? "#78c88c" : "#5a5348", fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                  {confirmado ? "✓ Presença confirmada" : "○ Pendente"}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         <div style={styles.lessonHeader}>
@@ -607,11 +659,28 @@ export default function StudentDashboard() {
           )}
         </div>
 
-        <div style={styles.materialsBox}>
-          <div style={styles.eyebrow}>MATERIAIS DE APOIO</div>
-          <a href="#" style={styles.materialLink}>📄 Apostila da aula (PDF)</a>
-          <a href="#" style={styles.materialLink}>📄 Checklist de prática</a>
-        </div>
+        {avaliacoes.length > 0 && (
+          <div style={styles.materialsBox}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={styles.eyebrow}>AVALIAÇÕES DO PROFESSOR</span>
+              <a href="/aluno/laboratorio" style={{ fontSize: "0.72rem", color: GOLD, textDecoration: "none" }}>Ver todas no Laboratório →</a>
+            </div>
+            {avaliacoes.map((a) => (
+              <div key={a.id} style={{ borderTop: "1px solid rgba(197,138,74,.12)", paddingTop: "0.8rem" }}>
+                <div style={{ fontSize: "0.8rem", color: "#c9c2b4", marginBottom: "0.4rem" }}>{a.modeloNome} · {a.dataAgendada}</div>
+                {CATEGORIAS_AVALIACAO.map((c) => (
+                  <div key={c.key} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", marginBottom: "0.2rem" }}>
+                    <span style={{ color: "#9d9384" }}>{c.label}</span>
+                    <span style={{ color: GOLD }}>{"★".repeat(a.avaliacao[c.key] || 0)}{"☆".repeat(5 - (a.avaliacao[c.key] || 0))}</span>
+                  </div>
+                ))}
+                {a.comentarioProfessor && (
+                  <p style={{ fontSize: "0.8rem", color: "#c9c2b4", marginTop: "0.4rem", fontStyle: "italic" }}>"{a.comentarioProfessor}"</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
     </div>
@@ -652,20 +721,13 @@ const styles: Record<string, React.CSSProperties> = {
   lessonItem: { display: "flex", alignItems: "center", gap: "0.7rem", width: "100%", padding: "0.55rem 0.6rem", border: "none", borderRadius: 3, cursor: "pointer", marginBottom: "0.15rem" },
   presencialInline: { display: "flex", alignItems: "flex-start", gap: "0.7rem", width: "100%", padding: "0.6rem", marginTop: "0.3rem", borderRadius: 3, textDecoration: "none", color: "#F5F0E8", background: "rgba(197,138,74,.06)", border: "1px dashed rgba(197,138,74,.3)" },
   lessonCheck: { width: 16, height: 16, borderRadius: "50%", border: "1px solid", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#050505" },
-  lessonDuration: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", color: "#5a5348", flexShrink: 0 },
 
   certificateBtn: { marginTop: "1.4rem", border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, padding: "0.8rem", borderRadius: 4, fontSize: "0.8rem", fontWeight: 600 },
 
   main: { flex: 1, padding: "2.4rem 3rem", maxWidth: 980 },
   breadcrumb: { fontSize: "0.75rem", color: "#9d9384", marginBottom: "1rem", fontFamily: "'Space Mono',monospace" },
 
-  videoFrame: { position: "relative", width: "100%", aspectRatio: "16/9", border: "1px solid rgba(197,138,74,.22)", borderRadius: 6, overflow: "hidden", background: "linear-gradient(160deg,#111,#0a0a0a)", marginBottom: "1.6rem" },
-  corner_tl: { position: "absolute", top: 12, left: 12, width: 18, height: 18, borderTop: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },
-  corner_tr: { position: "absolute", top: 12, right: 12, width: 18, height: 18, borderTop: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}` },
-  corner_bl: { position: "absolute", bottom: 12, left: 12, width: 18, height: 18, borderBottom: `1px solid ${GOLD}`, borderLeft: `1px solid ${GOLD}` },
-  corner_br: { position: "absolute", bottom: 12, right: 12, width: 18, height: 18, borderBottom: `1px solid ${GOLD}`, borderRight: `1px solid ${GOLD}` },
-  videoPlaceholder: { position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" },
-  playRing: { width: 60, height: 60, borderRadius: "50%", border: `1px solid ${GOLD}`, display: "flex", alignItems: "center", justifyContent: "center", color: GOLD, fontSize: "1.2rem" },
+  presencialCard: { border: "1px solid rgba(197,138,74,.22)", borderRadius: 6, padding: "1.2rem 1.4rem", background: "linear-gradient(160deg,#111,#0a0a0a)", marginBottom: "1.6rem" },
   eyebrow: { fontFamily: "'Space Mono',monospace", fontSize: "0.65rem", letterSpacing: "0.15em", color: "#9d9384" },
 
   lessonHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.6rem", gap: "1rem", flexWrap: "wrap" },
@@ -674,5 +736,4 @@ const styles: Record<string, React.CSSProperties> = {
   btnGhostGold: { background: "transparent", border: `1px solid ${GOLD}`, color: GOLD, padding: "0.75rem 1.4rem", borderRadius: 4, fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", whiteSpace: "nowrap" },
 
   materialsBox: { border: "1px solid rgba(197,138,74,.18)", borderRadius: 6, padding: "1.2rem 1.4rem", display: "flex", flexDirection: "column", gap: "0.6rem" },
-  materialLink: { color: "#c9c2b4", fontSize: "0.85rem", textDecoration: "none" },
 };
