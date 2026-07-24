@@ -72,16 +72,6 @@ const DEFAULT_MODULES = [
     ],
   },
   {
-    id: "m4",
-    title: "Gestão da Própria Barbearia",
-    description: "Precificação, atendimento e fidelização de clientes.",
-    lessons: [
-      { id: "l18", title: "Precificação, portfólio e redes sociais (oficina prática)", duration: "120:00", videoUid: "" },
-      { id: "l19", title: "Atendimento, experiência do cliente e fidelização (simulação)", duration: "120:00", videoUid: "" },
-      { id: "l20", title: "Encerramento — avaliação final, certificados, planejamento de carreira", duration: "120:00", videoUid: "" },
-    ],
-  },
-  {
     id: "m5",
     title: "Tendências 2026: Nevou e Coloração Masculina",
     description: "Fades modernos, textured crop, mullet e descoloração masculina — o que está bombando agora.",
@@ -90,6 +80,16 @@ const DEFAULT_MODULES = [
       { id: "l22", title: "Mullet moderno na prática", duration: "120:00", videoUid: "" },
       { id: "l23", title: "Nevou — teste de mecha e preparação segura", duration: "120:00", videoUid: "" },
       { id: "l24", title: "Descoloração masculina e matização — passo a passo", duration: "120:00", videoUid: "" },
+    ],
+  },
+  {
+    id: "m4",
+    title: "Gestão da Própria Barbearia",
+    description: "Precificação, atendimento e fidelização de clientes.",
+    lessons: [
+      { id: "l18", title: "Precificação, portfólio e redes sociais (oficina prática)", duration: "120:00", videoUid: "" },
+      { id: "l19", title: "Atendimento, experiência do cliente e fidelização (simulação)", duration: "120:00", videoUid: "" },
+      { id: "l20", title: "Encerramento — avaliação final, certificados, planejamento de carreira", duration: "120:00", videoUid: "" },
     ],
   },
 ];
