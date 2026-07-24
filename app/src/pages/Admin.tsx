@@ -1454,6 +1454,7 @@ interface SiteContent {
   scholarshipText: string;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  whatsappNumero: string;
 }
 
 const EMPTY_CONTENT: SiteContent = {
@@ -1480,6 +1481,7 @@ const EMPTY_CONTENT: SiteContent = {
   scholarshipText: "",
   maintenanceMode: false,
   maintenanceMessage: "Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!",
+  whatsappNumero: "",
 };
 
 // ============================================================
@@ -1772,6 +1774,15 @@ function ConteudoSite() {
           <NumberField label="Anos de ofício" value={content.instrutorAnos} onChange={(v) => update("instrutorAnos", v)} />
           <NumberField label="Alunos formados" value={content.instrutorAlunosFormados} onChange={(v) => update("instrutorAlunosFormados", v)} />
         </div>
+      </FieldGroup>
+
+      <FieldGroup title="Contato">
+        <TextField
+          label="Número de WhatsApp (com DDD, só números)"
+          value={content.whatsappNumero}
+          onChange={(v) => update("whatsappNumero", v.replace(/\D/g, ""))}
+          hint="Ex: 21999999999. Alimenta o botão flutuante de WhatsApp no site público — deixe vazio pra esconder o botão."
+        />
       </FieldGroup>
 
       <FieldGroup title="Investimento">

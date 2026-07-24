@@ -43,6 +43,7 @@ const DEFAULT_CONTENT = {
   ],
   scholarshipTitle: "Concorra a uma bolsa de 100%.",
   scholarshipText: "A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.",
+  whatsappNumero: "",
   maintenanceMode: false,
   maintenanceMessage: "Estamos com o site em manutenção no momento. Voltamos em breve — obrigado pela paciência!",
 };
