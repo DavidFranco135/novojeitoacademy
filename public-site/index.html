@@ -117,8 +117,9 @@
   .mod h3{font-size:1rem;font-weight:600;margin-bottom:.25rem}
   .mod p{font-size:.82rem;color:var(--gray)}
   .mod-meta{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--gray);white-space:nowrap}
-  .mod-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.08em;padding:.2rem .5rem;border-radius:2px;margin-bottom:.35rem}
+  .mod-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.08em;padding:.2rem .5rem;border-radius:2px;margin-bottom:.35rem;margin-right:.35rem}
   .mod-badge.presencial{background:var(--gold);color:var(--dark)}
+  .mod-badge.opcional{border:1px solid rgba(197,138,74,.4);color:var(--gold)}
   .mid-cta{text-align:center;margin-top:2.6rem}
 
   /* ===== GALLERY ===== */
@@ -516,6 +517,7 @@
         <div class="mod-num">${String(i + 1).padStart(2, "0")}</div>
         <div>
           <span class="mod-badge presencial">PRESENCIAL</span>
+          ${i === 4 ? '<span class="mod-badge opcional">OPCIONAL</span>' : ''}
           <h3>${m.title}</h3>
           <p>${m.description || ""}</p>
         </div>
