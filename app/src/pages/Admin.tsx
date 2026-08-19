@@ -2848,18 +2848,20 @@ function Financeiro() {
         <SectionLabel>Cobrança avulsa (link de pagamento)</SectionLabel>
         <p style={{ fontSize: "0.82rem", color: "#9d9384", marginTop: "-0.4rem", marginBottom: "1rem", maxWidth: 620, lineHeight: 1.6 }}>
           Gera um link de pagamento por qualquer valor — entrada, adiantamento ou valor cheio — que termina numa cobrança
-          real no Mercado Pago (cartão, Pix ou boleto).
+          real no Mercado Pago (cartão, Pix ou boleto). A coluna <strong style={{ color: "#c9c2b4" }}>Status</strong> na
+          lista abaixo mostra se já foi pago: fica <strong style={{ color: "#78c88c" }}>Pago</strong> assim que o
+          Mercado Pago aprova — use o botão "Atualizar" pra ver sem recarregar a página inteira.
         </p>
         <div style={styles.bolsaCard}>
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
             <button
-              style={chargeTipo === "novo" ? styles.btnPrimary : styles.btnGhostGold}
+              style={{ ...(chargeTipo === "novo" ? styles.btnPrimary : styles.btnGhostGold), flex: "1 1 auto", minWidth: 160 }}
               onClick={() => setChargeTipo("novo")}
             >
               Pessoa nova (sem cadastro)
             </button>
             <button
-              style={chargeTipo === "existente" ? styles.btnPrimary : styles.btnGhostGold}
+              style={{ ...(chargeTipo === "existente" ? styles.btnPrimary : styles.btnGhostGold), flex: "1 1 auto", minWidth: 160 }}
               onClick={() => setChargeTipo("existente")}
             >
               Aluno já cadastrado
@@ -2911,11 +2913,16 @@ function Financeiro() {
         </div>
 
         <div style={{ marginTop: "1.2rem" }}>
-          {loadingCharges && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "0.8rem", flexWrap: "wrap" }}>
+            <button style={{ ...styles.linkBtn, fontSize: "0.78rem" }} disabled={loadingCharges} onClick={loadCharges}>
+              {loadingCharges ? "Atualizando..." : "🔄 Atualizar lista"}
+            </button>
+          </div>
+          {loadingCharges && charges.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
           {!loadingCharges && charges.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma cobrança avulsa gerada ainda.</p>}
-          {!loadingCharges && charges.length > 0 && (
+          {charges.length > 0 && (
             <div style={styles.tableCard}>
-              <table style={styles.table}>
+              <table style={{ ...styles.table, minWidth: 760 }}>
                 <thead>
                   <tr>
                     <Th>Nome</Th><Th>Tipo</Th><Th>Valor</Th><Th>Descrição</Th><Th>Status</Th><Th>Criada em</Th><Th></Th>
@@ -2931,7 +2938,7 @@ function Financeiro() {
                       <Td><StatusBadge status={c.status} /></Td>
                       <Td mono>{c.criadaEm}</Td>
                       <Td>
-                        <div style={{ display: "flex", gap: "0.6rem" }}>
+                        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
                           {c.checkoutUrl && c.statusBruto === "pendente" && !c.enrollmentId && (
                             <button style={styles.linkBtn} onClick={() => handleCopyChargeLink(c.checkoutUrl)}>Copiar link</button>
                           )}

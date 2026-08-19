@@ -157,8 +157,17 @@ export const listCharges = onRequest({ cors: true }, async (req, res) => {
         // pra cobrança do tipo "novo_cadastro" já vinculada a uma matrícula, o status
         // de verdade é o da matrícula (ela pode estar só cadastrada, com contrato
         // assinado aguardando pagamento, ou já paga) — não o "pendente" fixo da cobrança
-        if (data.tipo === "novo_cadastro" && data.enrollmentId) {
-          const enrollmentSnap = await db.collection("enrollments").doc(data.enrollmentId).get();
+        let enrollmentId: string | null = data.enrollmentId || null;
+        if (data.tipo === "novo_cadastro" && !enrollmentId) {
+          // fallback de segurança: se por algum motivo o vínculo direto na cobrança
+          // não foi gravado (ex: falha de rede num passo que não bloqueia a matrícula
+          // em si), busca pela matrícula que aponta pra essa cobrança mesmo assim —
+          // assim o status nunca fica "preso" em "aguardando cadastro" por engano.
+          const fallbackSnap = await db.collection("enrollments").where("chargeId", "==", doc.id).limit(1).get();
+          if (!fallbackSnap.empty) enrollmentId = fallbackSnap.docs[0].id;
+        }
+        if (data.tipo === "novo_cadastro" && enrollmentId) {
+          const enrollmentSnap = await db.collection("enrollments").doc(enrollmentId).get();
           if (enrollmentSnap.exists) {
             const enrollment = enrollmentSnap.data()!;
             nome = enrollment.nome || nome;
@@ -173,7 +182,7 @@ export const listCharges = onRequest({ cors: true }, async (req, res) => {
               status = "Bloqueado";
             }
           }
-        } else if (data.tipo === "novo_cadastro" && !data.enrollmentId && data.status === "pendente") {
+        } else if (data.tipo === "novo_cadastro" && !enrollmentId && data.status === "pendente") {
           status = "Aguardando cadastro";
         }
 
@@ -187,7 +196,7 @@ export const listCharges = onRequest({ cors: true }, async (req, res) => {
           valorPago,
           status,
           statusBruto: data.status,
-          enrollmentId: data.enrollmentId || null,
+          enrollmentId,
           checkoutUrl: data.checkoutUrl || null,
           criadaEm: data.createdAt ? data.createdAt.toDate().toLocaleDateString("pt-BR") : "-",
         };
