@@ -21,6 +21,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /charges/{chargeId} {
+      allow read, write: if false;
+    }
+
     // Cada usuário logado pode checar SE ELE MESMO está na lista de admins
     // (não pode ler a lista inteira, nem editar — isso só é feito manualmente pelo Console)
     match /admins/{uid} {

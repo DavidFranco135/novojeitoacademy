@@ -43,3 +43,4 @@ export {
   getMinhaCarteira,
 } from "./laboratorio";
 export { createAviso, listAvisosAdmin, deleteAviso, getMeusAvisos, dispensarAviso } from "./avisos";
+export { createCharge, listCharges, cancelCharge } from "./charges";

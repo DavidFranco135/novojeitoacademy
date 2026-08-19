@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import PresencialBooking from "./pages/PresencialBooking";
 import MatriculaResultado from "./pages/MatriculaResultado";
+import CobrancaResultado from "./pages/CobrancaResultado";
 import LessonCheckin from "./pages/LessonCheckin";
 import Laboratorio from "./pages/Laboratorio";
 import CertificadoVerificacao from "./pages/CertificadoVerificacao";
@@ -17,6 +18,7 @@ import AuthGuard from "./components/AuthGuard";
  *
  * /matricula                 -> fluxo de cadastro + contrato + pagamento (público)
  * /matricula/:status         -> retorno do Mercado Pago (sucesso/erro/pendente)
+ * /cobranca/:status          -> retorno do Mercado Pago de uma cobrança avulsa (link gerado pelo admin)
  * /login                     -> login do ALUNO, sem senha (link mágico por e-mail)
  * /admin-login                -> login da EQUIPE INTERNA, e-mail + senha tradicional
  * /aluno                     -> área do aluno (protegida por login)
@@ -35,6 +37,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/matricula" replace />} />
         <Route path="/matricula" element={<Matricula />} />
         <Route path="/matricula/:status" element={<MatriculaResultado />} />
+        <Route path="/cobranca/:status" element={<CobrancaResultado />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />
 

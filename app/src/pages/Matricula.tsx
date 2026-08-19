@@ -103,6 +103,11 @@ export default function EnrollmentFlow() {
   const isDinheiroMode = searchParams.get("dinheiro") === "1";
   const scholarshipApplicationId = searchParams.get("scholarshipApplicationId") || null;
   const valorCombinado = searchParams.get("valor") || null;
+  // Link de cobrança avulsa gerado pelo admin (Financeiro → Cobrança avulsa) pra
+  // alguém que ainda não era aluno — o valor de verdade é validado no backend a
+  // partir desse id, nunca a partir do parâmetro "valor" acima (que é só cosmético).
+  const chargeId = searchParams.get("chargeId") || null;
+  const [precoCustom, setPrecoCustom] = useState<number | null>(null);
 
   // Modo "assinar": reabre a etapa de assinatura pra uma matrícula que já existe
   // (ex: bolsa/dinheiro cadastrados antes da assinatura ser obrigatória, que nunca
@@ -210,14 +215,16 @@ export default function EnrollmentFlow() {
           scholarshipApplicationId: modo === "bolsa" ? scholarshipApplicationId : undefined,
           paymentMethod: modo === "dinheiro" ? "dinheiro" : undefined,
           valorCombinado: modo === "dinheiro" ? valorCombinado : undefined,
+          chargeId: chargeId || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Falha ao salvar cadastro");
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Falha ao salvar cadastro");
       setEnrollmentId(json.enrollmentId);
+      if (typeof json.precoCustom === "number") setPrecoCustom(json.precoCustom);
       setStep(2);
-    } catch (e) {
-      setError("Não foi possível salvar seu cadastro. Tente novamente.");
+    } catch (e: any) {
+      setError(e.message || "Não foi possível salvar seu cadastro. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -490,7 +497,11 @@ export default function EnrollmentFlow() {
           {step === 3 && modo === "pago" && !preferiuDinheiro && (
             <>
               <h2 style={styles.h2}>Pagamento</h2>
-              <p style={styles.p}>Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).</p>
+              <p style={styles.p}>
+                {precoCustom
+                  ? <>Valor combinado: <strong style={{ color: GOLD }}>R$ {precoCustom.toFixed(2).replace(".", ",")}</strong>. Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).</>
+                  : "Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto)."}
+              </p>
 
               {error && <p style={styles.error}>{error}</p>}
 

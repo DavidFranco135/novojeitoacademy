@@ -2691,6 +2691,15 @@ function Financeiro() {
   const [registering, setRegistering] = useState(false);
   const { page, setPage, totalPages, pageItems } = usePagination(transactions);
 
+  const [charges, setCharges] = useState<any[]>([]);
+  const [loadingCharges, setLoadingCharges] = useState(true);
+  const [chargeTipo, setChargeTipo] = useState<"novo" | "existente">("novo");
+  const [chargeForm, setChargeForm] = useState({ enrollmentId: "", nome: "", telefone: "", descricao: "", valor: "" });
+  const [creatingCharge, setCreatingCharge] = useState(false);
+  const [cancelingChargeId, setCancelingChargeId] = useState<string | null>(null);
+  const [chargeModal, setChargeModal] = useState<{ url: string; valor: string; tipo: "novo" | "existente" } | null>(null);
+  const [students, setStudents] = useState<any[]>([]);
+
   function loadTransactions() {
     setLoading(true);
     authedFetch("listTransactions")
@@ -2703,9 +2712,84 @@ function Financeiro() {
       .finally(() => setLoading(false));
   }
 
+  function loadCharges() {
+    setLoadingCharges(true);
+    authedFetch("listCharges")
+      .then((r) => r.json())
+      .then((data) => setCharges(data.charges || []))
+      .catch(() => {})
+      .finally(() => setLoadingCharges(false));
+  }
+
   useEffect(() => {
     loadTransactions();
+    loadCharges();
+    authedFetch("listStudents").then((r) => r.json()).then((d) => setStudents(d.students || [])).catch(() => {});
   }, []);
+
+  async function handleCreateCharge() {
+    const valorNumerico = parseFloat(chargeForm.valor.replace(",", "."));
+    if (!valorNumerico || valorNumerico <= 0) {
+      alert("Informe um valor válido.");
+      return;
+    }
+    if (chargeTipo === "existente" && !chargeForm.enrollmentId) {
+      alert("Escolha o aluno.");
+      return;
+    }
+    setCreatingCharge(true);
+    try {
+      const res = await authedFetch("createCharge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollmentId: chargeTipo === "existente" ? chargeForm.enrollmentId : null,
+          nome: chargeTipo === "novo" ? chargeForm.nome || null : null,
+          telefone: chargeTipo === "novo" ? chargeForm.telefone || null : null,
+          descricao: chargeForm.descricao || null,
+          valor: valorNumerico,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+
+      setChargeForm({ enrollmentId: "", nome: "", telefone: "", descricao: "", valor: "" });
+      setChargeModal({ url: data.checkoutUrl, valor: `R$ ${valorNumerico.toFixed(2).replace(".", ",")}`, tipo: chargeTipo });
+      loadCharges();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível gerar o link de cobrança.");
+    } finally {
+      setCreatingCharge(false);
+    }
+  }
+
+  async function handleCancelCharge(chargeId: string) {
+    if (!window.confirm("Cancelar essa cobrança pendente?")) return;
+    setCancelingChargeId(chargeId);
+    try {
+      const res = await authedFetch("cancelCharge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chargeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro");
+      loadCharges();
+    } catch (e: any) {
+      alert(e.message || "Não foi possível cancelar essa cobrança.");
+    } finally {
+      setCancelingChargeId(null);
+    }
+  }
+
+  async function handleCopyChargeLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Link copiado.");
+    } catch {
+      window.prompt("Copie o link:", url);
+    }
+  }
 
   function handleExport() {
     exportToCSV(
@@ -2760,7 +2844,114 @@ function Financeiro() {
         {registering ? "Gerando link..." : "+ Gerar link de matrícula (dinheiro)"}
       </button>
 
-      <div style={{ ...styles.statGrid, marginTop: "1.2rem" }}>
+      <div style={{ marginTop: "2.2rem" }}>
+        <SectionLabel>Cobrança avulsa (link de pagamento)</SectionLabel>
+        <p style={{ fontSize: "0.82rem", color: "#9d9384", marginTop: "-0.4rem", marginBottom: "1rem", maxWidth: 620, lineHeight: 1.6 }}>
+          Gera um link de pagamento por qualquer valor — entrada, adiantamento ou valor cheio — que termina numa cobrança
+          real no Mercado Pago (cartão, Pix ou boleto).
+        </p>
+        <div style={styles.bolsaCard}>
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <button
+              style={chargeTipo === "novo" ? styles.btnPrimary : styles.btnGhostGold}
+              onClick={() => setChargeTipo("novo")}
+            >
+              Pessoa nova (sem cadastro)
+            </button>
+            <button
+              style={chargeTipo === "existente" ? styles.btnPrimary : styles.btnGhostGold}
+              onClick={() => setChargeTipo("existente")}
+            >
+              Aluno já cadastrado
+            </button>
+          </div>
+
+          {chargeTipo === "novo" && (
+            <>
+              <p style={{ fontSize: "0.78rem", color: "#8A8070", marginBottom: "0.8rem", lineHeight: 1.6 }}>
+                O link leva a pessoa pro cadastro completo (dados + contrato) e, no final, ela paga esse valor pelo
+                Mercado Pago — é o fluxo normal de matrícula, só que com o preço já travado no valor abaixo.
+              </p>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <input placeholder="Nome (opcional, só de referência)" value={chargeForm.nome} onChange={(e) => setChargeForm({ ...chargeForm, nome: e.target.value })} style={{ ...inputStyle, flex: 2, minWidth: 160 }} />
+                <input placeholder="WhatsApp (opcional)" value={chargeForm.telefone} onChange={(e) => setChargeForm({ ...chargeForm, telefone: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+                <input placeholder="Valor (R$)" inputMode="decimal" value={chargeForm.valor} onChange={(e) => setChargeForm({ ...chargeForm, valor: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              </div>
+            </>
+          )}
+
+          {chargeTipo === "existente" && (
+            <>
+              <p style={{ fontSize: "0.78rem", color: "#8A8070", marginBottom: "0.8rem", lineHeight: 1.6 }}>
+                Vai direto pro checkout do Mercado Pago (sem passar por cadastro/contrato de novo) — pra cobrar um valor
+                extra à parte de um aluno que já está no sistema. Não mexe no status nem no valor já pago da matrícula dele.
+              </p>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <select value={chargeForm.enrollmentId} onChange={(e) => setChargeForm({ ...chargeForm, enrollmentId: e.target.value })} style={{ ...inputStyle, flex: 2, minWidth: 200 }}>
+                  <option value="">Selecione o aluno...</option>
+                  {students.map((s) => <option key={s.id} value={s.id}>{s.nome} — {s.email}</option>)}
+                </select>
+                <input placeholder="Valor (R$)" inputMode="decimal" value={chargeForm.valor} onChange={(e) => setChargeForm({ ...chargeForm, valor: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              </div>
+            </>
+          )}
+
+          <input
+            placeholder="Descrição (opcional, ex: Adiantamento — Turma Janeiro)"
+            value={chargeForm.descricao}
+            onChange={(e) => setChargeForm({ ...chargeForm, descricao: e.target.value })}
+            style={{ ...inputStyle, width: "100%", marginTop: "0.6rem" }}
+          />
+          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.8rem", flexWrap: "wrap" }}>
+            <button style={{ ...styles.linkBtn, fontSize: "0.75rem" }} onClick={() => setChargeForm({ ...chargeForm, valor: "697" })}>Usar valor cheio (R$ 697)</button>
+          </div>
+          <button style={{ ...styles.btnPrimary, marginTop: "0.8rem" }} disabled={creatingCharge} onClick={handleCreateCharge}>
+            {creatingCharge ? "Gerando link..." : "Gerar link de cobrança"}
+          </button>
+        </div>
+
+        <div style={{ marginTop: "1.2rem" }}>
+          {loadingCharges && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Carregando...</p>}
+          {!loadingCharges && charges.length === 0 && <p style={{ color: "#9d9384", fontSize: "0.88rem" }}>Nenhuma cobrança avulsa gerada ainda.</p>}
+          {!loadingCharges && charges.length > 0 && (
+            <div style={styles.tableCard}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <Th>Nome</Th><Th>Tipo</Th><Th>Valor</Th><Th>Descrição</Th><Th>Status</Th><Th>Criada em</Th><Th></Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {charges.map((c) => (
+                    <tr key={c.id} style={styles.tr}>
+                      <Td>{c.nome}</Td>
+                      <Td muted>{c.tipo}</Td>
+                      <Td mono>R$ {(c.valorPago ?? c.valor).toFixed(2).replace(".", ",")}</Td>
+                      <Td muted>{c.descricao}</Td>
+                      <Td><StatusBadge status={c.status} /></Td>
+                      <Td mono>{c.criadaEm}</Td>
+                      <Td>
+                        <div style={{ display: "flex", gap: "0.6rem" }}>
+                          {c.checkoutUrl && c.statusBruto === "pendente" && !c.enrollmentId && (
+                            <button style={styles.linkBtn} onClick={() => handleCopyChargeLink(c.checkoutUrl)}>Copiar link</button>
+                          )}
+                          {c.statusBruto === "pendente" && !c.enrollmentId && (
+                            <button style={{ ...styles.linkBtn, color: "#e8746a" }} disabled={cancelingChargeId === c.id} onClick={() => handleCancelCharge(c.id)}>
+                              {cancelingChargeId === c.id ? "..." : "Cancelar"}
+                            </button>
+                          )}
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ ...styles.statGrid, marginTop: "2.2rem" }}>
         <StatCard label="APROVADO" value={`R$ ${totals.aprovado.toLocaleString("pt-BR")}`} />
         <StatCard label="PENDENTE" value={`R$ ${totals.pendente.toLocaleString("pt-BR")}`} />
       </div>
@@ -2795,6 +2986,30 @@ function Financeiro() {
         )}
         <PaginationControls page={page} totalPages={totalPages} onChange={setPage} />
       </div>
+      {chargeModal && (
+        <div style={styles.qrOverlay} onClick={() => setChargeModal(null)}>
+          <div style={styles.qrOverlayCard} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: "0.8rem", color: GOLD, marginBottom: "0.4rem" }}>Link de cobrança gerado — {chargeModal.valor}</div>
+            <p style={{ fontSize: "0.82rem", color: "#c9c2b4", marginBottom: "1.2rem" }}>
+              {chargeModal.tipo === "existente"
+                ? "Mande esse link por WhatsApp, ou deixe a pessoa escanear o QR Code — vai direto pro checkout do Mercado Pago."
+                : "Mande esse link por WhatsApp — a pessoa preenche o cadastro, assina o contrato e paga esse valor pelo Mercado Pago, tudo em sequência."}
+            </p>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=C58A4A&bgcolor=050505&data=${encodeURIComponent(chargeModal.url)}`}
+              alt="QR Code do link de cobrança"
+              style={{ width: "100%", maxWidth: 280, display: "block", margin: "0 auto" }}
+            />
+            <div style={{ wordBreak: "break-all", fontFamily: "'Space Mono',monospace", fontSize: "0.68rem", color: "#9d9384", marginTop: "1rem", padding: "0.6rem", border: "1px solid rgba(197,138,74,.18)", borderRadius: 4 }}>
+              {chargeModal.url}
+            </div>
+            <div style={{ display: "flex", gap: "0.6rem", marginTop: "1.2rem" }}>
+              <button style={{ ...styles.btnGhostGold, flex: 1 }} onClick={() => handleCopyChargeLink(chargeModal.url)}>Copiar link</button>
+              <button style={{ ...styles.btnPrimary, flex: 1 }} onClick={() => setChargeModal(null)}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* API real: GET /api/admin/transactions — vem do webhook do Mercado Pago já salvo no Firestore */}
     </div>
   );
@@ -2844,6 +3059,10 @@ function StatusBadge({ status }: { status: string }) {
     "Aguardando aluno": { bg: "rgba(197,138,74,.12)", color: GOLD },
     Matriculado: { bg: "rgba(120,200,140,.12)", color: "#78c88c" },
     Bloqueado: { bg: "rgba(232,116,106,.12)", color: "#e8746a" },
+    Cancelado: { bg: "rgba(232,116,106,.12)", color: "#e8746a" },
+    "Aguardando cadastro": { bg: "rgba(150,150,150,.12)", color: "#9d9384" },
+    "Cadastro iniciado": { bg: "rgba(120,160,200,.12)", color: "#7aa0c8" },
+    "Aguardando pagamento": { bg: "rgba(197,138,74,.12)", color: GOLD },
   };
   const s = map[status] || { bg: "rgba(150,150,150,.12)", color: "#999" };
   return <span style={{ background: s.bg, color: s.color, fontSize: "0.72rem", padding: "0.25rem 0.6rem", borderRadius: 3, fontWeight: 600 }}>{status}</span>;

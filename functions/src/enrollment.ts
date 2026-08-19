@@ -32,11 +32,41 @@ export const createEnrollment = onRequest(
   { cors: true },
   async (req, res) => {
     try {
-      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId, scholarshipApplicationId, paymentMethod, valorCombinado } = req.body;
+      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId, scholarshipApplicationId, paymentMethod, valorCombinado, chargeId } = req.body;
 
       if (!nome || !email || !telefone || !cpf) {
         res.status(400).json({ error: "Dados incompletos" });
         return;
+      }
+
+      // Se veio chargeId, essa matrícula nasceu de um link de cobrança avulsa gerado
+      // pelo admin pra alguém que ainda não era aluno (Admin → Financeiro → Cobrança
+      // avulsa). O valor usado é sempre o que está salvo no Firestore na cobrança —
+      // NUNCA o que vier do corpo da requisição, pra ninguém conseguir adulterar o
+      // preço editando a URL.
+      let precoCustom: number | null = null;
+      let chargeDescricao: string | null = null;
+      if (chargeId) {
+        const chargeSnap = await db.collection("charges").doc(chargeId).get();
+        if (!chargeSnap.exists) {
+          res.status(400).json({ error: "Link de cobrança inválido." });
+          return;
+        }
+        const charge = chargeSnap.data()!;
+        if (charge.tipo !== "novo_cadastro") {
+          res.status(400).json({ error: "Link de cobrança inválido." });
+          return;
+        }
+        if (charge.status === "pago") {
+          res.status(400).json({ error: "Esse link de cobrança já foi pago." });
+          return;
+        }
+        if (charge.status === "cancelado") {
+          res.status(400).json({ error: "Esse link de cobrança foi cancelado." });
+          return;
+        }
+        precoCustom = charge.valor;
+        chargeDescricao = charge.descricao || null;
       }
 
       // Se veio turmaAvulsaId, é uma matrícula avulsa (só naquela turma presencial,
@@ -88,10 +118,17 @@ export const createEnrollment = onRequest(
         scholarshipApplicationId: scholarshipApplicationId || null,
         paymentMethod: isDinheiro ? "dinheiro" : null,
         valorPago: isDinheiro ? (Number(valorCombinado) || COURSE_PRICE) : null,
+        precoCustom,
+        chargeId: chargeId || null,
+        chargeDescricao,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      res.status(200).json({ enrollmentId: enrollmentRef.id });
+      if (chargeId) {
+        await db.collection("charges").doc(chargeId).update({ enrollmentId: enrollmentRef.id }).catch(() => {});
+      }
+
+      res.status(200).json({ enrollmentId: enrollmentRef.id, precoCustom });
     } catch (err) {
       console.error("createEnrollment error:", err);
       res.status(500).json({ error: "Erro interno" });
@@ -351,11 +388,16 @@ export const createPaymentPreference = onRequest(
       }
       const enrollment = enrollmentSnap.data()!;
 
-      // se for matrícula avulsa (só naquela turma presencial), usa o preço da turma;
-      // senão, usa o preço padrão do curso completo
+      // Prioridade do preço: 1) valor combinado num link de cobrança avulsa (admin
+      // já fixou esse valor no Firestore ao gerar o link — ver createEnrollment);
+      // 2) preço da turma, se for matrícula avulsa só numa turma presencial;
+      // 3) preço padrão do curso completo.
       let precoFinal = COURSE_PRICE;
       let tituloFinal = COURSE_TITLE;
-      if (enrollment.turmaAvulsaId) {
+      if (typeof enrollment.precoCustom === "number" && enrollment.precoCustom > 0) {
+        precoFinal = enrollment.precoCustom;
+        tituloFinal = enrollment.chargeDescricao || COURSE_TITLE;
+      } else if (enrollment.turmaAvulsaId) {
         const turmaSnap = await db.collection("turmas").doc(enrollment.turmaAvulsaId).get();
         if (turmaSnap.exists && turmaSnap.data()!.preco) {
           precoFinal = turmaSnap.data()!.preco;
@@ -416,6 +458,23 @@ export const mercadopagoWebhook = onRequest(
       const client = new MercadoPagoConfig({ accessToken: MERCADOPAGO_ACCESS_TOKEN.value() });
       const payment = new Payment(client);
       const paymentInfo = await payment.get({ id: paymentId as string });
+
+      // Cobrança avulsa (link gerado pelo admin fora de uma matrícula) — identificada
+      // pelo prefixo "charge_" no external_reference. Só registra o recebimento; não
+      // libera acesso nem cria login (isso continua exigindo a matrícula normal).
+      if (typeof paymentInfo.external_reference === "string" && paymentInfo.external_reference.startsWith("charge_")) {
+        const chargeId = paymentInfo.external_reference.slice("charge_".length);
+        if (paymentInfo.status === "approved") {
+          await db.collection("charges").doc(chargeId).update({
+            status: "pago",
+            paymentId,
+            valorPago: paymentInfo.transaction_amount || null,
+            paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          }).catch((e) => console.error("Falha ao marcar cobrança avulsa como paga:", e));
+        }
+        res.status(200).send("ok");
+        return;
+      }
 
       if (paymentInfo.status === "approved") {
         const enrollmentId = paymentInfo.external_reference;
