@@ -730,8 +730,18 @@
           ytScript.src = 'https://www.youtube.com/iframe_api';
           document.body.appendChild(ytScript);
           window.onYouTubeIframeAPIReady = function () {
+            // width/height "100%" aqui são obrigatórios: sem eles, a API do YouTube
+            // substitui o iframe por um do tamanho padrão dela (640x390), quebrando o
+            // position:absolute;inset:0 que faz ele preencher o quadro do vídeo — o
+            // que empurrava a grade curricular pra baixo assim que o player iniciava.
             new YT.Player('youtubeVideoIframe', {
+              width: '100%',
+              height: '100%',
               events: {
+                onReady: function (e) {
+                  const el = e.target.getIframe();
+                  el.style.cssText = 'width:100%;height:100%;border:none;position:absolute;inset:0';
+                },
                 onStateChange: function (e) {
                   if (e.data === 1) heroFrame.classList.add('video-playing');
                   else heroFrame.classList.remove('video-playing');
