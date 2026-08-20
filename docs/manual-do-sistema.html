@@ -538,6 +538,13 @@
       <article class="topic" id="admin-financeiro">
         <h2>Financeiro</h2>
         <p>Todos os pagamentos — aprovados, pendentes, recusados — com relatório de faturamento por período e controle de parcelamentos em aberto.</p>
+        <h3>Cobrança avulsa</h3>
+        <p>Gera um link de pagamento (Mercado Pago — cartão, Pix ou boleto) por qualquer valor, em dois modos:</p>
+        <ul class="plain">
+          <li><strong>Pessoa nova (sem cadastro):</strong> cria uma matrícula mínima e o link leva pro fluxo normal de <code>/matricula</code> (dados → contrato → pagamento), com o preço já travado no valor definido — o valor é sempre validado no backend a partir do <code>chargeId</code>, nunca do parâmetro da URL, pra não dar pra adulterar.</li>
+          <li><strong>Aluno já cadastrado:</strong> gera a preferência do Mercado Pago direto (<code>external_reference</code> com prefixo <code>charge_</code>), sem tocar no <code>status</code>/<code>valorPago</code> da matrícula original — cobrança à parte, não mistura com o histórico financeiro do aluno.</li>
+        </ul>
+        <p>A lista mostra o status de cada cobrança: <em>Aguardando cadastro → Cadastro iniciado → Aguardando pagamento → Pago</em> (ou Cancelado/Bloqueado). Implementado em <code>functions/src/charges.ts</code>.</p>
       </article>
     </section>
 

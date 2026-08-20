@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Guia da Academy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#050505;
+    --panel-1:#0e0e0d;
+    --panel-2:#050505;
+    --gold:#C58A4A;
+    --gold-bright:#E8B97A;
+    --cream:#F5F0E8;
+    --muted:#a39a8c;
+    --muted-2:#6b6459;
+    --line:rgba(197,138,74,.18);
+    --line-strong:rgba(197,138,74,.38);
+    --good:#78c88c;
+    --good-line:rgba(120,200,140,.35);
+    --warn:#e8b97a;
+    --warn-line:rgba(232,185,122,.35);
+    --font-display:'Playfair Display',Georgia,serif;
+    --font-body:'Inter',-apple-system,"Segoe UI",system-ui,sans-serif;
+    --font-mono:'Space Mono',ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--cream);
+    font-family:var(--font-body);
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} }
+  ::selection{background:rgba(197,138,74,.35);color:var(--cream)}
+  a{color:var(--gold)}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px}
+  img{max-width:100%}
+  p{margin:0 0 1rem;max-width:64ch}
+  h1,h2,h3{font-family:var(--font-display);font-weight:900;text-wrap:balance;margin:0}
+  strong{color:var(--cream);font-weight:600}
+  code{font-family:var(--font-mono);font-size:.85em;background:rgba(197,138,74,.1);border:1px solid var(--line);padding:.1em .45em;border-radius:3px;white-space:nowrap}
+
+  .wrap{max-width:720px;margin:0 auto;padding:4.5rem 1.5rem 6rem}
+
+  /* ---- cabeçalho ---- */
+  header.hero{margin-bottom:3rem}
+  .eyebrow{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:.9rem}
+  header.hero h1{font-size:clamp(2rem,5vw,2.8rem);line-height:1.15;margin-bottom:1rem}
+  header.hero h1 em{color:var(--gold);font-style:italic}
+  .hero-lede{font-size:1.05rem;color:var(--muted);max-width:56ch}
+
+  .part-map{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:2rem}
+  @media (max-width:620px){ .part-map{grid-template-columns:1fr} }
+  .part-map a{
+    display:block;text-decoration:none;border:1px solid var(--line);border-radius:8px;
+    padding:1rem 1.1rem;background:linear-gradient(160deg,var(--panel-1),var(--panel-2));
+    transition:border-color .15s;
+  }
+  .part-map a:hover{border-color:var(--line-strong)}
+  .part-map .tag{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);display:block;margin-bottom:.35rem}
+  .part-map .label{color:var(--cream);font-weight:600;font-size:.9rem}
+
+  /* ---- seções ---- */
+  section.part{padding-top:3.4rem;border-top:1px solid var(--line);scroll-margin-top:1.5rem}
+  section.part:first-of-type{border-top:none}
+  .part-head{margin-bottom:1.8rem}
+  .part-head .eyebrow{margin-bottom:.5rem}
+  .part-head h2{font-size:clamp(1.5rem,3.4vw,1.9rem)}
+  .part-head p{color:var(--muted);margin-top:.6rem}
+
+  article.topic{padding:1.8rem 0;border-top:1px solid var(--line)}
+  article.topic:first-of-type{border-top:none;padding-top:0}
+  article.topic h3{font-family:var(--font-body);font-weight:700;font-size:1.05rem;color:var(--gold-bright);margin-bottom:.5rem}
+  article.topic .sub{color:var(--muted);font-size:.7rem;font-family:var(--font-mono);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:.7rem}
+
+  ol.steps{margin:1rem 0 0;padding:0;list-style:none;counter-reset:step;max-width:60ch}
+  ol.steps li{
+    counter-increment:step;position:relative;padding:.15rem 0 1rem 2.6rem;
+    font-size:.94rem;
+  }
+  ol.steps li::before{
+    content:counter(step);position:absolute;left:0;top:.05rem;width:1.7rem;height:1.7rem;
+    border:1px solid var(--line-strong);border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-mono);font-size:.72rem;color:var(--gold);flex-shrink:0;
+  }
+  ol.steps li:last-child{padding-bottom:0}
+
+  ul.plain{margin:.8rem 0 0;padding-left:1.15rem;max-width:60ch}
+  ul.plain li{margin-bottom:.5rem}
+
+  .callout{display:flex;gap:.75rem;padding:1rem 1.15rem;border-radius:6px;margin:1.1rem 0;max-width:60ch}
+  .callout .icon{flex-shrink:0;font-size:1.05rem;line-height:1.5}
+  .callout p{margin:0;font-size:.88rem;color:var(--cream)}
+  .callout.tip{background:rgba(197,138,74,.07);border:1px solid var(--line)}
+  .callout.warn{background:rgba(232,185,122,.07);border:1px solid var(--warn-line)}
+
+  .path{
+    display:inline-flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.66rem;
+    letter-spacing:.03em;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--line);
+    padding:.3rem .65rem;border-radius:4px;margin:0 0 .9rem;
+  }
+  .path b{color:var(--gold-bright);font-weight:400}
+
+  /* ---- checklist final ---- */
+  .checklist{border:1px solid var(--warn-line);border-radius:10px;background:linear-gradient(160deg,rgba(232,185,122,.06),transparent);padding:1.6rem 1.7rem;margin-top:1rem}
+  .checklist h3{color:var(--warn);font-size:1.05rem;margin-bottom:.3rem;font-family:var(--font-body);font-weight:700}
+  .checklist > p{color:var(--muted);font-size:.88rem;margin-bottom:1.1rem}
+  ul.check{list-style:none;margin:0;padding:0}
+  ul.check li{display:flex;gap:.7rem;padding:.6rem 0;border-top:1px solid rgba(232,185,122,.15)}
+  ul.check li:first-child{border-top:none}
+  ul.check li::before{content:"☐";color:var(--warn);flex-shrink:0;font-size:1rem;line-height:1.5}
+  ul.check li span{font-size:.9rem}
+
+  /* ---- status badges (mesmo estilo do painel) ---- */
+  .pill{display:inline-block;font-size:.72rem;padding:.2rem .55rem;border-radius:3px;font-weight:600;font-family:var(--font-body)}
+  .pill.good{background:rgba(120,200,140,.12);color:var(--good)}
+  .pill.warn{background:rgba(197,138,74,.12);color:var(--gold)}
+  .pill.muted{background:rgba(150,150,150,.12);color:var(--muted)}
+
+  footer.doc-footer{border-top:1px solid var(--line);margin-top:3.5rem;padding-top:1.6rem;color:var(--muted-2);font-size:.78rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">Guia rápido · Novo Jeito Academy</span>
+    <h1>Tudo o que você precisa<br/>pra tocar o sistema<br/><em>no dia a dia.</em></h1>
+    <p class="hero-lede">Este guia foi feito pra você — sem termo técnico, sem precisar chamar ninguém. Sempre que tiver uma dúvida, volte aqui e procure a seção certa. Ele cobre as três partes do sistema: o painel que você vai usar, o site que os interessados veem, e a área que seus alunos usam.</p>
+
+    <nav class="part-map">
+      <a href="#painel"><span class="tag">Parte 1</span><span class="label">Painel Administrativo</span></a>
+      <a href="#site"><span class="tag">Parte 2</span><span class="label">Site público</span></a>
+      <a href="#aluno"><span class="tag">Parte 3</span><span class="label">Área do Aluno</span></a>
+    </nav>
+  </header>
+
+  <!-- ============================================================ -->
+  <section class="part" id="painel">
+    <div class="part-head">
+      <span class="eyebrow">Parte 1</span>
+      <h2>O Painel Administrativo</h2>
+      <p>É onde você vai passar a maior parte do tempo: ver quem se cadastrou, cobrar, organizar turmas e acompanhar os alunos.</p>
+    </div>
+
+    <article class="topic">
+      <span class="sub">Antes de tudo</span>
+      <h3>Como entrar no painel</h3>
+      <p>O acesso ao painel fica escondido de propósito, pra não chamar atenção de visitante comum. Ele está no rodapé do site público, na frase <em>"Produzido por NIKLAUS"</em> — a palavra <strong>NIKLAUS</strong> é o link de verdade.</p>
+      <ol class="steps">
+        <li>No rodapé do site, clique em <strong>NIKLAUS</strong>.</li>
+        <li>Na primeira vez, clique em <strong>"Primeira vez aqui? Criar acesso"</strong> e defina seu e-mail e senha.</li>
+        <li>Ao tentar entrar, uma tela vai avisar que seu acesso ainda não foi liberado e mostrar um código na tela — <strong>copie esse código</strong> e mande pra quem cuida do sistema pra ele liberar seu usuário. Depois disso, é só entrar normalmente com e-mail e senha, quando quiser.</li>
+      </ol>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Visão Geral</span>
+      <h3>O resumo da escola</h3>
+      <p>A primeira tela que você vê ao entrar. Mostra, de forma rápida: quantas pessoas demonstraram interesse, quantos alunos ativos, quanto entrou de faturamento no mês e a taxa de conversão (quantos de quem se interessou realmente virou aluno).</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Leads</span>
+      <h3>Gente interessada, mas que ainda não se matriculou</h3>
+      <p>Toda vez que alguém preenche o formulário "me chama" no site, aparece aqui. Marque cada um como <span class="pill warn">Novo</span>, <span class="pill warn">Contatado</span> ou <span class="pill good">Convertido</span> conforme você for falando com a pessoa pelo WhatsApp — é só uma forma de não perder ninguém de vista.</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Alunos</span>
+      <h3>Todo mundo que já se matriculou</h3>
+      <p>Lista completa com status de pagamento e progresso no curso. Clicando num aluno, dá pra:</p>
+      <ul class="plain">
+        <li>Corrigir nome, e-mail, telefone ou CPF;</li>
+        <li>Bloquear ou liberar o acesso dele;</li>
+        <li>Reenviar o contrato ou o certificado (o sistema gera um link pra você copiar e mandar no WhatsApp);</li>
+        <li>Ver quanto do curso ele já concluiu e a presença nas aulas presenciais.</li>
+      </ul>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Financeiro</span>
+      <h3>Pagamentos e cobranças</h3>
+      <p>Mostra todos os pagamentos — aprovados e pendentes — feitos pelo Mercado Pago. Também é aqui que você tem duas formas de cobrar alguém fora do fluxo normal de matrícula:</p>
+
+      <div class="callout tip">
+        <span class="icon">💵</span>
+        <p><strong>Alguém vai te pagar em dinheiro, na mão?</strong> Use o botão <strong>"+ Gerar link de matrícula (dinheiro)"</strong> — ele cria um link pra pessoa preencher o cadastro e assinar o contrato; o acesso só é liberado depois que você confirmar, no perfil dela, que o dinheiro realmente chegou.</p>
+      </div>
+
+      <p><strong>Quer cobrar um valor específico — entrada, adiantamento ou o curso inteiro — e receber pelo cartão, Pix ou boleto?</strong> É a <strong>Cobrança avulsa</strong>, um pouco mais abaixo nessa mesma aba:</p>
+
+      <ol class="steps">
+        <li>Escolha entre <strong>"Pessoa nova (sem cadastro)"</strong> — pra alguém que ainda nunca se cadastrou — ou <strong>"Aluno já cadastrado"</strong> — pra cobrar um valor extra de quem já está no sistema.</li>
+        <li>Preencha o valor (pode ser R$ 100 de entrada, R$ 350 de adiantamento, o valor cheio, o que fizer sentido).</li>
+        <li>Clique em <strong>"Gerar link de cobrança"</strong>.</li>
+        <li>Copie o link (ou mostre o QR Code na tela) e mande pra pessoa pelo WhatsApp.</li>
+      </ol>
+
+      <p>Se for <strong>pessoa nova</strong>: ela abre o link, preenche os dados, assina o contrato e só depois cai na tela de pagamento — o valor já vem travado no que você definiu, ela não escolhe outro. Se for <strong>aluno já cadastrado</strong>: o link já cai direto na tela de pagamento.</p>
+
+      <p>Na tabela abaixo do formulário, a coluna <strong>Status</strong> mostra onde cada cobrança está:</p>
+      <ul class="plain">
+        <li><span class="pill muted">Aguardando cadastro</span> — mandou o link, a pessoa ainda não abriu nem preencheu nada.</li>
+        <li><span class="pill warn">Cadastro iniciado</span> — já preencheu os dados, falta assinar o contrato e pagar.</li>
+        <li><span class="pill warn">Aguardando pagamento</span> — já assinou, falta só o pagamento.</li>
+        <li><span class="pill good">Pago</span> — pronto, o Mercado Pago aprovou.</li>
+      </ul>
+      <p>Clique em <strong>"🔄 Atualizar lista"</strong> pra ver se algum status mudou, sem precisar recarregar a página inteira.</p>
+
+      <div class="callout warn">
+        <span class="icon">⚠️</span>
+        <p>A Cobrança avulsa <strong>não libera acesso ao curso sozinha</strong>. Ela só registra que o dinheiro entrou. Quando a pessoa se matricular de fato — no caso de "pessoa nova", isso já acontece automaticamente como parte do mesmo link — o acesso é liberado normalmente.</p>
+      </div>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Turmas Presenciais</span>
+      <h3>As turmas e a presença por QR Code</h3>
+      <p>Aqui você cria as turmas (nome, número de vagas, e a grade inteira de encontros — tópico, data, horário e local de cada um). No dia do encontro, clique em <strong>"Gerar QR dessa aula"</strong> e mostre o código na tela — cada aluno escaneia com o próprio celular, já logado, e a presença é confirmada na hora.</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Laboratório</span>
+      <h3>Avaliando os atendimentos dos alunos</h3>
+      <p>Quando um aluno registra um atendimento em modelo real (com foto de antes/depois), ele cai na fila de avaliação aqui. Você dá uma nota de 1 a 5 estrelas em seis categorias — técnica, degradê, tesoura, barba, atendimento e higiene — mais um comentário. O aluno vê a nota assim que você envia.</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Bolsas</span>
+      <h3>Candidaturas à bolsa de 100%</h3>
+      <p>Cada pessoa que se candidata pelo formulário público aparece aqui, com a história que ela escreveu. Você decide: <strong>conceder</strong> (gera um link de matrícula gratuita) ou <strong>rejeitar</strong>.</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Conteúdo do Site</span>
+      <h3>Fotos, vídeo, preço e depoimentos</h3>
+      <p>É onde você edita o que aparece no site público — sem mexer em nenhuma linha de código. Foto de capa, vídeo de apresentação, as 6 fotos da galeria, foto e biografia do instrutor, o preço e o parcelamento.</p>
+      <div class="callout warn">
+        <span class="icon">⚠️</span>
+        <p>Os <strong>depoimentos</strong> e os números do topo (alunos formados, avaliação média) ainda estão com valores de exemplo, não reais. Vale a pena entrar aqui e trocar por depoimentos de verdade antes de divulgar o site pra valer.</p>
+      </div>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Currículo</span>
+      <h3>Os módulos e aulas do curso</h3>
+      <p>O mesmo conteúdo que aparece na trilha do aluno e nos cards do site público. Dá pra adicionar ou remover módulos e aulas, e editar título, duração e vídeo de cada uma.</p>
+    </article>
+
+    <article class="topic">
+      <span class="sub">Aba · Avisos</span>
+      <h3>Recados pros alunos</h3>
+      <p>Manda um aviso que aparece como banner na Área do Aluno — pra todo mundo, ou só pra uma pessoa específica. Cada aluno dispensa o aviso individualmente.</p>
+    </article>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="part" id="site">
+    <div class="part-head">
+      <span class="eyebrow">Parte 2</span>
+      <h2>O site público</h2>
+      <p>É a porta de entrada — o endereço que você divulga.</p>
+    </div>
+
+    <article class="topic">
+      <p class="path">Endereço: <b>academy.novojeitobarbearia.com.br</b></p>
+      <p>Mostra a grade curricular, os depoimentos, a explicação do certificado, o investimento e as perguntas frequentes. Um botão de WhatsApp flutuante e um formulário de "me chama" capturam quem tem dúvida antes de decidir — isso cai direto na aba <strong>Leads</strong> do painel.</p>
+      <p>Tem também uma página separada pra <strong>Bolsa de 100%</strong>, com formulário próprio de candidatura.</p>
+    </article>
+  </section>
+
+  <!-- ============================================================ -->
+  <section class="part" id="aluno">
+    <div class="part-head">
+      <span class="eyebrow">Parte 3</span>
+      <h2>A área do aluno</h2>
+      <p>Você não precisa operar nada aqui — mas ajuda a entender pra responder dúvida de aluno.</p>
+    </div>
+
+    <article class="topic">
+      <p>O aluno entra sem senha: digita o e-mail, recebe um link por e-mail e já cai logado. Dentro, ele acompanha a trilha de aulas, vê os encontros presenciais da turma dele, escaneia o QR Code pra confirmar presença, atende modelos reais no <strong>Laboratório</strong> (o grande diferencial do curso) e recebe o certificado automaticamente assim que termina tudo.</p>
+      <p>Pode ser instalado como um aplicativo na tela inicial do celular — no iPhone, pelo botão de compartilhar do Safari; no Android, pelo menu do Chrome.</p>
+    </article>
+  </section>
+
+  <!-- ============================================================ -->
+  <div class="checklist">
+    <h3>Antes de divulgar o site pra valer</h3>
+    <p>Uma checagem rápida do que ainda falta ajustar:</p>
+    <ul class="check">
+      <li><span>Trocar os 3 depoimentos de exemplo por depoimentos reais (Painel → Conteúdo do Site).</span></li>
+      <li><span>Conferir se "alunos formados" e "avaliação média" no topo do site são números reais.</span></li>
+      <li><span>Preencher CNPJ e razão social nos Termos de Uso e Política de Privacidade.</span></li>
+      <li><span>Subir uma imagem de capa (og-image) pra o link aparecer bonito quando compartilhado no WhatsApp.</span></li>
+    </ul>
+  </div>
+
+  <footer class="doc-footer">Guia rápido — Novo Jeito Academy.</footer>
+</div>
+</body>
+</html>
