@@ -390,16 +390,6 @@
   </div>
 </section>
 
-<!-- ===== BOLSA DE 100% ===== -->
-<section id="bolsa">
-  <div class="scholarship-banner reveal">
-    <span class="eyebrow">Vaga solidária</span>
-    <h2 id="scholarshipTitle">Concorra a uma <em>bolsa de 100%.</em></h2>
-    <p id="scholarshipText">A cada turma, oferecemos uma vaga integralmente gratuita pra quem realmente precisa dessa oportunidade. Conte sua história — vamos ler com atenção.</p>
-    <a href="/bolsa.html" class="btn-primary">🎓 Concorrer à bolsa</a>
-  </div>
-</section>
-
 <!-- ===== PRICING ===== -->
 <section id="pricing">
   <div class="section-head reveal">
@@ -781,9 +771,6 @@
       const priceMini = document.getElementById('priceMini');
       if (priceMini) priceMini.textContent = `R$ ${Math.round(content.price)} à vista ou ${parcelaQtd}x de R$ ${parcelaValor}`;
     }
-
-    if (content.scholarshipTitle) document.getElementById('scholarshipTitle').innerHTML = content.scholarshipTitle;
-    if (content.scholarshipText) document.getElementById('scholarshipText').textContent = content.scholarshipText;
 
     if (Array.isArray(content.testimonials) && content.testimonials.length > 0) {
       const grid = document.getElementById('testimonialGrid');
