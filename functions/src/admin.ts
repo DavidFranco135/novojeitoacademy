@@ -72,6 +72,8 @@ export const listStudents = onRequest({ cors: true }, async (req, res) => {
           modulosAplicaveis: data.modulosAplicaveis || null,
           aulasExcluidas: data.aulasExcluidas || null,
           comprovanteUrl: data.comprovanteUrl || null,
+          plano: data.plano || "curso",
+          boletoParcelasRestantes: data.boletoParcelasRestantes || 0,
         };
       })
     );

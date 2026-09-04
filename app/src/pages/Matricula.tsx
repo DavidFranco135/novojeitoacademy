@@ -33,7 +33,24 @@ interface StudentData {
 
 const CONTRATADA_CNPJ = "57.695.361/0001-17";
 
-function buildContractText(data: StudentData) {
+// Espelha os defaults de functions/src/enrollment.ts — só pra exibição antes do
+// checkout; o valor cobrado de verdade é sempre recalculado no backend.
+const DEFAULT_PRICES = {
+  precoCursoAvista: 697.0,
+  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoParcelas: 10,
+  precoCursoBoletoTotal: 900.0,
+  precoCursoBoletoParcelas: 3,
+  precoKitAvista: 1297.0,
+  precoKitCartaoTotal: 1497.0,
+  precoKitCartaoParcelas: 10,
+};
+
+function fmtBRL(v: number) {
+  return `R$ ${v.toFixed(2).replace(".", ",").replace(/\d(?=(\d{3})+,)/g, "$&.")}`;
+}
+
+function buildContractText(data: StudentData, plano: "curso" | "curso_kit") {
   return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
 CURSO DE BARBEIRO PROFISSIONAL – NOVO JEITO ACADEMY
 
@@ -71,7 +88,7 @@ Todo o conteúdo do curso pertence à Novo Jeito Academy. É proibido gravar aul
 Receberá certificado o aluno que concluir os módulos obrigatórios, participar das atividades presenciais e cumprir os critérios mínimos de aproveitamento definidos pela escola.
 
 8. DO INVESTIMENTO
-O valor do curso e a forma de pagamento são os apresentados na etapa de checkout desta matrícula. A matrícula somente será confirmada após a aprovação do pagamento.
+Plano contratado: ${plano === "curso_kit" ? "Curso de Barbeiro Profissional + Kit (kit profissional de uso pessoal incluso, que fica com o aluno)" : "Curso de Barbeiro Profissional (material de uso pessoal adquirido separadamente pelo aluno)"}. O valor e a forma de pagamento são os apresentados na etapa de checkout desta matrícula. A matrícula somente será confirmada após a aprovação do pagamento.
 
 9. DO CANCELAMENTO
 O aluno poderá desistir da compra no prazo legal de 7 (sete) dias, contado da confirmação da contratação, conforme o Código de Defesa do Consumidor, quando aplicável às contratações realizadas pela internet. Após esse prazo, não haverá devolução de valores referentes ao conteúdo já disponibilizado; pedidos excepcionais serão analisados individualmente pela escola.
@@ -108,6 +125,17 @@ export default function EnrollmentFlow() {
   // partir desse id, nunca a partir do parâmetro "valor" acima (que é só cosmético).
   const chargeId = searchParams.get("chargeId") || null;
   const [precoCustom, setPrecoCustom] = useState<number | null>(null);
+
+  // "curso" (material à parte) ou "curso_kit" (kit profissional incluso) — mesma
+  // formação nos dois casos, definido pelo botão que a pessoa clicou no site.
+  const plano: "curso" | "curso_kit" = searchParams.get("plano") === "curso_kit" ? "curso_kit" : "curso";
+  const [prices, setPrices] = useState(DEFAULT_PRICES);
+  useEffect(() => {
+    fetch(`${FUNCTIONS_BASE}/getSiteContent`)
+      .then((r) => r.json())
+      .then((content) => setPrices((prev) => ({ ...prev, ...content })))
+      .catch(() => {});
+  }, []);
 
   // Modo "assinar": reabre a etapa de assinatura pra uma matrícula que já existe
   // (ex: bolsa/dinheiro cadastrados antes da assinatura ser obrigatória, que nunca
@@ -216,6 +244,7 @@ export default function EnrollmentFlow() {
           paymentMethod: modo === "dinheiro" ? "dinheiro" : undefined,
           valorCombinado: modo === "dinheiro" ? valorCombinado : undefined,
           chargeId: chargeId || undefined,
+          plano,
         }),
       });
       const json = await res.json();
@@ -310,7 +339,7 @@ export default function EnrollmentFlow() {
         body: JSON.stringify({
           enrollmentId,
           signatureBase64,
-          contractText: buildContractText(data),
+          contractText: buildContractText(data, plano),
         }),
       });
       if (!res.ok) throw new Error("Falha ao registrar assinatura");
@@ -325,15 +354,17 @@ export default function EnrollmentFlow() {
   // ---------- Etapa 3: pagamento ----------
   const [preferiuDinheiro, setPreferiuDinheiro] = useState(false);
   const [enviandoPreferenciaDinheiro, setEnviandoPreferenciaDinheiro] = useState(false);
+  const [formaEscolhida, setFormaEscolhida] = useState<"avista" | "cartao" | "boleto" | null>(null);
 
-  async function goToPayment() {
+  async function goToPayment(formaPagamento: "avista" | "cartao" | "boleto") {
     setError("");
+    setFormaEscolhida(formaPagamento);
     setLoading(true);
     try {
       const res = await fetch(`${FUNCTIONS_BASE}/createPaymentPreference`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enrollmentId }),
+        body: JSON.stringify({ enrollmentId, formaPagamento }),
       });
       if (!res.ok) throw new Error("Falha ao iniciar pagamento");
       const json = await res.json();
@@ -341,6 +372,7 @@ export default function EnrollmentFlow() {
     } catch (e) {
       setError("Não foi possível iniciar o pagamento. Tente novamente.");
       setLoading(false);
+      setFormaEscolhida(null);
     }
   }
 
@@ -457,7 +489,7 @@ export default function EnrollmentFlow() {
             <>
               <h2 style={styles.h2}>Contrato de matrícula</h2>
               <div style={styles.contractBox}>
-                <pre style={styles.contractText}>{buildContractText(data)}</pre>
+                <pre style={styles.contractText}>{buildContractText(data, plano)}</pre>
               </div>
 
               <label style={styles.label}>Assine no campo abaixo</label>
@@ -494,18 +526,16 @@ export default function EnrollmentFlow() {
             </>
           )}
 
-          {step === 3 && modo === "pago" && !preferiuDinheiro && (
+          {step === 3 && modo === "pago" && !preferiuDinheiro && precoCustom && (
             <>
               <h2 style={styles.h2}>Pagamento</h2>
               <p style={styles.p}>
-                {precoCustom
-                  ? <>Valor combinado: <strong style={{ color: GOLD }}>R$ {precoCustom.toFixed(2).replace(".", ",")}</strong>. Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).</>
-                  : "Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto)."}
+                Valor combinado: <strong style={{ color: GOLD }}>{fmtBRL(precoCustom)}</strong>. Você será redirecionado ao checkout seguro do Mercado Pago (cartão, PIX ou boleto).
               </p>
 
               {error && <p style={styles.error}>{error}</p>}
 
-              <button style={styles.btnPrimary} onClick={goToPayment} disabled={loading}>
+              <button style={styles.btnPrimary} onClick={() => goToPayment("avista")} disabled={loading}>
                 {loading ? "Redirecionando..." : "Ir para pagamento"}
               </button>
               <button
@@ -517,6 +547,55 @@ export default function EnrollmentFlow() {
               </button>
             </>
           )}
+
+          {step === 3 && modo === "pago" && !preferiuDinheiro && !precoCustom && (() => {
+            const isKit = plano === "curso_kit";
+            const avistaValor = isKit ? prices.precoKitAvista : prices.precoCursoAvista;
+            const cartaoTotal = isKit ? prices.precoKitCartaoTotal : prices.precoCursoCartaoTotal;
+            const cartaoParcelas = isKit ? prices.precoKitCartaoParcelas : prices.precoCursoCartaoParcelas;
+            const cartaoParcela = cartaoTotal / cartaoParcelas;
+            const boletoTotal = prices.precoCursoBoletoTotal;
+            const boletoParcelas = prices.precoCursoBoletoParcelas;
+            const boletoParcela = boletoTotal / boletoParcelas;
+
+            return (
+              <>
+                <h2 style={styles.h2}>Como você prefere pagar?</h2>
+                <p style={styles.p}>Escolha uma opção — o checkout já abre com o plano e o valor certos.</p>
+
+                {error && <p style={styles.error}>{error}</p>}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+                  <button style={styles.paymentOption} onClick={() => goToPayment("avista")} disabled={loading}>
+                    <span>À vista — Pix ou cartão em 1x</span>
+                    <strong style={{ color: GOLD }}>{loading && formaEscolhida === "avista" ? "Redirecionando..." : fmtBRL(avistaValor)}</strong>
+                  </button>
+                  <button style={styles.paymentOption} onClick={() => goToPayment("cartao")} disabled={loading}>
+                    <span>Cartão parcelado — em até {cartaoParcelas}x sem juros</span>
+                    <strong style={{ color: GOLD }}>
+                      {loading && formaEscolhida === "cartao" ? "Redirecionando..." : <>{cartaoParcelas}x de {fmtBRL(cartaoParcela)}</>}
+                    </strong>
+                  </button>
+                  {!isKit && (
+                    <button style={styles.paymentOption} onClick={() => goToPayment("boleto")} disabled={loading}>
+                      <span>Boleto — em até {boletoParcelas}x (1ª parcela agora)</span>
+                      <strong style={{ color: GOLD }}>
+                        {loading && formaEscolhida === "boleto" ? "Redirecionando..." : <>{boletoParcelas}x de {fmtBRL(boletoParcela)}</>}
+                      </strong>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  style={{ ...styles.btnGhost, width: "100%", marginTop: "1.2rem", boxSizing: "border-box" }}
+                  onClick={handlePreferirDinheiro}
+                  disabled={enviandoPreferenciaDinheiro}
+                >
+                  {enviandoPreferenciaDinheiro ? "Só um instante..." : "Prefiro pagar em dinheiro"}
+                </button>
+              </>
+            );
+          })()}
 
           {step === 3 && modo === "pago" && preferiuDinheiro && (
             <>
@@ -573,4 +652,5 @@ const styles: Record<string, React.CSSProperties> = {
   signatureCanvas: { width: "100%", height: 160, background: "#111", border: "1px dashed rgba(197,138,74,.4)", borderRadius: 3, touchAction: "none", cursor: "crosshair" },
   clearBtn: { position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,.5)", border: "1px solid rgba(197,138,74,.3)", color: "#F5F0E8", fontSize: "0.72rem", padding: "0.3rem 0.6rem", borderRadius: 3, cursor: "pointer" },
   checkboxRow: { display: "flex", alignItems: "flex-start", gap: "0.6rem", fontSize: "0.82rem", color: "#c9c2b4", marginTop: "1.2rem" },
+  paymentOption: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.8rem", width: "100%", textAlign: "left", background: "#111", border: "1px solid rgba(197,138,74,.25)", borderRadius: 4, padding: "0.9rem 1.1rem", color: "#F5F0E8", fontSize: "0.86rem", cursor: "pointer" },
 };

@@ -25,6 +25,25 @@ const MERCADOPAGO_ACCESS_TOKEN = defineSecret("MERCADOPAGO_ACCESS_TOKEN");
 const COURSE_PRICE = 697.0;
 const COURSE_TITLE = "Formação Completa de Barbeiro Profissional";
 
+// Preços por plano/forma de pagamento — usados como fallback se o documento
+// siteContent/main ainda não tiver esses campos (editáveis em Admin → Conteúdo
+// do Site → Investimento, sem precisar mexer em código).
+const DEFAULT_PRICES = {
+  precoCursoAvista: 697.0,
+  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoParcelas: 10,
+  precoCursoBoletoTotal: 900.0,
+  precoCursoBoletoParcelas: 3,
+  precoKitAvista: 1297.0,
+  precoKitCartaoTotal: 1497.0,
+  precoKitCartaoParcelas: 10,
+};
+
+async function getSiteContentPrices() {
+  const snap = await db.collection("siteContent").doc("main").get();
+  return { ...DEFAULT_PRICES, ...(snap.exists ? snap.data() : {}) };
+}
+
 // ============================================================
 // 1) Criar matrícula (etapa "Dados")
 // ============================================================
@@ -32,11 +51,24 @@ export const createEnrollment = onRequest(
   { cors: true },
   async (req, res) => {
     try {
-      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId, scholarshipApplicationId, paymentMethod, valorCombinado, chargeId } = req.body;
+      const { nome, email, telefone, cpf, rg, dataNascimento, endereco, cidade, turmaAvulsaId, scholarshipApplicationId, paymentMethod, valorCombinado, chargeId, plano } = req.body;
 
       if (!nome || !email || !telefone || !cpf) {
         res.status(400).json({ error: "Dados incompletos" });
         return;
+      }
+
+      // "curso" (aluno compra o material à parte) ou "curso_kit" (kit profissional
+      // incluso, estoque controlado) — mesma formação nos dois casos, só muda o
+      // material. Links antigos sem esse parâmetro continuam valendo como "curso".
+      const planoFinal: "curso" | "curso_kit" = plano === "curso_kit" ? "curso_kit" : "curso";
+      if (planoFinal === "curso_kit") {
+        const siteSnap = await db.collection("siteContent").doc("main").get();
+        const kitEstoque = siteSnap.exists && typeof siteSnap.data()!.kitEstoque === "number" ? siteSnap.data()!.kitEstoque : 3;
+        if (kitEstoque <= 0) {
+          res.status(400).json({ error: "O kit profissional está esgotado no momento. Escolha o plano sem kit ou tente novamente mais tarde." });
+          return;
+        }
       }
 
       // Se veio chargeId, essa matrícula nasceu de um link de cobrança avulsa gerado
@@ -112,12 +144,15 @@ export const createEnrollment = onRequest(
         cidade: cidade || null,
         status: "cadastrado", // cadastrado -> contrato_assinado -> pago -> acesso_liberado
         tipo: turmaAvulsaId ? "turma_avulsa" : "curso_completo",
+        plano: planoFinal, // "curso" (material à parte) ou "curso_kit" (kit profissional incluso)
         turmaAvulsaId: turmaAvulsaId || null,
         turmaAvulsaNome,
         isBolsa,
         scholarshipApplicationId: scholarshipApplicationId || null,
         paymentMethod: isDinheiro ? "dinheiro" : null,
-        valorPago: isDinheiro ? (Number(valorCombinado) || COURSE_PRICE) : null,
+        valorPago: isDinheiro
+          ? (Number(valorCombinado) || (planoFinal === "curso_kit" ? DEFAULT_PRICES.precoKitAvista : DEFAULT_PRICES.precoCursoAvista))
+          : null,
         precoCustom,
         chargeId: chargeId || null,
         chargeDescricao,
@@ -375,7 +410,7 @@ export const createPaymentPreference = onRequest(
   { cors: true, secrets: [MERCADOPAGO_ACCESS_TOKEN] },
   async (req, res) => {
     try {
-      const { enrollmentId } = req.body;
+      const { enrollmentId, formaPagamento } = req.body;
       if (!enrollmentId) {
         res.status(400).json({ error: "enrollmentId obrigatório" });
         return;
@@ -388,10 +423,18 @@ export const createPaymentPreference = onRequest(
       }
       const enrollment = enrollmentSnap.data()!;
 
+      // Restrições de forma de pagamento na preferência (o cliente só escolheu uma
+      // opção no site — o checkout do Mercado Pago não deve oferecer as outras,
+      // porque o valor já foi calculado especificamente pra essa forma).
+      let paymentMethodsConfig: { excluded_payment_types: { id: string }[]; installments?: number } | undefined;
+      let boletoParcelasRestantes = 0;
+
       // Prioridade do preço: 1) valor combinado num link de cobrança avulsa (admin
       // já fixou esse valor no Firestore ao gerar o link — ver createEnrollment);
       // 2) preço da turma, se for matrícula avulsa só numa turma presencial;
-      // 3) preço padrão do curso completo.
+      // 3) preço do plano (curso ou curso + kit) conforme a forma de pagamento
+      //    escolhida na Etapa 3 da matrícula; 4) preço padrão do curso completo
+      //    (compatibilidade com links antigos, sem plano/forma definidos).
       let precoFinal = COURSE_PRICE;
       let tituloFinal = COURSE_TITLE;
       if (typeof enrollment.precoCustom === "number" && enrollment.precoCustom > 0) {
@@ -402,6 +445,29 @@ export const createPaymentPreference = onRequest(
         if (turmaSnap.exists && turmaSnap.data()!.preco) {
           precoFinal = turmaSnap.data()!.preco;
           tituloFinal = `Turma: ${turmaSnap.data()!.nome}`;
+        }
+      } else if (enrollment.plano === "curso" || enrollment.plano === "curso_kit") {
+        const prices = await getSiteContentPrices();
+        const isKit = enrollment.plano === "curso_kit";
+        tituloFinal = isKit ? "Curso de Barbeiro Profissional + Kit" : "Curso de Barbeiro Profissional";
+
+        if (formaPagamento === "cartao") {
+          precoFinal = isKit ? prices.precoKitCartaoTotal : prices.precoCursoCartaoTotal;
+          paymentMethodsConfig = {
+            excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }],
+            installments: isKit ? prices.precoKitCartaoParcelas : prices.precoCursoCartaoParcelas,
+          };
+        } else if (formaPagamento === "boleto" && !isKit) {
+          precoFinal = prices.precoCursoBoletoTotal / prices.precoCursoBoletoParcelas; // cobra só a 1ª parcela agora
+          paymentMethodsConfig = {
+            excluded_payment_types: [{ id: "credit_card" }, { id: "debit_card" }, { id: "bank_transfer" }],
+            installments: 1,
+          };
+          boletoParcelasRestantes = prices.precoCursoBoletoParcelas - 1;
+        } else {
+          // à vista — Pix ou cartão à vista (1x), sem boleto
+          precoFinal = isKit ? prices.precoKitAvista : prices.precoCursoAvista;
+          paymentMethodsConfig = { excluded_payment_types: [{ id: "ticket" }], installments: 1 };
         }
       }
 
@@ -423,6 +489,7 @@ export const createPaymentPreference = onRequest(
             name: enrollment.nome,
             email: enrollment.email,
           },
+          payment_methods: paymentMethodsConfig,
           external_reference: enrollmentId, // usado no webhook pra identificar a matrícula
           back_urls: {
             success: "https://portal.novojeitobarbearia.com.br/matricula/sucesso",
@@ -433,6 +500,10 @@ export const createPaymentPreference = onRequest(
           notification_url: "https://us-central1-barbearia-do-ico.cloudfunctions.net/mercadopagoWebhook",
         },
       });
+
+      if (boletoParcelasRestantes > 0) {
+        await db.collection("enrollments").doc(enrollmentId).update({ boletoParcelasRestantes }).catch(() => {});
+      }
 
       res.status(200).json({ init_point: result.init_point });
     } catch (err) {
@@ -527,6 +598,15 @@ export const mercadopagoWebhook = onRequest(
             } catch (e) {
               console.error("Falha ao matricular automaticamente na turma avulsa:", e);
             }
+          }
+
+          // Plano com kit profissional — baixa 1 unidade do estoque. Só decrementa
+          // se essa matrícula ainda não estava "acesso_liberado" antes desse update,
+          // pra não descontar 2x caso o Mercado Pago reenvie o mesmo webhook.
+          if (enrollment?.plano === "curso_kit" && enrollment?.status !== "acesso_liberado") {
+            await db.collection("siteContent").doc("main")
+              .update({ kitEstoque: admin.firestore.FieldValue.increment(-1) })
+              .catch((e) => console.error("Falha ao baixar estoque do kit:", e));
           }
           // Aviso ao aluno é feito manualmente pelo admin via WhatsApp
           // (painel Admin → Alunos → "Copiar link de acesso")

@@ -698,6 +698,12 @@ function Alunos() {
               </div>
             )}
 
+            {!a.pendente && a.boletoParcelasRestantes > 0 && (
+              <p style={{ fontSize: "0.76rem", color: "#e8a04a", marginTop: "0.6rem" }}>
+                🧾 Faltam {a.boletoParcelasRestantes} parcela{a.boletoParcelasRestantes > 1 ? "s" : ""} do boleto — gere em Financeiro → Cobrança avulsa.
+              </p>
+            )}
+
             <div className="aluno-actions" style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
               {a.pendente ? (
                 <>
@@ -1773,9 +1779,15 @@ interface SiteContent {
   instrutorPhotoUrl: string;
   instrutorAnos: number;
   instrutorAlunosFormados: number;
-  price: number;
-  priceParcelaValor: number;
-  priceParcelaQtd: number;
+  precoCursoAvista: number;
+  precoCursoCartaoTotal: number;
+  precoCursoCartaoParcelas: number;
+  precoCursoBoletoTotal: number;
+  precoCursoBoletoParcelas: number;
+  precoKitAvista: number;
+  precoKitCartaoTotal: number;
+  precoKitCartaoParcelas: number;
+  kitEstoque: number;
   testimonials: Testimonial[];
   faq: FaqItem[];
   scholarshipTitle: string;
@@ -1800,9 +1812,15 @@ const EMPTY_CONTENT: SiteContent = {
   instrutorPhotoUrl: "",
   instrutorAnos: 0,
   instrutorAlunosFormados: 0,
-  price: 697,
-  priceParcelaValor: 197,
-  priceParcelaQtd: 4,
+  precoCursoAvista: 697,
+  precoCursoCartaoTotal: 897,
+  precoCursoCartaoParcelas: 10,
+  precoCursoBoletoTotal: 900,
+  precoCursoBoletoParcelas: 3,
+  precoKitAvista: 1297,
+  precoKitCartaoTotal: 1497,
+  precoKitCartaoParcelas: 10,
+  kitEstoque: 3,
   testimonials: [],
   faq: [],
   scholarshipTitle: "",
@@ -2567,14 +2585,28 @@ function ConteudoSite() {
         />
       </FieldGroup>
 
-      <FieldGroup title="Investimento">
+      <FieldGroup title="Investimento — Curso de Barbeiro Profissional">
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          <NumberField label="Preço à vista (R$)" value={content.price} step="0.01" onChange={(v) => update("price", v)} />
-          <NumberField label="Valor de cada parcela (R$)" value={content.priceParcelaValor} step="0.01" onChange={(v) => update("priceParcelaValor", v)} />
-          <NumberField label="Nº de parcelas" value={content.priceParcelaQtd} onChange={(v) => update("priceParcelaQtd", v)} />
+          <NumberField label="À vista / Pix / dinheiro (R$)" value={content.precoCursoAvista} step="0.01" onChange={(v) => update("precoCursoAvista", v)} />
+          <NumberField label="Total no cartão parcelado (R$)" value={content.precoCursoCartaoTotal} step="0.01" onChange={(v) => update("precoCursoCartaoTotal", v)} />
+          <NumberField label="Nº de parcelas no cartão" value={content.precoCursoCartaoParcelas} onChange={(v) => update("precoCursoCartaoParcelas", v)} />
+          <NumberField label="Total no boleto (R$)" value={content.precoCursoBoletoTotal} step="0.01" onChange={(v) => update("precoCursoBoletoTotal", v)} />
+          <NumberField label="Nº de parcelas no boleto" value={content.precoCursoBoletoParcelas} onChange={(v) => update("precoCursoBoletoParcelas", v)} />
         </div>
         <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.6rem" }}>
-          O preço à vista e o parcelado são independentes — não é uma divisão automática. Ex: R$ 697 à vista <em>ou</em> 4x de R$ 197 (total R$ 788 no parcelado).
+          Cada valor é independente, não é uma divisão automática. O boleto cobra só a 1ª parcela no checkout — as demais precisam ser enviadas manualmente pelo Financeiro (Cobrança avulsa) nas datas de vencimento.
+        </p>
+      </FieldGroup>
+
+      <FieldGroup title="Investimento — Curso + Kit profissional">
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          <NumberField label="À vista / Pix / dinheiro (R$)" value={content.precoKitAvista} step="0.01" onChange={(v) => update("precoKitAvista", v)} />
+          <NumberField label="Total no cartão parcelado (R$)" value={content.precoKitCartaoTotal} step="0.01" onChange={(v) => update("precoKitCartaoTotal", v)} />
+          <NumberField label="Nº de parcelas no cartão" value={content.precoKitCartaoParcelas} onChange={(v) => update("precoKitCartaoParcelas", v)} />
+          <NumberField label="Kits em estoque" value={content.kitEstoque} onChange={(v) => update("kitEstoque", v)} />
+        </div>
+        <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.6rem" }}>
+          Não tem boleto nesse plano. Quando o estoque chegar a 0, o site mostra "Temporariamente indisponível" no lugar do botão de matrícula — reponha aqui quando chegar kit novo.
         </p>
       </FieldGroup>
 
