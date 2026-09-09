@@ -37,13 +37,14 @@ const CONTRATADA_CNPJ = "57.695.361/0001-17";
 // checkout; o valor cobrado de verdade é sempre recalculado no backend.
 const DEFAULT_PRICES = {
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 770.0,
+  precoCursoCartaoTotal: 897.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1433.0,
+  precoKitCartaoTotal: 1697.0,
   precoKitCartaoParcelas: 10,
+  parcelamentoCartaoAtivo: true,
 };
 
 function fmtBRL(v: number) {
@@ -570,12 +571,14 @@ export default function EnrollmentFlow() {
                     <span>À vista — Pix ou cartão em 1x</span>
                     <strong style={{ color: GOLD }}>{loading && formaEscolhida === "avista" ? "Redirecionando..." : fmtBRL(avistaValor)}</strong>
                   </button>
-                  <button style={styles.paymentOption} onClick={() => goToPayment("cartao")} disabled={loading}>
-                    <span>Cartão parcelado — em até {cartaoParcelas}x sem juros</span>
-                    <strong style={{ color: GOLD }}>
-                      {loading && formaEscolhida === "cartao" ? "Redirecionando..." : <>{cartaoParcelas}x de {fmtBRL(cartaoParcela)}</>}
-                    </strong>
-                  </button>
+                  {prices.parcelamentoCartaoAtivo && (
+                    <button style={styles.paymentOption} onClick={() => goToPayment("cartao")} disabled={loading}>
+                      <span>Cartão parcelado — em até {cartaoParcelas}x sem juros</span>
+                      <strong style={{ color: GOLD }}>
+                        {loading && formaEscolhida === "cartao" ? "Redirecionando..." : <>{cartaoParcelas}x de {fmtBRL(cartaoParcela)}</>}
+                      </strong>
+                    </button>
+                  )}
                   {!isKit && (
                     <button style={styles.paymentOption} onClick={() => goToPayment("boleto")} disabled={loading}>
                       <span>Boleto — em até {boletoParcelas}x (1ª parcela agora)</span>

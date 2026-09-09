@@ -30,13 +30,14 @@ const COURSE_TITLE = "Formação Completa de Barbeiro Profissional";
 // do Site → Investimento, sem precisar mexer em código).
 const DEFAULT_PRICES = {
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 770.0,
+  precoCursoCartaoTotal: 897.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1433.0,
+  precoKitCartaoTotal: 1697.0,
   precoKitCartaoParcelas: 10,
+  parcelamentoCartaoAtivo: true,
 };
 
 async function getSiteContentPrices() {
@@ -450,6 +451,14 @@ export const createPaymentPreference = onRequest(
         const prices = await getSiteContentPrices();
         const isKit = enrollment.plano === "curso_kit";
         tituloFinal = isKit ? "Curso de Barbeiro Profissional + Kit" : "Curso de Barbeiro Profissional";
+
+        // Cartão parcelado fica temporariamente desligado (Admin → Conteúdo do
+        // Site) enquanto a taxa "sem juros" negociada com o Mercado Pago não está
+        // confirmada como ativa na conta — evita cobrar juro real do aluno.
+        if (formaPagamento === "cartao" && !prices.parcelamentoCartaoAtivo) {
+          res.status(400).json({ error: "Pagamento parcelado no cartão está temporariamente indisponível. Escolha à vista ou boleto." });
+          return;
+        }
 
         if (formaPagamento === "cartao") {
           precoFinal = isKit ? prices.precoKitCartaoTotal : prices.precoCursoCartaoTotal;

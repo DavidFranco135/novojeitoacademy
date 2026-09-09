@@ -1788,6 +1788,7 @@ interface SiteContent {
   precoKitCartaoTotal: number;
   precoKitCartaoParcelas: number;
   kitEstoque: number;
+  parcelamentoCartaoAtivo: boolean;
   testimonials: Testimonial[];
   faq: FaqItem[];
   scholarshipTitle: string;
@@ -1813,14 +1814,15 @@ const EMPTY_CONTENT: SiteContent = {
   instrutorAnos: 0,
   instrutorAlunosFormados: 0,
   precoCursoAvista: 697,
-  precoCursoCartaoTotal: 770,
+  precoCursoCartaoTotal: 897,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297,
-  precoKitCartaoTotal: 1433,
+  precoKitCartaoTotal: 1697,
   precoKitCartaoParcelas: 10,
   kitEstoque: 3,
+  parcelamentoCartaoAtivo: true,
   testimonials: [],
   faq: [],
   scholarshipTitle: "",
@@ -2584,6 +2586,30 @@ function ConteudoSite() {
           hint="Ex: 21999999999. Alimenta o botão flutuante de WhatsApp no site público — deixe vazio pra esconder o botão."
         />
       </FieldGroup>
+
+      <div style={{
+        border: `1px solid ${content.parcelamentoCartaoAtivo ? "rgba(120,200,140,.4)" : "rgba(232,116,106,.4)"}`,
+        borderRadius: 6, padding: "1.2rem 1.4rem", marginBottom: "2rem",
+        background: content.parcelamentoCartaoAtivo ? "rgba(120,200,140,.06)" : "rgba(232,116,106,.06)",
+      }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.8rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={content.parcelamentoCartaoAtivo}
+            onChange={(e) => update("parcelamentoCartaoAtivo", e.target.checked)}
+            style={{ width: 18, height: 18, cursor: "pointer" }}
+          />
+          <span style={{ fontWeight: 600, fontSize: "0.9rem", color: content.parcelamentoCartaoAtivo ? "#78c88c" : "#e8746a" }}>
+            💳 Parcelamento no cartão {content.parcelamentoCartaoAtivo ? "ativado" : "desativado"}
+          </span>
+        </label>
+        <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.8rem" }}>
+          A taxa "sem juros" negociada com o Mercado Pago ainda não foi confirmada como ativa na conta — até lá, quem
+          escolher 7x ou mais pode ver juro de verdade sendo cobrado pelo banco no checkout. Desative aqui se quiser
+          tirar a opção "Cartão parcelado" da matrícula (fica só à vista, boleto sem kit e dinheiro) enquanto isso não é
+          resolvido. Não precisa de deploy, é instantâneo depois de salvar.
+        </p>
+      </div>
 
       <FieldGroup title="Investimento — Curso de Barbeiro Profissional">
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>

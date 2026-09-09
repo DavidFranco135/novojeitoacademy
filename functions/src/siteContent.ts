@@ -28,14 +28,17 @@ const DEFAULT_CONTENT = {
   instrutorAlunosFormados: 400,
   // Dois planos — mesma formação, só muda se o material vem incluso (kit) ou não.
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 770.0,
+  precoCursoCartaoTotal: 897.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1433.0,
+  precoKitCartaoTotal: 1697.0,
   precoKitCartaoParcelas: 10,
   kitEstoque: 3,
+  // Controla se a opção "cartão parcelado" aparece nos dois planos. Painel Admin
+  // → Conteúdo do Site liga/desliga sem precisar de deploy.
+  parcelamentoCartaoAtivo: true,
   testimonials: [
     { stars: 5, text: "Entrei sem nunca ter pego numa navalha e saí montando minha própria barbearia seis meses depois. O módulo presencial fez toda diferença.", autor: "Rafael T.", turma: "Turma 2026.1" },
     { stars: 5, text: "Já cortava cabelo há anos, mas o curso me deu técnica de verdade. O certificado abriu portas em barbearia grande da minha cidade.", autor: "Diego M.", turma: "Turma 2025.2" },
