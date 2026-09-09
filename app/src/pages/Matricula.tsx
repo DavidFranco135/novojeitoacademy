@@ -37,12 +37,12 @@ const CONTRATADA_CNPJ = "57.695.361/0001-17";
 // checkout; o valor cobrado de verdade é sempre recalculado no backend.
 const DEFAULT_PRICES = {
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoTotal: 770.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1497.0,
+  precoKitCartaoTotal: 1433.0,
   precoKitCartaoParcelas: 10,
 };
 

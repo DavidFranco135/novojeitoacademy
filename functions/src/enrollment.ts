@@ -30,12 +30,12 @@ const COURSE_TITLE = "Formação Completa de Barbeiro Profissional";
 // do Site → Investimento, sem precisar mexer em código).
 const DEFAULT_PRICES = {
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoTotal: 770.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1497.0,
+  precoKitCartaoTotal: 1433.0,
   precoKitCartaoParcelas: 10,
 };
 

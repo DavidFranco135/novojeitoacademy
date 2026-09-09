@@ -28,12 +28,12 @@ const DEFAULT_CONTENT = {
   instrutorAlunosFormados: 400,
   // Dois planos — mesma formação, só muda se o material vem incluso (kit) ou não.
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoTotal: 770.0,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1497.0,
+  precoKitCartaoTotal: 1433.0,
   precoKitCartaoParcelas: 10,
   kitEstoque: 3,
   testimonials: [
