@@ -175,7 +175,10 @@
   .pricing-card .plan-name{font-family:'Playfair Display',serif;font-size:1.3rem;margin-bottom:.2rem}
   .pricing-card .price-main{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:var(--gold);margin:.7rem 0 .15rem}
   .pricing-card .price-main small{font-size:.62rem;font-family:'Space Mono',monospace;letter-spacing:.04em;color:var(--gray);display:block;font-weight:400;margin-bottom:.2rem}
-  .pricing-card .price-sub{font-size:.8rem;color:var(--gray)}
+  .pricing-card .price-rows{list-style:none;margin:1rem 0 0;padding:0;text-align:left;border-top:1px solid var(--line);padding-top:.9rem;display:flex;flex-direction:column;gap:.55rem}
+  .pricing-card .price-rows li{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;font-size:.8rem}
+  .pricing-card .price-rows li span{color:var(--gray)}
+  .pricing-card .price-rows li strong{color:var(--white);font-weight:600;white-space:nowrap}
   .feat-list{text-align:left;margin:0;padding:0;display:flex;flex-direction:column;gap:.65rem}
   .feat-list li{list-style:none;display:flex;gap:.7rem;font-size:.85rem}
   .feat-list li::before{content:'—';color:var(--gold);flex-shrink:0}
@@ -426,8 +429,11 @@
     <div class="pricing-card">
       <span class="eyebrow">Curso presencial</span>
       <h3 class="plan-name">Curso de Barbeiro<br/>Profissional</h3>
-      <div class="price-main" id="cursoPriceMain"><small>À vista — Pix, dinheiro ou cartão</small>R$ 697</div>
-      <div class="price-sub" id="cursoPriceSub">ou 10x de R$ 89,70 no cartão (total R$ 897)</div>
+      <div class="price-main" id="cursoPriceMain"><small>À vista — Pix ou dinheiro</small>R$ 697</div>
+      <ul class="price-rows" id="cursoPriceRows">
+        <li><span>Cartão parcelado</span><strong>10x de R$ 89,70</strong></li>
+        <li><span>Boleto</span><strong>3x de R$ 300,00</strong></li>
+      </ul>
 
       <a href="https://portal.novojeitobarbearia.com.br/matricula?plano=curso" class="btn-primary">Quero me matricular</a>
 
@@ -455,8 +461,10 @@
       <span class="pricing-tag">COMECE COM TUDO</span>
       <span class="eyebrow">Curso presencial + kit</span>
       <h3 class="plan-name">Curso de Barbeiro<br/>Profissional + Kit</h3>
-      <div class="price-main" id="kitPriceMain"><small>À vista — Pix, dinheiro ou cartão</small>R$ 1.297</div>
-      <div class="price-sub" id="kitPriceSub">ou 10x de R$ 169,70 no cartão (total R$ 1.697)</div>
+      <div class="price-main" id="kitPriceMain"><small>À vista — Pix ou dinheiro</small>R$ 1.297</div>
+      <ul class="price-rows" id="kitPriceRows">
+        <li><span>Cartão parcelado</span><strong>10x de R$ 169,70</strong></li>
+      </ul>
 
       <div id="kitCtaWrap">
         <a href="https://portal.novojeitobarbearia.com.br/matricula?plano=curso_kit" class="btn-primary" id="kitCtaBtn">Quero me matricular + kit</a>
@@ -867,20 +875,20 @@
     const cursoCartaoParcela = cursoCartaoTotal / cursoCartaoParcelas;
     const cursoBoletoParcelas = content.precoCursoBoletoParcelas || 3;
     const cursoBoletoParcela = (content.precoCursoBoletoTotal || 900) / cursoBoletoParcelas;
-    document.getElementById('cursoPriceMain').innerHTML = `<small>À vista — Pix, dinheiro ou cartão</small>${fmtBRL(cursoAvista)}`;
-    document.getElementById('cursoPriceSub').textContent = parcelamentoCartaoAtivo
-      ? `ou ${cursoCartaoParcelas}x de ${fmtBRL(cursoCartaoParcela)} no cartão (total ${fmtBRL(cursoCartaoTotal)})`
-      : `ou boleto em até ${cursoBoletoParcelas}x de ${fmtBRL(cursoBoletoParcela)}`;
+    document.getElementById('cursoPriceMain').innerHTML = `<small>À vista — Pix ou dinheiro</small>${fmtBRL(cursoAvista)}`;
+    document.getElementById('cursoPriceRows').innerHTML = (parcelamentoCartaoAtivo
+      ? `<li><span>Cartão parcelado</span><strong>${cursoCartaoParcelas}x de ${fmtBRL(cursoCartaoParcela)}</strong></li>`
+      : '') + `<li><span>Boleto</span><strong>${cursoBoletoParcelas}x de ${fmtBRL(cursoBoletoParcela)}</strong></li>`;
 
-    // Curso + Kit
+    // Curso + Kit (sem boleto nesse plano)
     const kitAvista = content.precoKitAvista || 1297;
     const kitCartaoTotal = content.precoKitCartaoTotal || 1697;
     const kitCartaoParcelas = content.precoKitCartaoParcelas || 10;
     const kitCartaoParcela = kitCartaoTotal / kitCartaoParcelas;
-    document.getElementById('kitPriceMain').innerHTML = `<small>À vista — Pix, dinheiro ou cartão</small>${fmtBRL(kitAvista)}`;
-    document.getElementById('kitPriceSub').textContent = parcelamentoCartaoAtivo
-      ? `ou ${kitCartaoParcelas}x de ${fmtBRL(kitCartaoParcela)} no cartão (total ${fmtBRL(kitCartaoTotal)})`
-      : `outras formas de pagamento na matrícula`;
+    document.getElementById('kitPriceMain').innerHTML = `<small>À vista — Pix ou dinheiro</small>${fmtBRL(kitAvista)}`;
+    document.getElementById('kitPriceRows').innerHTML = parcelamentoCartaoAtivo
+      ? `<li><span>Cartão parcelado</span><strong>${kitCartaoParcelas}x de ${fmtBRL(kitCartaoParcela)}</strong></li>`
+      : `<li><span>Outras formas</span><strong>ver na matrícula</strong></li>`;
 
     // Estoque do kit — some com o botão de matrícula se zerar
     const kitEstoque = typeof content.kitEstoque === 'number' ? content.kitEstoque : 3;

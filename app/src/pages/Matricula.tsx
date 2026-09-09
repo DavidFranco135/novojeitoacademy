@@ -573,7 +573,7 @@ export default function EnrollmentFlow() {
                   </button>
                   {prices.parcelamentoCartaoAtivo && (
                     <button style={styles.paymentOption} onClick={() => goToPayment("cartao")} disabled={loading}>
-                      <span>Cartão parcelado — em até {cartaoParcelas}x sem juros</span>
+                      <span>Cartão parcelado — em até {cartaoParcelas}x</span>
                       <strong style={{ color: GOLD }}>
                         {loading && formaEscolhida === "cartao" ? "Redirecionando..." : <>{cartaoParcelas}x de {fmtBRL(cartaoParcela)}</>}
                       </strong>
