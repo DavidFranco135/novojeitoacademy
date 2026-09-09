@@ -1781,11 +1781,13 @@ interface SiteContent {
   instrutorAlunosFormados: number;
   precoCursoAvista: number;
   precoCursoCartaoTotal: number;
+  precoCursoCartaoEnviado: number;
   precoCursoCartaoParcelas: number;
   precoCursoBoletoTotal: number;
   precoCursoBoletoParcelas: number;
   precoKitAvista: number;
   precoKitCartaoTotal: number;
+  precoKitCartaoEnviado: number;
   precoKitCartaoParcelas: number;
   kitEstoque: number;
   parcelamentoCartaoAtivo: boolean;
@@ -1815,11 +1817,13 @@ const EMPTY_CONTENT: SiteContent = {
   instrutorAlunosFormados: 0,
   precoCursoAvista: 697,
   precoCursoCartaoTotal: 897,
+  precoCursoCartaoEnviado: 743.49,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297,
   precoKitCartaoTotal: 1697,
+  precoKitCartaoEnviado: 1406.59,
   precoKitCartaoParcelas: 10,
   kitEstoque: 3,
   parcelamentoCartaoAtivo: true,
@@ -2614,7 +2618,8 @@ function ConteudoSite() {
       <FieldGroup title="Investimento — Curso de Barbeiro Profissional">
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <NumberField label="À vista / Pix / dinheiro (R$)" value={content.precoCursoAvista} step="0.01" onChange={(v) => update("precoCursoAvista", v)} />
-          <NumberField label="Total no cartão parcelado (R$)" value={content.precoCursoCartaoTotal} step="0.01" onChange={(v) => update("precoCursoCartaoTotal", v)} />
+          <NumberField label="Total anunciado no cartão (R$)" value={content.precoCursoCartaoTotal} step="0.01" onChange={(v) => update("precoCursoCartaoTotal", v)} />
+          <NumberField label="Valor enviado ao Mercado Pago (R$)" value={content.precoCursoCartaoEnviado} step="0.01" onChange={(v) => update("precoCursoCartaoEnviado", v)} />
           <NumberField label="Nº de parcelas no cartão" value={content.precoCursoCartaoParcelas} onChange={(v) => update("precoCursoCartaoParcelas", v)} />
           <NumberField label="Total no boleto (R$)" value={content.precoCursoBoletoTotal} step="0.01" onChange={(v) => update("precoCursoBoletoTotal", v)} />
           <NumberField label="Nº de parcelas no boleto" value={content.precoCursoBoletoParcelas} onChange={(v) => update("precoCursoBoletoParcelas", v)} />
@@ -2622,17 +2627,30 @@ function ConteudoSite() {
         <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.6rem" }}>
           Cada valor é independente, não é uma divisão automática. O boleto cobra só a 1ª parcela no checkout — as demais precisam ser enviadas manualmente pelo Financeiro (Cobrança avulsa) nas datas de vencimento.
         </p>
+        <p style={{ fontSize: "0.76rem", color: "#e8b97a", marginTop: "0.6rem" }}>
+          ⚠️ "Valor enviado ao Mercado Pago" está em R$ 743,49, mais baixo que o "Total anunciado" (R$ 897) de propósito —
+          compensa o juro real que o Mercado Pago está cobrando em 10x enquanto a taxa "sem juros" negociada não é
+          confirmada como ativa (o aluno acaba pagando o valor anunciado certinho, com o juro somado por cima na tela
+          dele). Assim que confirmarem que está ativa, troque "Valor enviado" pra ficar <strong>igual ao Total anunciado
+          (897)</strong> — senão a escola passa a receber a menos.
+        </p>
       </FieldGroup>
 
       <FieldGroup title="Investimento — Curso + Kit profissional">
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <NumberField label="À vista / Pix / dinheiro (R$)" value={content.precoKitAvista} step="0.01" onChange={(v) => update("precoKitAvista", v)} />
-          <NumberField label="Total no cartão parcelado (R$)" value={content.precoKitCartaoTotal} step="0.01" onChange={(v) => update("precoKitCartaoTotal", v)} />
+          <NumberField label="Total anunciado no cartão (R$)" value={content.precoKitCartaoTotal} step="0.01" onChange={(v) => update("precoKitCartaoTotal", v)} />
+          <NumberField label="Valor enviado ao Mercado Pago (R$)" value={content.precoKitCartaoEnviado} step="0.01" onChange={(v) => update("precoKitCartaoEnviado", v)} />
           <NumberField label="Nº de parcelas no cartão" value={content.precoKitCartaoParcelas} onChange={(v) => update("precoKitCartaoParcelas", v)} />
           <NumberField label="Kits em estoque" value={content.kitEstoque} onChange={(v) => update("kitEstoque", v)} />
         </div>
         <p style={{ fontSize: "0.76rem", color: "#5a5348", marginTop: "0.6rem" }}>
           Não tem boleto nesse plano. Quando o estoque chegar a 0, o site mostra "Temporariamente indisponível" no lugar do botão de matrícula — reponha aqui quando chegar kit novo.
+        </p>
+        <p style={{ fontSize: "0.76rem", color: "#e8b97a", marginTop: "0.6rem" }}>
+          ⚠️ Mesmo motivo do Curso, acima: "Valor enviado ao Mercado Pago" está em R$ 1.406,59, mais baixo que o "Total
+          anunciado" (R$ 1.697) de propósito. Troque pra ficar <strong>igual ao Total anunciado (1697)</strong> assim que
+          a taxa "sem juros" for confirmada como ativa.
         </p>
       </FieldGroup>
 

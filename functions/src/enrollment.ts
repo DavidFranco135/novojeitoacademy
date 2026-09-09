@@ -28,14 +28,29 @@ const COURSE_TITLE = "Formação Completa de Barbeiro Profissional";
 // Preços por plano/forma de pagamento — usados como fallback se o documento
 // siteContent/main ainda não tiver esses campos (editáveis em Admin → Conteúdo
 // do Site → Investimento, sem precisar mexer em código).
+//
+// precoCursoCartaoTotal/precoKitCartaoTotal = valor ANUNCIADO pro aluno (o que
+// aparece no site e na tela de pagamento — 10x de R$89,70 / R$169,70).
+//
+// precoCursoCartaoEnviado/precoKitCartaoEnviado = valor de verdade mandado pro
+// Mercado Pago nessa preferência. ⚠️ Estão mais baixos de propósito, calibrados
+// pra COMPENSAR o juro real que o Mercado Pago está cobrando em 10x hoje
+// (~20,65%, medido testando um pagamento de verdade), já que a taxa "sem juros"
+// negociada ainda não está confirmada como ativa na conta — o juro que o banco
+// do aluno soma por cima faz o total final bater com o valor anunciado. Assim
+// que confirmarem que a taxa está ativa, os campos "Enviado" em Admin →
+// Conteúdo do Site PRECISAM VOLTAR a ser iguais aos "Total" (897/1697) — senão
+// a escola passa a receber ~20% a menos do que devia.
 const DEFAULT_PRICES = {
   precoCursoAvista: 697.0,
   precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoEnviado: 743.49,
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
   precoKitCartaoTotal: 1697.0,
+  precoKitCartaoEnviado: 1406.59,
   precoKitCartaoParcelas: 10,
   parcelamentoCartaoAtivo: true,
 };
@@ -461,7 +476,10 @@ export const createPaymentPreference = onRequest(
         }
 
         if (formaPagamento === "cartao") {
-          precoFinal = isKit ? prices.precoKitCartaoTotal : prices.precoCursoCartaoTotal;
+          // Manda o valor "Enviado" (pode ser menor que o anunciado, calibrado
+          // pra compensar juro real do Mercado Pago — ver comentário acima de
+          // DEFAULT_PRICES), não o valor exibido pro aluno.
+          precoFinal = isKit ? (prices.precoKitCartaoEnviado ?? prices.precoKitCartaoTotal) : (prices.precoCursoCartaoEnviado ?? prices.precoCursoCartaoTotal);
           paymentMethodsConfig = {
             excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }],
             installments: isKit ? prices.precoKitCartaoParcelas : prices.precoCursoCartaoParcelas,

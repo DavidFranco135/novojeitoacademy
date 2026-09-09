@@ -28,12 +28,14 @@ const DEFAULT_CONTENT = {
   instrutorAlunosFormados: 400,
   // Dois planos — mesma formação, só muda se o material vem incluso (kit) ou não.
   precoCursoAvista: 697.0,
-  precoCursoCartaoTotal: 897.0,
+  precoCursoCartaoTotal: 897.0, // valor anunciado pro aluno
+  precoCursoCartaoEnviado: 743.49, // ⚠️ valor de verdade mandado ao Mercado Pago — ver enrollment.ts
   precoCursoCartaoParcelas: 10,
   precoCursoBoletoTotal: 900.0,
   precoCursoBoletoParcelas: 3,
   precoKitAvista: 1297.0,
-  precoKitCartaoTotal: 1697.0,
+  precoKitCartaoTotal: 1697.0, // valor anunciado pro aluno
+  precoKitCartaoEnviado: 1406.59, // ⚠️ idem — ver enrollment.ts
   precoKitCartaoParcelas: 10,
   kitEstoque: 3,
   // Controla se a opção "cartão parcelado" aparece nos dois planos. Painel Admin
